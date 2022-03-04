@@ -1,0 +1,2755 @@
+<?php defined('BASEPATH') or exit('No direct script access allowed');
+
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+
+class Reports extends MY_Controller
+{
+  public function __construct()
+  {
+    parent::__construct();
+
+    if (!$this->loggedIn) {
+      // $this->session->set_userdata('requested_page', $this->uri->uri_string());
+      // $this->sma->md('login');
+
+      loginPage();
+    }
+
+    $this->lang->admin_load('reports', $this->Settings->user_language);
+    $this->load->library('form_validation');
+    // $this->load->admin_model('reports_model');
+  }
+
+  public function balancesheet()
+  {
+    $startDate = ($this->input->get('start_date') ?? date('Y-m-') . '01');
+    $endDate   = ($this->input->get('end_date') ?? date('Y-m-d'));
+
+    $payments = $this->site->getPayments([], ['start_date' => $startDate, 'end_date' => $endDate]);
+
+    $cash = 0;
+
+    foreach ($payments as $payment) {
+      if ($payment->type == 'received') $cash += $payment->amount;
+      if ($payment->type == 'sent')     $cash -= $payment->amount;
+    }
+
+    $sheet = $this->ridintek->spreadsheet();
+
+    $sheet->loadFile(FCPATH . 'files/templates/BalanceSheet_Report.xlsx');
+    $sheet->getSheetByName('Sheet1');
+
+    $sheet->setCellValue('B1', $startDate);
+    $sheet->setCellValue('C1', $endDate);
+
+    $sheet->setCellValue('B5', $cash);
+
+    $name = $this->session->userdata('fullname');
+
+    $sheet->export('PrintERP-BalanceSheet-' . date('Ymd_His') . "-($name)");
+  }
+
+  public function cohs()
+  {
+    $startDate = ($this->input->get('start_date') ?? date('Y-m-') . '01');
+    $endDate   = ($this->input->get('end_date') ?? date('Y-m-d'));
+    $whIds     = $this->input->get('warehouse');
+
+    $sheet = $this->ridintek->spreadsheet();
+
+    $sheet->loadFile(FCPATH . 'files/templates/COH_Report.xlsx');
+    $sheet->getSheetByName('Sheet1');
+    $sheet->setTitle('Summary Report');
+
+    $A1DateGrid = [NULL, 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
+      'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH', 'AI', 'AJ'
+    ];
+    $dayName = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+
+    $lastDate = date('j', strtotime($endDate));
+    $billers = $this->site->getAllBillers();
+    $pg = 20000;
+    $r = 4;
+
+    foreach ($billers as $bl) {
+      if ($bl->name == 'Advertising') continue;
+      if ($bl->name == 'Baltis Inn') continue;
+      if ($bl->name == 'Lucretia Enterprise') continue;
+      if ($bl->name == 'Online') continue; // Transfer only. No Setoran COH.
+      if ($bl->name == 'Salatiga') continue; // Inactive
+
+      $sheet->setCellValue('A' . $r, $bl->name);
+      $sheet->setCellValue('C' . $r, "=COUNTIF(F{$r}:AJ{$r},\"=X\")");
+      $sheet->setCellValue('D' . $r, "=IF(C{$r}=0,\$C\$1*{$pg}/LEFT(\$B\$2,SEARCH(\":\",\$B\$2)-1),-C{$r}*{$pg})");
+
+      $mutations = $this->site->getBankMutations([
+        'biller_id' => $bl->id,
+        'start_date' => $startDate,
+        'end_date' => $endDate
+      ]);
+
+      for ($x = 1; $x <= $lastDate; $x++) {
+        $isChecked = FALSE;
+        $mutationStatus = NULL;
+        $dayCode = date('D', strtotime(date('Y-m-', strtotime($endDate)) . $x));
+        $dayIndex = date('w', strtotime(date('Y-m-', strtotime($endDate)) . $x));
+
+        // Monday & Thu allowed only.
+        if ($dayCode != 'Mon' && $dayCode != 'Thu') continue;
+
+        $sheet->setCellValue($A1DateGrid[$x] . '2', $dayName[$dayIndex]);
+
+        foreach ($mutations as $mut) {
+          if (date('j', strtotime($mut->date)) == $x) {
+            $isChecked = TRUE;
+            $mutationStatus = $mut->status;
+            break;
+          }
+        }
+
+        if ($isChecked) {
+          switch ($mutationStatus) {
+            case 'paid':
+              $sheet->setCellValue($A1DateGrid[$x] . $r, 'PA');
+              break;
+            case 'waiting_transfer':
+              $sheet->setCellValue($A1DateGrid[$x] . $r, 'WT');
+              break;
+            case 'expired':
+              $sheet->setCellValue($A1DateGrid[$x] . $r, 'EX');
+          }
+        } else {
+          $sheet->setCellValue($A1DateGrid[$x] . $r, 'X');
+        }
+      }
+
+      $r++;
+    }
+
+    $sheet->getSheetByName('Sheet2');
+    $sheet->setTitle('Mutation List');
+
+    $mutations = $this->site->getBankMutations([
+      'start_date' => $startDate,
+      'end_date' => $endDate
+    ]);
+
+    $r = 2;
+
+    foreach ($mutations as $mut) {
+      $pic = $this->site->getUserByID($mut->created_by);
+      $biller = $this->site->getBillerByID($mut->biller_id);
+
+      $sheet->setCellValue('A' . $r, $mut->date);
+      $sheet->setCellValue('B' . $r, $mut->reference);
+      $sheet->setCellValue('C' . $r, $mut->from_bank_name);
+      $sheet->setCellValue('D' . $r, $mut->to_bank_name);
+      $sheet->setCellValue('E' . $r, htmlRemove($mut->note));
+      $sheet->setCellValue('F' . $r, filterDecimal($mut->amount));
+      $sheet->setCellValue('G' . $r, $pic->fullname);
+      $sheet->setCellValue('H' . $r, lang($mut->paid_by));
+      $sheet->setCellValue('I' . $r, $biller->name);
+      $sheet->setCellValue('J' . $r, lang($mut->status));
+
+      $r++;
+    }
+
+    $sheet->getSheet(0);
+    $sheet->setColumnAutoWidth('A');
+    $sheet->setColumnAutoWidth('D');
+
+    $sheet->getSheet(1);
+    $sheet->setColumnAutoWidth('A');
+    $sheet->setColumnAutoWidth('B');
+    // $sheet->setColumnAutoWidth('M');
+
+    $sheet->getSheet(0);
+    $sheet->setCellValue('A1', date('F Y', strtotime($startDate)));
+    $sheet->setBold('A1');
+
+    $name = $this->session->userdata('fullname');
+
+    $sheet->export('PrintERP-Setoran_COH-' . date('Ymd_His') . "-($name)");
+  }
+
+  /**
+   * New Sales Reports
+   */
+  public function sales()
+  {
+    ini_set('max_input_time', -1);
+    set_time_limit(-1);
+
+    if ($args = func_get_args()) {
+      $method = __FUNCTION__ . '_' . $args[0];
+
+      if (method_exists($this, $method)) {
+        array_shift($args);
+        return call_user_func_array([$this, $method], $args);
+      }
+    }
+
+    $startDate    = $this->input->get('start_date') ?? date('Y-m-') . '01';
+    $endDate      = $this->input->get('end_date') ?? date('Y-m-d');
+
+    $sheet = $this->ridintek->spreadsheet();
+
+    $sheet->loadFile(FCPATH . 'files/templates/Sales_Report.xlsx');
+    $sheet->getSheetByName('Sheet1');
+    $sheet->setCellValue('A1', date('F Y'));
+
+    $users = $this->site->getUsers();
+
+    $sales = $this->site->getSales([
+      'start_date' => $startDate,
+      'end_date' => $endDate
+    ]);
+
+    $saleItems = $this->site->getSaleItems([
+      'start_date' => $startDate,
+      'end_date' => $endDate
+    ]);
+
+    $pg = 1000; // Penalty
+
+    $r1 = 4; // Summary
+    $r2 = 3; // Sales
+    $r3 = 3; // Sale Items
+    $r4 = 3; // Piutang Sales
+
+    foreach ($users as $user) {
+      if ($user->username == 'owner') continue; // Ignore Owner Account.
+      if ($user->username == 'w2p') continue; // Ignore Web2Print Account.
+
+      if (!$sales && !$saleItems) continue;
+
+      $warehouse = $this->site->getWarehouseByID($user->warehouse_id ?? $this->Settings->default_warehouse);
+
+      if ($warehouse->code == 'ADV') continue; // Ignore Advertising.
+      if ($warehouse->code == 'BAL') continue; // Ignore Baltis Inn.
+      if ($warehouse->code == 'LUC') continue; // Ignore Lucretai.
+
+      $sheet->setCellValue("A{$r1}", $user->fullname);
+      $sheet->setCellValue("B{$r1}", $warehouse->name);
+
+      $overGet = 0;
+
+      $sheet->getSheetByName('Sheet2'); // Goto sheet2.
+
+      foreach ($sales as $sale) {
+        if ($sale->created_by != $user->id) continue;
+        $saleJS = getJSON($sale->json_data);
+
+        $cashier = $this->site->getUserByID($saleJS->cashier_by ?? 0);
+        $payments = $this->site->getPayments(['sale_id' => $sale->id]);
+        $custGroup = $this->site->getCustomerGroupByCustomerID($sale->customer_id);
+        $productionStatus = '';
+        $getStatus = '';
+
+        if ($sale->status == 'preparing') {
+          if ($payments) {
+            if (strtotime(date('Y-m-d H:i:s')) > strtotime('+1.5 hours', strtotime($payments[0]->date))) {
+              $getStatus = 'over_get';
+              $overGet++;
+            }
+          }
+        } else {
+          $saleJS = getJSON($sale->json_data);
+
+          if (!empty($saleJS->waiting_production_date)) {
+            if ($payments) {
+              if (strtotime($saleJS->waiting_production_date) > strtotime('+1.5 hours', strtotime($payments[0]->date))) {
+                $getStatus = 'over_get';
+                $overGet++;
+              }
+            }
+          }
+
+          if (!empty($saleJS->est_complete_date)) {
+            $completedDates = [];
+
+            foreach ($saleItems as $saleItem) {
+              if ($saleItem->sale_id != $sale->id) continue;
+
+              $saleItemJS = getJSON($saleItem->json_data);
+
+              $completeDates[] = ($saleItemJS->completed_at ?? $saleJS->updated_at);
+            }
+
+            $completedAt = getLongestDateTime($completedDates);
+
+            if (isCompleted($sale->status)) {
+              if (strtotime($completedAt) > strtotime($saleJS->est_complete_date)) {
+                $productionStatus = 'over_due';
+              }
+            } else {
+              if (strtotime(date('Y-m-d H:i:s')) > strtotime($saleJS->est_complete_date)) {
+                $productionStatus = 'over_due';
+              }
+            }
+          }
+        }
+
+        $sheet->setCellValue("A{$r2}", $sale->date);
+        $sheet->setCellValue("B{$r2}", $sale->reference);
+        $sheet->setCellValue("C{$r2}", ($payments ? $payments[0]->date : ''));
+        $sheet->setCellValue("D{$r2}", lang($sale->payment_status));
+        $sheet->setCellValue("E{$r2}", $sale->paid);
+        $sheet->setCellValue("F{$r2}", $sale->grand_total);
+        $sheet->setCellValue("G{$r2}", ($saleJS->est_complete_date ?? ''));
+        $sheet->setCellValue("H{$r2}", ($saleJS->source ?? ''));
+        $sheet->setCellValue("I{$r2}", ($sale->use_tb ? $sale->warehouse : ''));
+        $sheet->setCellValue("J{$r2}", $sale->customer);
+        $sheet->setCellValue("K{$r2}", $custGroup->name);
+        $sheet->setCellValue("L{$r2}", lang($sale->status));
+        $sheet->setCellValue("M{$r2}", ($saleJS->waiting_production_date ?? ''));
+        $sheet->setCellValue("N{$r2}", lang($productionStatus));
+        $sheet->setCellValue("O{$r2}", lang($getStatus));
+        $sheet->setCellValue("P{$r2}", $sale->biller);
+        $sheet->setCellValue("Q{$r2}", $user->fullname);
+        $sheet->setCellValue("R{$r2}", ($cashier ? $cashier->fullname : ''));
+
+        $r2++;
+      }
+
+      $sheet->getSheetByName('Sheet3'); // Goto sheet3.
+
+      $overComplete = 0;
+
+      foreach ($saleItems as $saleItem) {
+        $saleItemJS = getJSON($saleItem->json_data);
+
+        if ($saleItemJS->operator_id != $user->id) continue;
+
+        $overProduction = FALSE;
+
+        if (!empty($saleItemJS->due_date)) {
+          if (isCompleted($saleItemJS->status)) {
+            $completedDate = ($saleItemJS->completed_at ?? $saleItemJS->updated_at);
+
+            if (strtotime($completedDate) > strtotime($saleItemJS->due_date)) {
+              $overProduction = TRUE;
+              $overComplete++;
+            }
+          } else {
+            if (strtotime(date('Y-m-d H:i:s')) > strtotime($saleItemJS->due_date)) {
+              $overProduction = TRUE;
+              $overComplete++;
+            }
+          }
+        }
+
+        $sale = $this->site->getSaleByID($saleItem->sale_id);
+
+        $payments = $this->site->getPayments(['sale_id' => $sale->id]);
+
+        $sheet->setCellValue("A{$r3}", $saleItem->date);
+        $sheet->setCellValue("B{$r3}", $sale->reference);
+        $sheet->setCellValue("C{$r3}", $saleItem->product_code);
+        $sheet->setCellValue("D{$r3}", $saleItem->product_name);
+        $sheet->setCellValue("E{$r3}", $saleItem->price);
+        $sheet->setCellValue("F{$r3}", $saleItem->quantity);
+        $sheet->setCellValue("G{$r3}", $saleItem->finished_qty);
+        $sheet->setCellValue("H{$r3}", $saleItem->subtotal);
+        $sheet->setCellValue("I{$r3}", ($payments ? $payments[0]->date : ''));
+        $sheet->setCellValue("J{$r3}", ($saleItemJS->due_date ?? ''));
+        $sheet->setCellValue("K{$r3}", ($saleItemJS->completed_at ?? $saleItemJS->updated_at ?? ''));
+        $sheet->setCellValue("L{$r3}", $sale->customer);
+        $sheet->setCellValue("M{$r3}", lang($saleItemJS->status));
+        $sheet->setCellValue("N{$r3}", ($overProduction ? lang('over_due') : ''));
+        $sheet->setCellValue("O{$r3}", $sale->warehouse);
+        $sheet->setCellValue("P{$r3}", $user->fullname);
+
+        $r3++;
+      }
+
+      $overPayment = 0;
+
+      // Over-Payment
+      foreach ($sales as $sale) {
+        $saleJS = getJSON($sale->json_data);
+
+        if (empty($saleJS->cashier_by) || $saleJS->cashier_by != $user->id) continue;
+        if ($saleJS->source == 'W2P') continue;
+
+        $payments = $this->site->getSalePayments($sale->id);
+
+        if ($payments) {
+          foreach ($payments as $payment) {
+            if ($payment->method == 'Cash') {
+              $paymentDate = new DateTime($payment->date);
+              $saleDate = new DateTime($sale->date);
+
+              $hour = $saleDate->diff($paymentDate)->format('%r%h');
+
+              if ($hour > 3) $overPayment++; // Over 3 hours then POTONG GAJI MEENN !!!
+            }
+          }
+        }
+      }
+      // End Over-Payment
+
+      $sheet->getSheetByName('Sheet1'); // Back to sheet1.
+
+      $sheet->setCellValue("C{$r1}", $overComplete);
+      $sheet->setCellValue("D{$r1}", $overGet);
+      $sheet->setCellValue("E{$r1}", $overPayment);
+      $sheet->setCellValue("F{$r1}", "=C{$r1}+D{$r1}+E{$r1}");
+      $sheet->setCellValue("G{$r1}", "=IF(F{$r1}>0,F{$r1}*-{$pg},(\$F$1*{$pg})/(LEFT(\$B$2, SEARCH(\":\",\$B$2)-1)))");
+
+      $r1++;
+    }
+
+    $sheet->getSheetByName('Sheet1')->setTitle('Report Summary');
+    $sheet->setColumnAutoWidth('A');
+    $sheet->setColumnAutoWidth('B');
+    $sheet->setColumnAutoWidth('C');
+    $sheet->setColumnAutoWidth('D');
+    $sheet->setColumnAutoWidth('E');
+    $sheet->setColumnAutoWidth('F');
+    $sheet->setColumnAutoWidth('G');
+    $sheet->setColumnAutoWidth('H');
+    $sheet->setColumnAutoWidth('I');
+    $sheet->setColumnAutoWidth('J');
+
+    $sheet->getSheetByName('Sheet2')->setTitle('Sales Report');
+    $sheet->setColumnAutoWidth('A');
+    $sheet->setColumnAutoWidth('B');
+    $sheet->setColumnAutoWidth('C');
+    $sheet->setColumnAutoWidth('D');
+    $sheet->setColumnAutoWidth('E');
+    $sheet->setColumnAutoWidth('F');
+    $sheet->setColumnAutoWidth('G');
+    $sheet->setColumnAutoWidth('H');
+    $sheet->setColumnAutoWidth('I');
+    $sheet->setColumnAutoWidth('J');
+    $sheet->setColumnAutoWidth('K');
+    $sheet->setColumnAutoWidth('L');
+    $sheet->setColumnAutoWidth('M');
+    $sheet->setColumnAutoWidth('N');
+    $sheet->setColumnAutoWidth('O');
+    $sheet->setColumnAutoWidth('P');
+    $sheet->setColumnAutoWidth('Q');
+
+    $sheet->getSheetByName('Sheet3')->setTitle('Sale Items Report');
+    $sheet->setColumnAutoWidth('A');
+    $sheet->setColumnAutoWidth('B');
+    $sheet->setColumnAutoWidth('C');
+    $sheet->setColumnAutoWidth('D');
+    $sheet->setColumnAutoWidth('E');
+    $sheet->setColumnAutoWidth('F');
+    $sheet->setColumnAutoWidth('G');
+    $sheet->setColumnAutoWidth('H');
+    $sheet->setColumnAutoWidth('I');
+    $sheet->setColumnAutoWidth('J');
+    $sheet->setColumnAutoWidth('K');
+    $sheet->setColumnAutoWidth('L');
+    $sheet->setColumnAutoWidth('M');
+    $sheet->setColumnAutoWidth('N');
+    $sheet->setColumnAutoWidth('O');
+    $sheet->setColumnAutoWidth('P');
+
+    $sheet->getSheet(0)->setBold('A1');
+
+    $name = $this->session->userdata('fullname');
+
+    $sheet->export('PrintERP-SalesReport-' . date('Ymd_His') . "-($name)");
+  }
+
+  /**
+   * Sales Piutang Report
+   */
+  public function sales_piutang()
+  {
+    $startDate = $this->input->get('start_date') ?? date('Y-m-') . '01';
+    $endDate   = $this->input->get('end_date') ?? date('Y-m-d');
+
+    $sheet = $this->ridintek->spreadsheet();
+
+    $sheet->loadFile(FCPATH . 'files/templates/Sales_Piutang.xlsx');
+    $sheet->getSheetByName('Sheet1');
+
+    $sales = $this->site->getSales(['start_date' => $startDate, 'end_date' => $endDate]);
+
+    $r1 = 3;
+
+    foreach ($sales as $sale) {
+      if ($sale->balance <= 0) continue;
+
+      $customer = $this->site->getCustomerByID($sale->customer_id);
+      $customerGroup = $this->site->getCustomerGroupByID($customer->customer_group_id);
+      $pic = $this->site->getUserByID($sale->created_by);
+
+      $sheet->setCellValue("A{$r1}", $sale->date);
+      $sheet->setCellValue("B{$r1}", $sale->reference);
+      $sheet->setCellValue("C{$r1}", $sale->customer);
+      $sheet->setCellValue("D{$r1}", $customerGroup->name);
+      $sheet->setCellValue("E{$r1}", $sale->biller);
+      $sheet->setCellValue("F{$r1}", $sale->warehouse);
+      $sheet->setCellValue("G{$r1}", lang($sale->status));
+      $sheet->setCellValue("H{$r1}", lang($sale->payment_status));
+      $sheet->setCellValue("I{$r1}", $sale->paid);
+      $sheet->setCellValue("J{$r1}", $sale->grand_total);
+      $sheet->setCellValue("K{$r1}", $sale->balance);
+      $sheet->setCellValue("L{$r1}", $pic->fullname);
+
+      $r1++;
+    }
+
+    // Sales Payments Report
+    $sheet->getSheetByName('Sheet2');
+
+    $r2 = 3;
+
+    $payments = $this->site->getPayments([], [
+      'start_date' => $startDate, 'end_date' => $endDate, 'has' => 'sale_id'
+    ]);
+
+    foreach ($payments as $payment) {
+      $bank = $this->site->getBankByID($payment->bank_id);
+      $pic = $this->site->getUserByID($payment->created_by);
+      $sale = $this->site->getSaleByID($payment->sale_id);
+
+      $isOverPayment = (
+        (strtotime('+3 hour', strtotime($sale->date)) < strtotime($payment->date)) &&
+        ($payment->method == 'Cash')
+      );
+
+      $sheet->setCellValue("A{$r2}", $payment->date);
+      $sheet->setCellValue("B{$r2}", $payment->reference);
+      $sheet->setCellValue("C{$r2}", $bank->name);
+      $sheet->setCellValue("D{$r2}", $payment->method);
+      $sheet->setCellValue("E{$r2}", $sale->biller);
+      $sheet->setCellValue("F{$r2}", $payment->amount);
+      $sheet->setCellValue("G{$r2}", lang($payment->type));
+      $sheet->setCellValue("H{$r2}", ($isOverPayment ? 'Yes' : 'No'));
+      $sheet->setCellValue("I{$r2}", ($pic ? $pic->fullname : ''));
+
+      $r2++;
+    }
+
+    $sheet->getSheetByName('Sheet2')->setTitle('Sales Payment Report');
+    $sheet->setColumnAutoWidth('A');
+    $sheet->setColumnAutoWidth('B');
+    $sheet->setColumnAutoWidth('C');
+    $sheet->setColumnAutoWidth('D');
+    $sheet->setColumnAutoWidth('E');
+    $sheet->setColumnAutoWidth('F');
+    $sheet->setColumnAutoWidth('G');
+    $sheet->setColumnAutoWidth('H');
+    $sheet->setColumnAutoWidth('I');
+
+    $sheet->getSheetByName('Sheet1')->setTitle('Piutang Sales Report');
+    $sheet->setColumnAutoWidth('A');
+    $sheet->setColumnAutoWidth('B');
+    $sheet->setColumnAutoWidth('C');
+    $sheet->setColumnAutoWidth('D');
+    $sheet->setColumnAutoWidth('E');
+    $sheet->setColumnAutoWidth('F');
+    $sheet->setColumnAutoWidth('G');
+    $sheet->setColumnAutoWidth('H');
+
+    $sheet->setCellValue('A1', date('F Y', strtotime($startDate)));
+
+    $name = $this->session->userdata('fullname');
+
+    $sheet->export('PrintERP-SalesPiutang-' . date('Ymd_His') . "-($name)");
+  }
+
+  public function stockOpnames()
+  {
+    $startDate = $this->input->get('start_date') ?? date('Y-m-') . '01';
+    $endDate   = $this->input->get('end_date') ?? date('Y-m-d');
+
+    $sheet = $this->ridintek->spreadsheet();
+
+    $sheet->loadFile(FCPATH . 'files/templates/StockOpname_Report.xlsx');
+    $sheet->getSheetByName('Sheet1');
+
+    $stockOpnames = $this->site->getstockOpnames(['start_date' => $startDate, 'end_date' => $endDate]);
+
+    foreach ($stockOpnames as $so)
+    {
+
+    }
+  }
+
+  public function getPaymentsReport()
+  {
+    $this->sma->checkPermissions('payments', true);
+
+    $users       = $this->input->get('user');
+    $number      = $this->input->get('number');
+    $banks       = $this->input->get('bank');
+    $billers     = $this->input->get('biller');
+    $payment_ref = $this->input->get('payment_ref');
+    $paid_by     = $this->input->get('paid_by');
+    $start_date  = $this->input->get('start_date');
+    $end_date    = $this->input->get('end_date');
+    $xls         = ($this->input->get('xls') == 1 ? TRUE : FALSE);
+
+    if ($start_date) {
+      $start_date = $start_date . ' 00:00:00';
+      $end_date   = $end_date . ' 23:59:59';
+    }
+
+    if (!$this->Owner && !$this->Admin && !$this->session->userdata('view_right')) {
+      $users[] = $this->session->userdata('user_id');
+    }
+    if ($this->session->userdata('biller_id')) {
+      $billers[] = $this->session->userdata('biller_id');
+    }
+    if (!$xls) { // WEB
+      $this->load->library('datatables');
+      $this->datatables
+        ->select("payments.date as date,
+        payments.reference as payment_ref,
+        users.username as pic_id,
+        users.fullname as pic_name,
+        billers.name as biller_name,
+        banks.name as bank_name, banks.holder as acc_holder,
+        banks.number as acc_number,
+        payments.method as payment_method,
+        payments.note as payment_note,
+        payments.amount as payment_amount,
+        payments.type as payment_type, payments.id as id")
+        ->from('payments')
+        ->join('sales', 'sales.id=payments.sale_id', 'left')
+        ->join('purchases', 'purchases.id=payments.purchase_id', 'left')
+        ->join('transfers', 'transfers.id=payments.transfer_id', 'left')
+        ->join('users', 'users.id=payments.created_by', 'left')
+        ->join('billers', 'billers.id=users.biller_id', 'left')
+        ->join('banks', 'banks.id=payments.bank_id', 'left')
+        ->group_by('payments.id');
+
+      if ($users) {
+        $this->datatables->group_start();
+        foreach ($users as $user) {
+          $this->datatables->or_where('payments.created_by', $user);
+        }
+        $this->datatables->group_end();
+      }
+      if ($number) {
+        $this->datatables->like('banks.number', $number, 'both');
+      }
+      if ($banks) {
+        $this->datatables->group_start();
+        foreach ($banks as $bank) {
+          $this->datatables->or_where('payments.bank_id', $bank);
+        }
+        $this->datatables->group_end();
+      }
+      if ($billers) {
+        $this->datatables->group_start();
+        foreach ($billers as $biller) {
+          $this->datatables->or_where('banks.biller_id', $biller);
+        }
+        $this->datatables->group_end();
+      }
+      if ($paid_by) {
+        $this->datatables->where('payments.method', $paid_by);
+      }
+      if ($payment_ref) {
+        $this->datatables->like('payments.reference', $payment_ref, 'both');
+      }
+      if ($start_date) {
+        $this->datatables->where('payments.date BETWEEN "' . $start_date . '" and "' . $end_date . '"');
+      }
+
+      echo $this->datatables->generate();
+    } else if ($xls) { // EXPORT EXCEL
+      $this->db
+        ->select("DATE_FORMAT(payments.date, '%Y-%m-%d %T') as date,
+        payments.reference as payment_ref,
+        users.username as pic_id,
+        users.fullname as pic_name,
+        billers.name as biller_name,
+        banks.name as bank_name, banks.holder as acc_holder,
+        banks.number as acc_number,
+        payments.method as method,
+        payments.note as note,
+        payments.amount as amount,
+        payments.type as type")
+        ->from('payments')
+        ->join('sales', 'payments.sale_id=sales.id', 'left')
+        ->join('purchases', 'payments.purchase_id=purchases.id', 'left')
+        ->join('transfers', 'payments.transfer_id=transfers.id', 'left')
+        ->join('users', 'users.id=payments.created_by', 'left')
+        ->join('billers', 'users.biller_id=billers.id', 'left')
+        ->join('banks', 'payments.bank_id=banks.id', 'left')
+        ->order_by('payments.date desc');
+
+      if ($users) {
+        $this->db->group_start();
+        foreach ($users as $user) {
+          $this->db->or_where('payments.created_by', $user);
+        }
+        $this->db->group_end();
+      }
+      if ($number) {
+        $this->db->like('banks.number', $number, 'both');
+      }
+      if ($banks) {
+        $this->db->group_start();
+        foreach ($banks as $bank) {
+          $this->db->or_where('payments.bank_id', $bank);
+        }
+        $this->db->group_end();
+      }
+      if ($billers) {
+        $this->db->group_start();
+        foreach ($billers as $biller) {
+          $this->db->or_where('banks.biller_id', $biller);
+        }
+        $this->db->group_end();
+      }
+      if ($paid_by) {
+        $this->db->where('payments.method', $paid_by);
+      }
+      if ($payment_ref) {
+        $this->db->like('payments.reference', $payment_ref, 'both');
+      }
+      if ($start_date) {
+        $this->db->where('payments.date BETWEEN "' . $start_date . '" and "' . $end_date . '"');
+      }
+
+      $q = $this->db->get();
+      if ($q->num_rows() > 0) {
+        foreach (($q->result()) as $row) {
+          $payments[] = $row;
+        }
+      } else {
+        $payments = null;
+      }
+
+      if (!empty($payments)) {
+        $excel = $this->ridintek->spreadsheet();
+        $excel->setTitle(lang('payments_report'));
+        $excel->setCellValue('A1', lang('date'));
+        $excel->setCellValue('B1', lang('payment_reference'));
+        $excel->setCellValue('C1', lang('pic_id'));
+        $excel->setCellValue('D1', lang('pic_name'));
+        $excel->setCellValue('E1', lang('biller'));
+        $excel->setCellValue('F1', lang('bank_name'));
+        $excel->setCellValue('G1', lang('account_holder'));
+        $excel->setCellValue('H1', lang('account_no'));
+        $excel->setCellValue('I1', lang('paid_by'));
+        $excel->setCellValue('J1', lang('note'));
+        $excel->setCellValue('K1', lang('amount_received'));
+        $excel->setCellValue('L1', lang('amount_sent'));
+        $excel->setCellValue('M1', lang('type'));
+
+        $row   = 2;
+        $receivedTotal = 0;
+        $sentTotal = 0;
+
+        foreach ($payments as $payment) {
+          $receivedAmount = ($payment->type == 'received' ? $payment->amount : '');
+          $sentAmount     = ($payment->type == 'sent'     ? $payment->amount : '');
+
+          $excel->setCellValue('A' . $row, $this->sma->hrld($payment->date));
+          $excel->setCellValue('B' . $row, $payment->payment_ref);
+          $excel->setCellValue('C' . $row, $payment->pic_id);
+          $excel->setCellValue('D' . $row, $payment->pic_name);
+          $excel->setCellValue('E' . $row, $payment->biller_name);
+          $excel->setCellValue('F' . $row, $payment->bank_name);
+          $excel->setCellValue('G' . $row, $payment->acc_holder);
+          $excel->setCellValue('H' . $row, $payment->acc_number, DataType::TYPE_STRING);
+          $excel->setCellValue('I' . $row, lang($payment->method));
+          $excel->setCellValue('J' . $row, htmlRemove($payment->note));
+          $excel->setCellValue('K' . $row, $receivedAmount);
+          $excel->setCellValue('L' . $row, $sentAmount);
+          $excel->setCellValue('M' . $row, $payment->type);
+
+          $receivedTotal += ($payment->type == 'received' ? $payment->amount : 0);
+          $sentTotal     += ($payment->type == 'sent'     ? $payment->amount : 0);
+          $row++;
+        }
+
+        $excel->setCellValue('K' . $row, $receivedTotal);
+        $excel->setCellValue('L' . $row, $sentTotal);
+        $excel->setCellValue('K' . ($row + 1), 'Grand Total');
+        $excel->setCellValue('L' . ($row + 1), $receivedTotal - $sentTotal);
+
+        $excel->setColumnAutoWidth('A');
+        $excel->setColumnAutoWidth('B');
+        $excel->setColumnAutoWidth('C');
+        $excel->setColumnAutoWidth('D');
+        $excel->setColumnAutoWidth('E');
+        $excel->setColumnAutoWidth('F');
+        $excel->setColumnAutoWidth('G');
+        $excel->setColumnAutoWidth('H');
+        $excel->setColumnAutoWidth('I');
+        $excel->setColumnAutoWidth('J');
+        $excel->setColumnAutoWidth('K');
+        $excel->setColumnAutoWidth('L');
+        $excel->setColumnAutoWidth('M');
+
+        $name = $this->session->userdata('fullname');
+
+        $excel->export('PaymentReports-' . date('Ymd_His') . "-($name)");
+      }
+
+      $this->session->set_flashdata('error', lang('nothing_found'));
+      redirect($_SERVER['HTTP_REFERER']);
+    }
+  }
+
+  /**
+   * Get income statement report.
+   * @todo Only 2 params required. start_date and end_date.
+   */
+  public function getIncomeStatementReport()
+  {
+    $biller_ids = $this->input->get('biller'); // If biller not specified, then all billers except lucretia
+    $start_date = ($this->input->get('start_date') ?? NULL);
+    $end_date   = ($this->input->get('end_date') ?? NULL);
+    $xls        = ($this->input->get('xls') == 1 ? TRUE : FALSE);
+
+    $opt = [];
+    $lucretaiMode = FALSE;
+
+    if ($start_date) $opt['start_date'] = $start_date;
+    if ($end_date)   $opt['end_date']   = $end_date;
+
+    if (!$start_date) $opt = getCurrentMonthPeriod(); // Default current month period if no param.
+
+    // Convert comma delimited string to array ("2,5" => [2, 5]).
+    $biller_ids = (!empty($biller_ids) && !is_array($biller_ids) ? explode(',', $biller_ids) : $biller_ids);
+
+    if ($biller_ids) { // $biller_ids MUST BE ARRAY DATATYPE.
+      $billerLucretai = $this->site->getBillerByName('Lucretia Enterprise');
+
+      if (gettype($biller_ids) !== 'array' && $biller_ids == $billerLucretai->id) {
+        $lucretaiMode = TRUE;
+      } else if (is_array($biller_ids)) {
+        foreach ($biller_ids as $biller_id) {
+          if ($biller_id == $billerLucretai->id) $lucretaiMode = TRUE;
+        }
+      }
+
+      $opt['biller_id'] = $biller_ids;
+    } else {
+      $lucretaiMode = FALSE;
+      $billers = $this->site->getAllBillers();
+      $opt['biller_id'] = [];
+
+      foreach ($billers as $biller) {
+        if (!$xls) {
+          if (strcasecmp($biller->name, 'Lucretia Enterprise') == 0) continue; // Ignore Lucretia.
+        }
+
+        $opt['biller_id'][] = $biller->id;
+      }
+    }
+
+
+    if (!$xls) { // Send to DataTables.
+      sendJSON([
+        'error' => 0,
+        'billers' => $opt['biller_id'],
+        'lucmode' => ($lucretaiMode ? 1 : 0),
+        'period' => [
+          'start_date' => $opt['start_date'],
+          'end_date'   => $opt['end_date']
+        ],
+        'data' => getIncomeStatementReport($opt) // Helper
+      ]);
+    } else {
+      $incomeStatementSheet = [];
+
+      foreach ($opt['biller_id'] as $biller_id) {
+        $biller = $this->site->getBillerByID($biller_id);
+
+        $incomeStatementSheet[] = [
+          'biller' => $biller->name,
+          'data' => getIncomeStatementReport([
+            'biller_id'  => $biller_id,
+            'start_date' => $opt['start_date'],
+            'end_date'   => $opt['end_date']
+          ])
+        ];
+      }
+
+      $excel = $this->ridintek->spreadsheet();
+
+      $excel->setTitle('Income Statement');
+      $excel->setCellValue('A1', 'Reference');
+
+      $r = 2;
+
+      // Vertical Columns First.
+      foreach ($incomeStatementSheet[0]['data'] as $is) {
+        $excel->setCellValue('A' . $r, $is['name']);
+
+        if (!empty($is['data']) && is_array($is['data'])) {
+          foreach ($is['data'] as $subData) {
+            $r++;
+
+            $excel->setCellValue('A' . $r, "--> " . $subData['name']);
+          }
+        }
+
+        $r++;
+      }
+
+      $excel->setColumnAutoWidth('A');
+
+      $col = 66; // 66 = B
+
+      foreach ($incomeStatementSheet as $iss) {
+        $r = 2;
+
+        $excel->setCellValue(chr($col) . ($r - 1), $iss['biller']);
+
+        foreach ($iss['data'] as $is) {
+          $excel->setCellValue(chr($col) . $r, round($is['amount']));
+
+          if (!empty($is['data']) && is_array($is['data'])) {
+            foreach ($is['data'] as $subData) {
+              $r++;
+
+              $excel->setCellValue(chr($col) . $r, round($subData['amount']));
+            }
+          }
+
+          $r++;
+        }
+
+        $excel->setColumnAutoWidth(chr($col)); // B, C, D, ...
+
+        $col++;
+      }
+
+      $name = $this->session->userdata('fullname');
+
+      $excel->export('IncomeStatement-' . date('Ymd_His') . "-($name)");
+    }
+  }
+
+  /**
+   * NEW: Get inventory balance data for DataTables.
+   */
+  public function getInventoryBalance()
+  {
+    $clausesBegin = '';
+    $clauses = '';
+
+    $categoryId  = $this->input->get('category');
+    $itemName    = $this->input->get('item_name');
+    $startDate   = $this->input->get('start_date');
+    $endDate     = $this->input->get('end_date');
+    $warehouseId = $this->input->get('warehouse');
+
+    $lucretaiMode = FALSE;
+    $warehouse = $this->site->getWarehouseByID($warehouseId);
+
+    if ($warehouse && $warehouse->code == 'LUC') {
+      $lucretaiMode = TRUE;
+    }
+
+    if ($startDate) {
+      $endDate = ($endDate ?? date('Y-m-d'));
+      $startDate = $startDate . ' 00:00:00';
+      $endDate   = $endDate . ' 23:59:59';
+
+      $clausesBegin .= "AND date < '{$startDate}'";
+      $clauses .= "AND date BETWEEN '{$startDate}' AND '{$endDate}'";
+    } else {
+      $current_date = date('Y-m-d') . ' 00:00:00';
+      $clausesBegin .= "AND date < '{$current_date}'";
+    }
+
+    if ($warehouseId) {
+      $clausesBegin .= " AND warehouse_id = {$warehouseId}";
+      $clauses .= " AND warehouse_id = {$warehouseId}";
+    }
+
+    if ($categoryId) {
+      $clausesBegin .= " AND category_id = {$categoryId}";
+      $clauses .= " AND category_id = {$categoryId}";
+    }
+
+    //* QUERIES
+    $query = "products.id AS product_id,
+      products.code AS product_code,
+      products.name AS product_name,
+      units.code AS product_unit,";
+
+    //* QUERY BEGINNING
+    if ($startDate) {
+      $query .= "(COALESCE(stock_begin_recv.total, 0) - COALESCE(stock_begin_sent.total, 0)) AS beginning,";
+    } else {
+      $query .= "'0' AS beginning,";
+    }
+
+    //* QUERY INCREASE
+    $query .= "COALESCE(stock_recv.total, 0) AS increase,";
+
+    //* QUERY DECREASE
+    $query .= "COALESCE(stock_sent.total, 0) AS decrease,";
+
+    //* QUERY BALANCE
+    if ($startDate) {
+      $query .= "(COALESCE(stock_begin_recv.total, 0) - COALESCE(stock_begin_sent.total, 0) + COALESCE(stock_recv.total, 0) - COALESCE(stock_sent.total, 0)) AS balance,";
+    } else {
+      $query .= "(COALESCE(stock_recv.total, 0) - COALESCE(stock_sent.total, 0)) AS balance,";
+    }
+
+    //* QUERY AVG COST / MARK-ON PRICE
+    if ($lucretaiMode) { // If Lucretai mode.
+      $query .= "products.cost AS new_cost,";
+    } else {
+      $query .= "products.markon_price AS new_cost,"; // All outlet except Lucretai.
+    }
+
+    //* QUERY STOCK VALUE
+    $cost = ($lucretaiMode ? 'products.cost' : 'products.markon_price');
+    if ($startDate) {
+      $query .= "{$cost} * (COALESCE(stock_begin_recv.total, 0) - COALESCE(stock_begin_sent.total, 0) + COALESCE(stock_recv.total, 0) - COALESCE(stock_sent.total, 0)) AS stock_value";
+    } else {
+      $query .= "{$cost} * (COALESCE(stock_recv.total, 0) - COALESCE(stock_sent.total, 0)) AS stock_value";
+    }
+
+    /* EXECUTE QUERIES */
+    $this->load->library('datatables');
+    $this->datatables->select($query)->from('products');
+
+    // JOIN BEGINNING
+    if ($startDate) {
+      $this->datatables
+        ->join("(SELECT product_id, SUM(quantity) AS total FROM stocks WHERE status LIKE 'received' {$clausesBegin} GROUP BY product_id) stock_begin_recv", 'stock_begin_recv.product_id = products.id', 'left')
+        ->join("(SELECT product_id, SUM(quantity) AS total FROM stocks WHERE status LIKE 'sent' {$clausesBegin} GROUP BY product_id) stock_begin_sent", 'stock_begin_sent.product_id = products.id', 'left');
+    }
+
+    // JOIN INCREASE OR BALANCE
+    $this->datatables
+      ->join("(SELECT product_id, SUM(quantity) AS total FROM stocks WHERE status LIKE 'received' {$clauses} GROUP BY product_id) stock_recv", 'stock_recv.product_id = products.id', 'left');
+
+    // JOIN DECREASE OR BALANCE
+    $this->datatables
+      ->join("(SELECT product_id, SUM(quantity) AS total FROM stocks WHERE status LIKE 'sent' {$clauses} GROUP BY product_id) stock_sent", 'stock_sent.product_id = products.id', 'left');
+
+    // JOIN UNIT
+    $this->datatables
+      ->join('units', 'units.id=products.unit', 'left');
+
+    if ($itemName) {
+      $this->datatables
+        ->group_start()
+        ->like("products.code", $itemName, 'both')
+        ->or_like("products.name", $itemName, 'both')
+        ->group_end();
+    }
+
+    if ($categoryId) {
+      $this->datatables->where("products.category_id", $categoryId);
+    }
+
+    $this->datatables->group_start();
+    $this->datatables->like('products.type', 'standard', 'none'); // RAW Material/Standard only.
+    $this->datatables->or_like('products.type', 'service', 'none'); // or Service only.
+    $this->datatables->group_end();
+
+    // echo $this->datatables->generate(['returnCompiled' => TRUE]);
+    echo $this->datatables->generate();
+  }
+
+  public function getInventoryBalanceReport()
+  {
+    $this->sma->checkUserPermissions('reports-inventory_balance', 0, ['datatables' => TRUE]);
+
+    $begin_clauses = '';
+    $clauses = '';
+    $category_id  = $this->input->get('category');
+    $item_name    = $this->input->get('item_name');
+    $start_date   = $this->input->get('start_date');
+    $end_date     = $this->input->get('end_date');
+    $warehouse_id = $this->input->get('warehouse');
+    $xls          = $this->input->get('xls');
+
+    $lucretaiMode = FALSE;
+    $warehouse = $this->site->getWarehouseByID($warehouse_id);
+
+    if ($warehouse && $warehouse->code == 'LUC') {
+      $lucretaiMode = TRUE;
+    }
+
+    if ($start_date) {
+      $end_date = ($end_date ?? date('Y-m-d'));
+      $start_date = $start_date . ' 00:00:00';
+      $end_date   = $end_date . ' 23:59:59';
+
+      $begin_clauses .= "AND date < '{$start_date}'";
+      $clauses .= "AND date BETWEEN '{$start_date}' AND '{$end_date}'";
+    } else {
+      $current_date = date('Y-m-d') . ' 00:00:00';
+      $begin_clauses .= "AND date < '{$current_date}'";
+    }
+
+    if ($warehouse_id) {
+      $begin_clauses .= " AND warehouse_id = {$warehouse_id}";
+      $clauses .= " AND warehouse_id = {$warehouse_id}";
+    }
+
+    if ($category_id) {
+      $begin_clauses .= " AND category_id = {$category_id}";
+      $clauses .= " AND category_id = {$category_id}";
+    }
+
+    if (!$xls) { // DATATABLES
+      //* QUERIES
+      $query = "products.id AS product_id,
+        products.code AS product_code,
+        products.name AS product_name,
+        units.code AS product_unit,";
+
+      //* QUERY BEGINNING
+      if ($start_date) {
+        $query .= "(COALESCE(stock_begin_recv.total, 0) - COALESCE(stock_begin_sent.total, 0)) AS beginning,";
+      } else {
+        $query .= "'0' AS beginning,";
+      }
+
+      //* QUERY INCREASE
+      $query .= "COALESCE(stock_recv.total, 0) AS increase,";
+
+      //* QUERY DECREASE
+      $query .= "COALESCE(stock_sent.total, 0) AS decrease,";
+
+      //* QUERY BALANCE
+      if ($start_date) {
+        $query .= "(COALESCE(stock_begin_recv.total, 0) - COALESCE(stock_begin_sent.total, 0) + COALESCE(stock_recv.total, 0) - COALESCE(stock_sent.total, 0)) AS balance,";
+      } else {
+        $query .= "(COALESCE(stock_recv.total, 0) - COALESCE(stock_sent.total, 0)) AS balance,";
+      }
+
+      //* QUERY AVG COST / MARK-ON PRICE
+      if ($lucretaiMode) { // If Lucretai mode.
+        $query .= "products.cost AS new_cost,";
+        // $query .= "products.avg_cost AS new_cost,";
+      } else {
+        $query .= "products.markon_price AS new_cost,"; // All outlet except Lucretai.
+      }
+
+      //* QUERY STOCK VALUE
+      $cost = ($lucretaiMode ? 'products.cost' : 'products.markon_price');
+
+      if ($start_date) {
+        $query .= "{$cost} * (COALESCE(stock_begin_recv.total, 0) - COALESCE(stock_begin_sent.total, 0) + COALESCE(stock_recv.total, 0) - COALESCE(stock_sent.total, 0)) AS stock_value";
+      } else {
+        $query .= "{$cost} * (COALESCE(stock_recv.total, 0) - COALESCE(stock_sent.total, 0)) AS stock_value";
+      }
+
+      /* EXECUTE QUERIES */
+      $this->load->library('datatables');
+      $this->datatables->select($query)->from('products');
+
+      // JOIN BEGINNING
+      if ($start_date) {
+        $this->datatables
+          ->join("(SELECT product_id, SUM(quantity) AS total FROM stocks WHERE status LIKE 'received' {$begin_clauses} GROUP BY product_id) stock_begin_recv", 'stock_begin_recv.product_id = products.id', 'left')
+          ->join("(SELECT product_id, SUM(quantity) AS total FROM stocks WHERE status LIKE 'sent' {$begin_clauses} GROUP BY product_id) stock_begin_sent", 'stock_begin_sent.product_id = products.id', 'left');
+      }
+
+      // JOIN INCREASE OR BALANCE
+      $this->datatables
+        ->join("(SELECT product_id, SUM(quantity) AS total FROM stocks WHERE status LIKE 'received' {$clauses} GROUP BY product_id) stock_recv", 'stock_recv.product_id = products.id', 'left');
+
+      // JOIN DECREASE OR BALANCE
+      $this->datatables
+        ->join("(SELECT product_id, SUM(quantity) AS total FROM stocks WHERE status LIKE 'sent' {$clauses} GROUP BY product_id) stock_sent", 'stock_sent.product_id = products.id', 'left');
+
+      // JOIN UNIT
+      $this->datatables
+        ->join('units', 'units.id=products.unit', 'left');
+
+      if ($item_name) {
+        $this->datatables
+          ->group_start()
+          ->like("products.code", $item_name, 'both')
+          ->or_like("products.name", $item_name, 'both')
+          ->group_end();
+      }
+
+      if ($category_id) {
+        $this->datatables->where("products.category_id", $category_id);
+      }
+
+      $this->datatables->group_start();
+      $this->datatables->like('products.type', 'standard', 'none'); // RAW Material/Standard only.
+      $this->datatables->or_like('products.type', 'service', 'none'); // or Service only.
+      $this->datatables->group_end();
+
+      echo $this->datatables->generate();
+    } else if ($xls == 1) { // Export Item Details.
+      //* QUERIES
+      $query = "products.id AS product_id,
+        products.code AS product_code,
+        products.name AS product_name,
+        units.code AS product_unit,
+        categories.name AS category_name, products.type AS product_type, products.iuse_type AS iuse_type,";
+
+      //* QUERY BEGINNING
+      if ($start_date) {
+        $query .= "(COALESCE(stock_begin_recv.total, 0) - COALESCE(stock_begin_sent.total, 0)) AS beginning,";
+      } else {
+        $query .= "'0' AS beginning,";
+      }
+
+      //* QUERY INCREASE
+      $query .= "COALESCE(stock_recv.total, 0) AS increase,";
+
+      //* QUERY DECREASE
+      $query .= "COALESCE(stock_sent.total, 0) AS decrease,";
+
+      //* QUERY BALANCE
+      if ($start_date) {
+        $query .= "(COALESCE(stock_begin_recv.total, 0) - COALESCE(stock_begin_sent.total, 0) + COALESCE(stock_recv.total, 0) - COALESCE(stock_sent.total, 0)) AS balance,";
+      } else {
+        $query .= "(COALESCE(stock_recv.total, 0) - COALESCE(stock_sent.total, 0)) AS balance,";
+      }
+
+      //* QUERY AVG COST / MARK-ON PRICE
+      if ($lucretaiMode) { // If Lucretai mode.
+        $query .= "products.cost AS new_cost,";
+        // $query .= "products.avg_cost AS new_cost,";
+      } else {
+        $query .= "products.markon_price AS new_cost,"; // All outlet except Lucretai.
+      }
+
+      //* QUERY STOCK VALUE
+      $cost = ($lucretaiMode ? 'products.cost' : 'products.markon_price');
+
+      if ($start_date) {
+        $query .= "{$cost} * (COALESCE(stock_begin_recv.total, 0) - COALESCE(stock_begin_sent.total, 0) + COALESCE(stock_recv.total, 0) - COALESCE(stock_sent.total, 0)) AS stock_value";
+      } else {
+        $query .= "{$cost} * (COALESCE(stock_recv.total, 0) - COALESCE(stock_sent.total, 0)) AS stock_value";
+      }
+      // }
+
+      /* EXECUTE QUERIES */
+      $this->db->select($query)->from('products');
+
+      // JOIN BEGINNING
+      if ($start_date) {
+        $this->db
+          ->join("(SELECT product_id, SUM(quantity) AS total FROM stocks WHERE status LIKE 'received' {$begin_clauses} GROUP BY product_id) stock_begin_recv", 'stock_begin_recv.product_id = products.id', 'left')
+          ->join("(SELECT product_id, SUM(quantity) AS total FROM stocks WHERE status LIKE 'sent' {$begin_clauses} GROUP BY product_id) stock_begin_sent", 'stock_begin_sent.product_id = products.id', 'left');
+      }
+
+      // JOIN INCREASE OR BALANCE
+      $this->db
+        ->join("(SELECT product_id, SUM(quantity) AS total FROM stocks WHERE status LIKE 'received' {$clauses} GROUP BY product_id) stock_recv", 'stock_recv.product_id = products.id', 'left');
+
+      // JOIN DECREASE OR BALANCE
+      $this->db
+        ->join("(SELECT product_id, SUM(quantity) AS total FROM stocks WHERE status LIKE 'sent' {$clauses} GROUP BY product_id) stock_sent", 'stock_sent.product_id = products.id', 'left');
+
+      // JOIN UNIT
+      $this->db
+        ->join('units', 'units.id=products.unit', 'left');
+
+      // JOIN CATEGORY
+      $this->db
+        ->join('categories', 'categories.id = products.category_id', 'left');
+
+      if ($item_name) {
+        $this->db
+          ->group_start()
+          ->like('products.code', $item_name, 'both')
+          ->or_like('products.name', $item_name, 'both')
+          ->group_end();
+      }
+
+      if ($category_id) {
+        $this->db->where('products.category_id', $category_id);
+      }
+
+      $this->db->group_start();
+      $this->db->like('products.type', 'standard', 'none'); // RAW Material/Standard only.
+      $this->db->or_like('products.type', 'service', 'none'); // or Service only.
+      $this->db->group_end();
+
+      $q = $this->db->get();
+
+      $excel = $this->ridintek->spreadsheet();
+      $excel->setTitle('Inventory Balance');
+
+      if ($q->num_rows() > 0) {
+        $excel->setCellValue('A1', 'Product Code');
+        $excel->setCellValue('B1', 'Produt Name');
+        $excel->setCellValue('C1', 'Unit');
+        $excel->setCellValue('D1', 'Category');
+        $excel->setCellValue('E1', 'Type');
+        $excel->setCellValue('F1', 'Internal Use Type');
+        $excel->setCellValue('G1', 'Beginning');
+        $excel->setCellValue('H1', 'Increase');
+        $excel->setCellValue('I1', 'Decrease');
+        $excel->setCellValue('J1', 'Balance');
+        $excel->setCellValue('K1', 'Average Cost');
+        $excel->setCellValue('L1', 'Stock Value');
+
+        $row = 2;
+
+        foreach ($q->result() as $data_row) {
+          $excel->setCellValue('A' . $row, $data_row->product_code);
+          $excel->setCellValue('B' . $row, $data_row->product_name);
+          $excel->setCellValue('C' . $row, $data_row->product_unit);
+          $excel->setCellValue('D' . $row, $data_row->category_name);
+          $excel->setCellValue('E' . $row, $data_row->product_type);
+          $excel->setCellValue('F' . $row, $data_row->iuse_type);
+          $excel->setCellValue('G' . $row, $data_row->beginning);
+          $excel->setCellValue('H' . $row, $data_row->increase);
+          $excel->setCellValue('I' . $row, $data_row->decrease);
+          $excel->setCellValue('J' . $row, $data_row->balance);
+          $excel->setCellValue('K' . $row, ceil(filterDecimal($data_row->new_cost)));
+          $excel->setCellValue('L' . $row, ceil(filterDecimal($data_row->stock_value)));
+
+          $row++;
+        }
+      }
+
+      $name = $this->session->userdata('fullname');
+
+      $excel->export('PrintERP-InventoryBalance-ByItem-' . date('Ymd_His') . "-($name)");
+    } else if ($xls == 2) { //! Export Warehouse Details.
+      $data = [];
+      $warehouses = $this->site->getAllWarehouses();
+      $limiter = 200;
+      $counter = 0;
+
+      // NEXT WORK
+      foreach ($warehouses as $warehouse) {
+        if ($warehouse->code == 'ADV') continue;
+
+        $products = $this->site->getProducts(['type' => 'standard']);
+        $totalCost = 0;
+
+        foreach ($products as $product) {
+          // if ($counter >= $limiter) break;
+          $incQty = 0;
+          $decQty = 0;
+          $itemCost = 0;
+
+          $stocks = $this->site->getStocks(['product_id' => $product->id, 'warehouse_id' => $warehouse->id]);
+
+          foreach ($stocks as $stock) {
+            if ($stock->status == 'received') {
+              $incQty += $stock->quantity;
+            } else if ($stock->status == 'sent') {
+              $decQty += $stock->quantity;
+            }
+          }
+
+          $totalQty = $incQty - $decQty;
+
+          if ($warehouse->code == 'LUC') {
+            $itemCost  = $totalQty * $product->cost;
+          } else {
+            $itemCost  = $totalQty * $product->markon_price;
+          }
+
+          $totalCost += $itemCost;
+
+          unset($itemCost, $decQty, $incQty, $stocks, $totalQty);
+          $counter++;
+        }
+
+        $data[] = [
+          'warehouse_name' => $warehouse->name,
+          'cost' => round($totalCost)
+        ];
+
+        unset($products);
+      }
+
+      if ($data) {
+        $excel = $this->ridintek->spreadsheet();
+        $excel->setTitle('Warehouse Summary Details');
+
+        $excel->setCellValue('A1', 'Warehouses');
+        $excel->setCellValue('B1', 'Total Amount');
+        $excel->setBold('A1:B1');
+
+        $row = 2;
+
+        foreach ($data as $wh_data) {
+          $excel->setCellValue('A' . $row, $wh_data['warehouse_name']);
+          $excel->setCellValue('B' . $row, $wh_data['cost']);
+
+          $row++;
+        }
+
+        $excel->setColumnAutoWidth('A');
+        $excel->setColumnAutoWidth('B');
+
+        $name = $this->session->userdata('fullname');
+
+        $excel->export('Warehouse_Summary_Details_' . date('Ymd_His') . "-($name)");
+      }
+    }
+  }
+
+  public function getQMSReport()
+  {
+  }
+
+  public function getWarehouseStockAlerts($warehouse_id = null, $pdf = null, $xls = null)
+  { // Added Custom
+    $this->sma->checkPermissions('quantity_alerts', true);
+    if (!$this->Owner && !$warehouse_id) {
+      $user         = $this->site->getUser($this->session->userdata('user_id'));
+      $warehouse_id = $user->warehouse_id;
+    }
+
+    $clauses = '';
+
+    $wh_from_id = $this->site->getWarehouseByName('Lucretia')->id;
+
+    if ($warehouse_id) {
+      $clauses .= " AND warehouse_id = {$warehouse_id}";
+    }
+
+    if (!$pdf && !$xls) { // WEB
+      $this->load->library('datatables');
+      $this->datatables
+        ->select("products.id as id, products.image as product_image,
+          products.code as product_code, products.name as product_name,
+          (COALESCE(stock_recv.total_qty, 0) - COALESCE(stock_sent.total_qty, 0)) AS current_stock,
+          (COALESCE(from_stock_recv.total_qty, 0) - COALESCE(from_stock_sent.total_qty, 0)) AS current_from_stock,
+          warehouses.name as wh_name,
+          warehouses_products.safety_stock as whp_safe_stock, warehouses.id as wh_id")
+        ->from('warehouses_products')
+        ->join('products', 'products.id = warehouses_products.product_id', 'left')
+        ->join('warehouses', 'warehouses.id = warehouses_products.warehouse_id', 'left')
+        ->join(
+          "(
+          SELECT
+            product_id,
+            SUM(quantity) AS total_qty FROM stocks
+          WHERE status LIKE 'received' {$clauses} GROUP BY product_id) stock_recv",
+          'stock_recv.product_id = warehouses_products.product_id',
+          'left'
+        )
+        ->join(
+          "(
+          SELECT
+            product_id,
+            SUM(quantity) AS total_qty FROM stocks
+          WHERE status LIKE 'sent' {$clauses} GROUP BY product_id) stock_sent",
+          'stock_sent.product_id = warehouses_products.product_id',
+          'left'
+        )
+        ->join(
+          "(
+          SELECT
+            product_id,
+            SUM(quantity) AS total_qty FROM stocks
+          WHERE status LIKE 'received' AND warehouse_id = {$wh_from_id} GROUP BY product_id) from_stock_recv",
+          'from_stock_recv.product_id = warehouses_products.product_id',
+          'left'
+        )
+        ->join(
+          "(
+          SELECT
+            product_id,
+            SUM(quantity) AS total_qty FROM stocks
+          WHERE status LIKE 'sent' AND warehouse_id = {$wh_from_id} GROUP BY product_id) from_stock_sent",
+          'from_stock_sent.product_id = warehouses_products.product_id',
+          'left'
+        )
+        ->where('warehouses_products.safety_stock > (stock_recv.total_qty - stock_sent.total_qty)')
+        ->where('warehouses_products.safety_stock <> 0')
+        ->where('warehouses_products.safety_stock IS NOT NULL');
+
+      if ($warehouse_id) {
+        $this->datatables->where('warehouses.id', $warehouse_id);
+      }
+
+      echo $this->datatables->generate();
+    } else if ($pdf || $xls) { // EXCEL
+      if ($warehouse_id) {
+        $this->db
+          ->select("products.id as id, products.image as product_image,
+          products.code as product_code, products.name as product_name,
+          warehouses_products.quantity as whp_qty, wh_from.quantity as src_qty, warehouses.name as wh_name,
+          warehouses_products.safety_stock as whp_safe_stock")
+          ->from('warehouses_products')
+          ->join('products', 'warehouses_products.product_id = products.id', 'left')
+          ->join('warehouses', 'warehouses_products.warehouse_id = warehouses.id', 'left')
+          ->join("(SELECT id, product_id, warehouse_id, quantity, safety_stock FROM warehouses_products
+            WHERE warehouse_id = {$wh_from_id} GROUP BY id) wh_from", 'wh_from.product_id=warehouses_products.product_id', 'left')
+          ->where('warehouses_products.quantity < warehouses_products.safety_stock')
+          ->where('warehouses_products.safety_stock <> 0')
+          ->where('warehouses.id', $warehouse_id);
+      } else {
+        $this->db
+          ->select("products.id as id, products.image as product_image,
+          products.code as product_code, products.name as product_name,
+          warehouses_products.quantity as whp_qty, wh_from.quantity as src_qty, warehouses.name as wh_name,
+          warehouses_products.safety_stock as whp_safe_stock")
+          ->from('warehouses_products')
+          ->join('products', 'warehouses_products.product_id = products.id', 'left')
+          ->join('warehouses', 'warehouses_products.warehouse_id = warehouses.id', 'left')
+          ->join("(SELECT id, product_id, warehouse_id, quantity, safety_stock FROM warehouses_products
+            WHERE warehouse_id = {$wh_from_id} GROUP BY id) wh_from", 'wh_from.product_id=warehouses_products.product_id', 'left')
+          ->where('warehouses_products.quantity < warehouses_products.safety_stock')
+          ->where('warehouses_products.safety_stock <> 0');
+      }
+
+      $q = $this->db->get();
+      if ($q->num_rows() > 0) {
+        foreach (($q->result()) as $row) {
+          $data[] = $row;
+        }
+      } else {
+        $data = null;
+      }
+
+      if (!empty($data)) { // Passed.
+        $excel = $this->ridintek->spreadsheet();
+        $excel->setTitle(lang('warehouse_safety_alert'));
+        $excel->SetCellValue('A1', lang('no'));
+        $excel->SetCellValue('B1', lang('product_code'));
+        $excel->SetCellValue('C1', lang('product_name'));
+        $excel->SetCellValue('D1', 'Stock');
+        $excel->SetCellValue('E1', 'Lucretia Stock');
+        $excel->SetCellValue('F1', lang('warehouse'));
+        $excel->SetCellValue('G1', lang('safety_stock'));
+
+        $row = 2;
+        foreach ($data as $data_row) {
+          $excel->SetCellValue('A' . $row, strval($row - 1));
+          $excel->SetCellValue('B' . $row, $data_row->product_code);
+          $excel->SetCellValue('C' . $row, $data_row->product_name);
+          $excel->SetCellValue('D' . $row, $data_row->whp_qty);
+          $excel->SetCellValue('E' . $row, $data_row->src_qty);
+          $excel->SetCellValue('F' . $row, $data_row->wh_name);
+          $excel->SetCellValue('G' . $row, $data_row->whp_safe_stock);
+          $row++;
+        }
+
+        $excel->setColumnAutoWidth('A');
+        $excel->setColumnAutoWidth('B');
+        $excel->setColumnAutoWidth('C');
+        $excel->setColumnAutoWidth('D');
+        $excel->setColumnAutoWidth('E');
+        $excel->setColumnAutoWidth('F');
+        $excel->setColumnAutoWidth('G');
+
+        $filename = 'warehouse_stock_alert';
+        $excel->export($filename);
+      }
+      $this->session->set_flashdata('error', lang('nothing_found'));
+      redirect($_SERVER['HTTP_REFERER']);
+    }
+  }
+
+  public function getSalesStatus($xls = null)
+  { // Added, custom of [getSalesReport => (ignored)].
+    $this->sma->checkPermissions('sales', true);
+    $group_by     = $this->input->get('group_by') ?? 'sale'; // sale as default
+    $product      = $this->input->get('product');
+    $categories   = $this->input->get('categories') ?? [];
+    $users        = $this->input->get('users') ?? [];
+    $customer     = $this->input->get('customer');
+    $biller       = $this->input->get('biller');
+    $warehouse    = $this->input->get('warehouse');
+    $reference    = $this->input->get('reference');
+    $start_date   = $this->input->get('start_date');
+    $end_date     = $this->input->get('end_date');
+
+    $warehouse = ($this->session->userdata('warehouse_id') ?? $warehouse);
+
+    if ($start_date) {
+      $start_date = $start_date . ' 00:00:00';
+      $end_date   = $end_date . ' 23:59:59';
+    }
+    if (!$this->Owner && !$this->Admin && !$this->session->userdata('view_right')) {
+      $users[] = $this->session->userdata('user_id');
+    }
+
+    if (!$xls) { // WEB
+      /* QUERIES */
+      if ($group_by == 'biller') {
+        $query = "'-' as date, '-' as reference, '-' as pic_id, '-' as pic_name, billers.name as biller_name,
+          '-' as customer_name, '-' as product_code, '-' as product_name, '-' as category_code,
+          SUM(sales.total_items) as total_items,";
+      }
+      if ($group_by == 'customer') {
+        $query = "sales.date as date, sales.reference as reference,
+          users.username as pic_id,
+          users.fullname as pic_name,
+          billers.name as biller_name,
+          CONCAT(customers.company, ' (', customers.name, ')') as customer_name,
+          '-' as product_code, '-' as product_name, '-' as category_code,
+          SUM(sales.total_items) as total_items,";
+      }
+      if ($group_by == 'pic') {
+        $query = "'-' as date, '-' as reference,
+          users.username as pic_id,
+          users.fullname as pic_name,
+          billers.name as biller_name, '-' as customer_name,
+          '-' as product_code, '-' as product_name, '-' as category_code,
+          SUM(sales.total_items) as total_items,";
+      }
+      if ($group_by == 'product') {
+        $query = "'-' as date, '-' as reference, '-' as pic_id, '-' as pic_name, '-' as biller_name,
+          '-' as customer_name,
+          products.code as product_code, products.name as product_name,
+          categories.code as category_code,
+          SUM(sales.total_items) as total_items,";
+      }
+      if ($group_by == 'category') {
+        $query = "'-' as date, '-' as reference, '-' as pic_id, '-' as pic_name, '-' as biller_name,
+          '-' as customer_name,
+          products.code as product_code, products.name as product_name,
+          categories.code as category_code,
+          SUM(sales.total_items) as total_items,";
+      }
+      if ($group_by == 'sale') { // Default
+        $query = "sales.date as date, sales.reference as reference,
+          users.username as pic_id,
+          users.fullname as pic_name,
+          billers.name as biller_name,
+          CONCAT(customers.company, ' (', customers.name, ')') as customer_name,
+          '-' as product_code, '-' as product_name,
+          '-' as category_code, sales.total_items as total_items,";
+      }
+
+      if ($group_by != 'category' && $group_by != 'product') { // Anything except category or product.
+        if ($group_by == 'biller' || $group_by == 'customer' || $group_by == 'sale') {
+          // $query .= "SUM(sales.grand_total) as grand_total,
+          //   SUM(sales.paid) as paid,
+          //   (CASE WHEN
+          //     (customers.customer_group_name NOT LIKE 'Reguler' OR sales.paid > 0)
+          //   THEN SUM(sales.grand_total) - SUM(sales.paid)
+          //   ELSE 0 END) as balance,";
+          $query .= "SUM(sales.grand_total) as grand_total,
+            SUM(sales.paid) as paid,
+            SUM(sales.balance) as balance,";
+        } else {
+          $query .= "SUM(sales.grand_total) as grand_total, SUM(sales.paid) as paid,
+            SUM(sales.grand_total) - SUM(sales.paid) as balance,";
+        }
+      } else if ($group_by == 'category' || $group_by == 'product') { // Category and Product
+        $query .= "SUM(sale_item.subtotal) as grand_total, '0' as paid, '0' as balance,";
+      }
+
+      if ($group_by == 'sale') {
+        $query .= "'-' AS operator_name, sales.status AS status,";
+      }
+      if ($group_by != 'product') {
+        $query .= "'-' AS operator_name, '-' AS status,";
+      } else {
+        $query .= "operator.fullname AS operator_name,
+          sales.status AS status,";
+      }
+
+      if ($group_by != 'sale' && $group_by != 'customer') {
+        $query .= "'-' as payment_status,";
+      } else {
+        $query .= "sales.payment_status as payment_status,";
+      }
+
+      $query .= "sales.id as id";
+
+      /* EXECUTE QUERIES */
+      $this->load->library('datatables');
+      $this->datatables->select($query)->from('sales');
+
+      /* JOIN TABLES */
+      if ($group_by == 'product' || $group_by == 'category') {
+        $this->datatables->join('sale_items AS sale_item', "sale_item.sale_id = sales.id", 'left');
+      }
+      if ($group_by == 'product') {
+        $this->datatables->join('users AS operator', "operator.id = JSON_UNQUOTE(JSON_EXTRACT(sale_item.json_data, '$.operator_id'))", 'left');
+      }
+      if ($group_by == 'biller' || $group_by == 'customer' || $group_by == 'pic' || $group_by == 'sale') {
+        $this->datatables->join('billers', 'billers.id=sales.biller_id', 'left');
+      }
+      if ($group_by == 'biller' || $group_by == 'customer' || $group_by == 'sale') {
+        $this->datatables->join('customers', 'customers.id=sales.customer_id', 'left');
+      }
+      if ($group_by == 'customer' || $group_by == 'pic' || $group_by == 'sale') {
+        $this->datatables->join('users', 'users.id=sales.created_by', 'left');
+      }
+      if ($group_by == 'category' || $group_by == 'product') {
+        $this->datatables->join('products', 'products.id=sale_item.product_id', 'left');
+        $this->datatables->join('categories', 'categories.id=products.category_id', 'left');
+      }
+
+      /* GROUPS */
+      switch ($group_by) {
+        case 'biller':
+          $this->datatables->group_by('sales.biller_id');
+          break;
+        case 'customer':
+          $this->datatables->group_by('customers.id');
+          break;
+        case 'pic':
+          $this->datatables->group_by('sales.created_by');
+          break;
+        case 'product':
+          $this->datatables->group_by('sale_item.product_id');
+          break;
+        case 'category':
+          $this->datatables->group_by('categories.id');
+          break;
+        case 'sale':
+          $this->datatables->group_by('sales.id');
+          break;
+      }
+
+      /* FILTERS */
+      if ($users) {
+        foreach ($users as $user) {
+          $this->datatables->or_where('sales.created_by', $user);
+        }
+      }
+      if ($product && $group_by == 'product') {
+        $this->datatables->where('sale_item.product_id', $product);
+      }
+      if ($categories && ($group_by == 'category' || $group_by == 'product')) {
+        foreach ($categories as $product_category) {
+          $this->datatables->or_where('categories.id', $product_category);
+        }
+      }
+      if ($biller) {
+        $this->datatables->where('sales.biller_id', $biller);
+      }
+      if ($customer) {
+        $this->datatables->where('sales.customer_id', $customer);
+      }
+      if ($warehouse) {
+        $this->datatables->where('sales.warehouse_id', $warehouse);
+      }
+      if ($reference) {
+        $this->datatables->like('sales.reference', $reference, 'both');
+      }
+      if ($start_date) {
+        $this->datatables->where('sales.date BETWEEN "' . $start_date . '" and "' . $end_date . '"');
+      }
+      $this->datatables->where("sales.status NOT LIKE 'need_payment'"); // need_payment = not debt.
+      $this->datatables->where("sales.status NOT LIKE 'draft'"); // No draft.
+
+      // GENERATE VIEW
+      echo $this->datatables->generate();
+    } else if ($xls) { // Export Excel.
+      /* QUERIES */
+      if ($group_by == 'biller') {
+        $query = "'-' as date, '-' as reference, '-' as pic_id, '-' as pic_name, billers.name as biller_name,
+          '-' as customer_name, '-' as customer_phone,
+          '-' as product_code, '-' as product_name, '-' as category_code,
+          SUM(sales.total_items) as total_items,";
+      }
+      if ($group_by == 'customer') {
+        $query = "sales.date as date, sales.reference as reference,
+          users.username as pic_id,
+          users.fullname as pic_name,
+          billers.name as biller_name,
+          CONCAT(customers.company, ' (', customers.name, ')') as customer_name,
+          customers.phone AS customer_phone,
+          '-' as product_code, '-' as product_name, '-' as category_code,
+          SUM(sales.total_items) as total_items,";
+      }
+      if ($group_by == 'pic') {
+        $query = "'-' as date, '-' as reference,
+          users.username as pic_id,
+          users.fullname as pic_name,
+          billers.name as biller_name, '-' as customer_name, '-' as customer_phone,
+          '-' as product_code, '-' as product_name, '-' as category_code,
+          SUM(sales.total_items) as total_items,";
+      }
+      if ($group_by == 'product') {
+        $query = "'-' as date, '-' as reference, '-' as pic_id, '-' as pic_name, '-' as biller_name,
+          '-' as customer_name, '-' as customer_phone,
+          products.code as product_code, products.name as product_name,
+          categories.code as category_code,
+          SUM(sales.total_items) as total_items,";
+      }
+      if ($group_by == 'category') {
+        $query = "'-' as date, '-' as reference, '-' pic_id, '-' as pic_name, '-' as biller_name,
+          '-' as customer_name, '-' as customer_phone,
+          products.code as product_code, products.name as product_name,
+          categories.code as category_code,
+          SUM(sales.total_items) as total_items,";
+      }
+      if ($group_by == 'sale') { // Default
+        $query = "sales.date as date, sales.reference as reference,
+          users.username as pic_id,
+          users.fullname as pic_name,
+          billers.name as biller_name,
+          CONCAT(customers.company,' (', customers.name, ')') as customer_name,
+          customers.phone AS customer_phone,
+          '-' as product_code, '-' as product_name,
+          '-' as category_code, SUM(sales.total_items) as total_items,";
+      }
+
+      if ($group_by != 'category' && $group_by != 'product') { // Anything except category or product.
+        if ($group_by == 'biller' || $group_by == 'customer' || $group_by == 'sale') {
+          // $query .= "SUM(sales.grand_total) as grand_total,
+          //   SUM(sales.paid) as paid,
+          //   (CASE WHEN
+          //     (customers.customer_group_name NOT LIKE 'Reguler' OR sales.paid > 0)
+          //   THEN SUM(sales.grand_total) - SUM(sales.paid)
+          //   ELSE 0 END) as balance,";
+          $query .= "SUM(sales.grand_total) as grand_total,
+            SUM(sales.paid) as paid,
+            SUM(sales.balance) as balance,";
+        } else {
+          $query .= "SUM(sales.grand_total) as grand_total, SUM(sales.paid) as paid,
+            SUM(sales.grand_total) - SUM(sales.paid) as balance,";
+        }
+      } else {
+        $query .= "SUM(sale_item.subtotal) as grand_total, '0' as paid, '0' as balance,";
+      }
+
+      if ($group_by != 'sale' && $group_by != 'product') {
+        $query .= "'-' AS operator_name, '-' AS completed_date, '-' AS status,";
+      } else {
+        $query .= "operator.fullname AS operator_name,
+          sale_item.json_data->>'$.updated_at' AS completed_date,
+          sales.status AS status,";
+      }
+
+      if ($group_by != 'sale' && $group_by != 'customer') {
+        $query .= "'-' as payment_status,";
+      } else {
+        $query .= "sales.payment_status as payment_status,";
+      }
+
+      $query .= "sales.id as id";
+
+      /* EXECUTE QUERIES */
+      $this->db->select($query, FALSE)->from('sales');
+
+      /* JOIN TABLES */
+      if ($group_by == 'sale' || $group_by == 'product' || $group_by == 'category') {
+        $this->db->join('sale_items AS sale_item', "sale_item.sale_id = sales.id", 'left');
+      }
+      if ($group_by == 'sale' || $group_by == 'product') {
+        $this->db->join('users AS operator', "operator.id = JSON_UNQUOTE(JSON_EXTRACT(sale_item.json_data, '$.operator_id'))", 'left');
+      }
+      if ($group_by == 'biller' || $group_by == 'customer' || $group_by == 'pic' || $group_by == 'sale') {
+        $this->db->join('billers', 'billers.id=sales.biller_id', 'left');
+      }
+      if ($group_by == 'biller' || $group_by == 'customer' || $group_by == 'sale') {
+        $this->db->join('customers', 'customers.id=sales.customer_id', 'left');
+      }
+      if ($group_by == 'customer' || $group_by == 'pic' || $group_by == 'sale') {
+        $this->db->join('users', 'users.id=sales.created_by', 'left');
+      }
+      if ($group_by == 'category' || $group_by == 'product') {
+        $this->db->join('products', 'products.id=sale_item.product_id', 'left');
+        $this->db->join('categories', 'categories.id=products.category_id', 'left');
+      }
+
+      /* GROUPS */
+      switch ($group_by) {
+        case 'biller':
+          $this->db->group_by('sales.biller_id');
+          break;
+        case 'customer':
+          $this->db->group_by('customers.id');
+          break;
+        case 'pic':
+          $this->db->group_by('sales.created_by');
+          break;
+        case 'product':
+          $this->db->group_by('sale_item.product_id');
+          break;
+        case 'category':
+          $this->db->group_by('categories.id');
+          break;
+        case 'sale':
+          $this->db->group_by('sales.id');
+          break;
+      }
+
+      /* FILTERS */
+      if ($users) {
+        foreach ($users as $user) {
+          $this->db->or_where('sales.created_by', $user);
+        }
+      }
+      if ($product && $group_by == 'product') {
+        $this->db->where('sale_item.product_id', $product);
+      }
+      if ($categories && $group_by == 'category') {
+        foreach ($categories as $product_category) {
+          $this->db->or_where('categories.id', $product_category);
+        }
+      }
+      if ($biller) {
+        $this->db->where('sales.biller_id', $biller);
+      }
+      if ($customer) {
+        $this->db->where('sales.customer_id', $customer);
+      }
+      if ($warehouse) {
+        $this->db->where('sales.warehouse_id', $warehouse);
+      }
+      if ($reference) {
+        $this->db->like('sales.reference', $reference, 'both');
+      }
+      if ($start_date) {
+        $this->db->where('sales.date BETWEEN "' . $start_date . '" and "' . $end_date . '"');
+      }
+      $this->db->where("sales.status NOT LIKE 'need_payment'"); // status == need_payment == not debt.
+      $this->db->where("sales.status NOT LIKE 'draft'"); // No draft.
+
+      $q = $this->db->get();
+
+      if ($q->num_rows() > 0) {
+        foreach (($q->result()) as $row) {
+          $data[] = $row;
+        }
+      } else {
+        $data = null;
+      }
+
+      if (!empty($data)) {
+        $excel = $this->ridintek->spreadsheet();
+        $excel->setTitle('Sales Status');
+        $excel->SetCellValue('A1', lang('date'));
+        $excel->SetCellValue('B1', lang('reference'));
+        $excel->SetCellValue('C1', lang('pic_id'));
+        $excel->SetCellValue('D1', lang('pic_name'));
+        $excel->SetCellValue('E1', lang('biller'));
+        $excel->SetCellValue('F1', lang('phone'));
+        $excel->SetCellValue('G1', lang('customer'));
+        $excel->SetCellValue('H1', lang('product_code'));
+        $excel->SetCellValue('I1', lang('product_name'));
+        $excel->SetCellValue('J1', lang('product_category'));
+        $excel->SetCellValue('K1', lang('quantity'));
+        $excel->SetCellValue('L1', lang('grand_total'));
+        $excel->SetCellValue('M1', lang('paid'));
+        $excel->SetCellValue('N1', lang('balance'));
+        $excel->SetCellValue('O1', lang('operator'));
+        $excel->SetCellValue('P1', lang('completed_date'));
+        $excel->SetCellValue('Q1', lang('status'));
+        $excel->SetCellValue('R1', lang('payment_status'));
+
+        $excel->setBold('A1:R1', TRUE);
+        $excel->setFillColor('A1:R1', 'FFFF00');
+
+        $row     = 2;
+        $total   = 0;
+        $paid    = 0;
+        $balance = 0;
+
+        foreach ($data as $data_row) {
+          $excel->SetCellValue('A' . $row, $this->sma->hrld($data_row->date));
+          $excel->SetCellValue('B' . $row, $data_row->reference);
+          $excel->SetCellValue('C' . $row, $data_row->pic_id);
+          $excel->SetCellValue('D' . $row, $data_row->pic_name);
+          $excel->SetCellValue('E' . $row, $data_row->biller_name);
+          $excel->SetCellValue('F' . $row, $data_row->customer_phone ?? '', DataType::TYPE_STRING);
+          $excel->SetCellValue('G' . $row, $data_row->customer_name ?? '');
+          $excel->SetCellValue('H' . $row, $data_row->product_code);
+          $excel->SetCellValue('I' . $row, $data_row->product_name);
+          $excel->SetCellValue('J' . $row, $data_row->category_code);
+          $excel->SetCellValue('K' . $row, $data_row->total_items);
+          $excel->SetCellValue('L' . $row, $data_row->grand_total);
+          $excel->SetCellValue('M' . $row, $data_row->paid);
+          $excel->SetCellValue('N' . $row, ($group_by != 'category' && $group_by != 'product' ? ($data_row->grand_total - $data_row->paid) : 0));
+          $excel->SetCellValue('O' . $row, $data_row->operator_name);
+          $excel->SetCellValue('P' . $row, $data_row->completed_date);
+          $excel->SetCellValue('Q' . $row, lang($data_row->status));
+          $excel->SetCellValue('R' . $row, lang($data_row->payment_status));
+          $total   += $data_row->grand_total;
+          $paid    += $data_row->paid;
+          $balance += ($data_row->grand_total - $data_row->paid);
+          $row++;
+        }
+
+        // Begin Set Fill Color by Group
+        if ($group_by == 'biller') $excel->setFillColor('E2:E' . ($row - 1), 'C0FFC0');
+        if ($group_by == 'customer') {
+          $excel->setFillColor('F2:F' . ($row - 1), 'C0FFC0');
+          $excel->setFillColor('G2:G' . ($row - 1), 'C0FFC0');
+        }
+        if ($group_by == 'pic') {
+          $excel->setFillColor('C2:C' . ($row - 1), 'C0FFC0');
+          $excel->setFillColor('D2:D' . ($row - 1), 'C0FFC0');
+        }
+        if ($group_by == 'product') {
+          $excel->setFillColor('H2:H' . ($row - 1), 'C0FFC0');
+          $excel->setFillColor('I2:I' . ($row - 1), 'C0FFC0');
+        }
+        if ($group_by == 'category') $excel->setFillColor('J2:J' . ($row - 1), 'C0FFC0');
+        if ($group_by == 'sale') $excel->setFillColor('B2:B' . ($row - 1), 'C0FFC0');
+        // End Set Fill Color by Group
+
+        if ($group_by == 'category' || $group_by == 'product') $balance = 0;
+
+        $excel->SetCellValue('L' . $row, $total);
+        $excel->SetCellValue('M' . $row, $paid);
+        $excel->SetCellValue('N' . $row, $balance);
+
+        $excel->setColumnAutoWidth('A');
+        $excel->setColumnAutoWidth('B');
+        $excel->setColumnAutoWidth('C');
+        $excel->setColumnAutoWidth('D');
+        $excel->setColumnAutoWidth('E');
+        $excel->setColumnAutoWidth('F');
+        $excel->setColumnAutoWidth('G');
+        $excel->setColumnAutoWidth('H');
+        $excel->setColumnAutoWidth('I');
+        $excel->setColumnAutoWidth('J');
+        $excel->setColumnAutoWidth('K');
+        $excel->setColumnAutoWidth('L');
+        $excel->setColumnAutoWidth('M');
+        $excel->setColumnAutoWidth('N');
+        $excel->setColumnAutoWidth('O');
+        $excel->setColumnAutoWidth('P');
+        $excel->setColumnAutoWidth('Q');
+        $excel->setColumnAutoWidth('R');
+
+        $name = $this->session->userdata('fullname');
+        $file_group_by = ($group_by ? '-' . lang($group_by) : '');
+
+        $filename = 'PrintERP-Sales_Status-' . date('Ymd_His') . $file_group_by . "-($name)";
+        $excel->export($filename);
+      }
+      $this->session->set_flashdata('error', lang('nothing_found'));
+      redirect($_SERVER['HTTP_REFERER']);
+    }
+  }
+
+  public function index()
+  {
+    admin_redirect('reports/printerp');
+  }
+
+  public function income_statement()
+  {
+    $this->sma->checkUserPermissions('reports-income_statement');
+
+    $this->data['error']      = (validation_errors() ? validation_errors() : $this->session->flashdata('error'));
+    $this->data['categories'] = $this->site->getAllCategories();
+    $this->data['warehouses'] = $this->site->getAllWarehouses();
+
+    $warehouse_id = $this->input->get('warehouse');
+    $this->data['category_id']  = $this->input->get('category');
+    $this->data['item_name']    = $this->input->get('item_name');
+    $this->data['start_date']   = $this->input->get('start_date');
+    $this->data['end_date']     = $this->input->get('end_date');
+    $this->data['warehouse_id'] = $this->input->get('warehouse');
+    $this->data['xls']          = $this->input->get('xls');
+
+    if ($warehouse_id) {
+      $this->data['warehouse']    = $this->site->getWarehouseByID($warehouse_id);
+    } else {
+      $this->data['warehouse']    = NULL;
+    }
+
+    $bc   = [
+      ['link' => base_url(), 'page' => lang('home')],
+      ['link' => '#', 'page' => lang('reports')],
+      ['link' => '#', 'page' => lang('income_statement')]
+    ];
+    $meta = ['page_title' => lang('income_statement'), 'bc' => $bc];
+    $this->data = array_merge($this->data, $meta);
+
+    $this->page_construct('reports/income_statement', $this->data);
+  }
+
+  public function inventory_balance()
+  {
+    $this->sma->checkUserPermissions('reports-inventory_balance');
+
+    $this->data['error']      = (validation_errors() ? validation_errors() : $this->session->flashdata('error'));
+    $this->data['categories'] = $this->site->getAllCategories();
+    $this->data['warehouses'] = $this->site->getAllWarehouses();
+
+    $warehouse_id = $this->input->get('warehouse');
+    $this->data['category_id']  = $this->input->get('category');
+    $this->data['item_name']    = $this->input->get('item_name');
+    $this->data['start_date']   = $this->input->get('start_date');
+    $this->data['end_date']     = $this->input->get('end_date');
+    $this->data['warehouse_id'] = $this->input->get('warehouse');
+    $this->data['xls']          = $this->input->get('xls');
+
+    if ($warehouse_id) {
+      $this->data['warehouse']    = $this->site->getWarehouseByID($warehouse_id);
+    } else {
+      $this->data['warehouse']    = NULL;
+    }
+
+    $bc   = [
+      ['link' => base_url(), 'page' => lang('home')],
+      ['link' => '#', 'page' => lang('reports')],
+      ['link' => '#', 'page' => lang('inventory_balance')]
+    ];
+    $meta = ['page_title' => lang('inventory_balance'), 'bc' => $bc];
+    $this->data = array_merge($this->data, $meta);
+
+    $this->page_construct('reports/inventory_balance', $this->data);
+  }
+
+  public function payments()
+  {
+    $this->sma->checkPermissions('payments');
+    $this->data['error'] = (validation_errors()) ? validation_errors() : $this->session->flashdata('error');
+    $bc   = [['link' => base_url(), 'page' => lang('home')], ['link' => admin_url('reports'), 'page' => lang('reports')], ['link' => '#', 'page' => lang('payments_report')]];
+    $meta = ['page_title' => lang('payments_report'), 'bc' => $bc];
+    $this->data = array_merge($this->data, $meta);
+
+    $this->page_construct('reports/payments', $this->data);
+  }
+
+  public function printerp()
+  {
+    $meta = [
+      'page_title' => 'PrintERP Reports',
+      'bc' => [
+        ['link' => base_url(), 'page' => lang('home')],
+        ['link' => admin_url('reports'), 'page' => lang('reports')],
+        ['link' => '#', 'page' => 'PrintERP Reports']
+      ]
+    ];
+    $this->data = array_merge($this->data, $meta);
+
+    $this->page_construct('reports/printerp', $this->data);
+  }
+
+  public function qms()
+  {
+    $bc = [
+      ['link' => base_url(), 'page' => lang('home')],
+      ['link' => admin_url('reports'), 'page' => lang('reports')],
+      ['link' => '#', 'page' => 'QMS Report']
+    ];
+    $meta = ['page_title' => 'QMS Report', 'bc' => $bc];
+    $this->data = array_merge($this->data, $meta);
+
+    $this->page_construct('reports/qms', $this->data);
+  }
+
+  /**
+   * Report Machine Performance. (NEW)
+   */
+  public function machines()
+  {
+    $startDate = ($this->input->get('start_date') ?? date('Y-m-') . '01');
+    $endDate   = ($this->input->get('end_date') ?? date('Y-m-d'));
+    $whIds = $this->input->get('warehouse');
+
+    $whNames = [];
+
+    if ($whIds) {
+      foreach ($whIds as $whId) {
+        $warehouse = $this->site->getWarehouseByID($whId);
+
+        if ($warehouse) {
+          $whNames[] = $warehouse->name;
+        }
+      }
+    }
+
+    $this->db
+      ->select("products.id AS product_id, products.code AS product_code, products.name AS product_name,
+          JSON_UNQUOTE(JSON_EXTRACT(products.json_data, '$.sn')) AS sn,
+          categories.name AS category_name,
+          subcategories.name AS subcategory_name,
+          JSON_UNQUOTE(JSON_EXTRACT(products.json_data, '$.assigned_at')) AS assigned_at,
+          JSON_UNQUOTE(JSON_EXTRACT(products.json_data, '$.priority')) AS priority,
+          JSON_UNQUOTE(JSON_EXTRACT(products.json_data, '$.order_date')) AS order_date,
+          JSON_UNQUOTE(JSON_EXTRACT(products.json_data, '$.order_price')) AS order_price,
+          JSON_UNQUOTE(JSON_EXTRACT(products.json_data, '$.maintenance_qty')) AS maintenance_qty,
+          JSON_UNQUOTE(JSON_EXTRACT(products.json_data, '$.maintenance_cost')) AS maintenance_cost,
+          JSON_UNQUOTE(JSON_EXTRACT(products.json_data, '$.disposal_date')) AS disposal_date,
+          JSON_UNQUOTE(JSON_EXTRACT(products.json_data, '$.disposal_price')) AS disposal_price,
+          products.active AS active,
+          products.warehouses AS warehouses,
+          JSON_UNQUOTE(JSON_EXTRACT(products.json_data, '$.condition')) AS last_condition,
+          JSON_UNQUOTE(JSON_EXTRACT(products.json_data, '$.note')) AS note,
+          JSON_UNQUOTE(JSON_EXTRACT(products.json_data, '$.updated_at')) AS last_update,
+          JSON_UNQUOTE(JSON_EXTRACT(products.json_data, '$.purchased_at')) AS purchased_at,
+          pic.fullname AS pic_name,,
+          creator.fullname AS creator_name")
+      ->from('products')
+      ->join('categories', 'categories.id = products.category_id', 'left')
+      ->join('categories AS subcategories', 'subcategories.id = products.subcategory_id', 'left')
+      ->join('users AS creator', "creator.id = JSON_UNQUOTE(JSON_EXTRACT(products.json_data, '$.updated_by'))", 'left')
+      ->join('users AS pic', "pic.id = JSON_UNQUOTE(JSON_EXTRACT(products.json_data, '$.pic_id'))", 'left')
+      ->group_start()
+      ->like('categories.code', 'AST', 'none')
+      ->or_like('categories.code', 'EQUIP', 'none')
+      ->group_end();
+
+    if ($whNames) {
+      $this->db->group_start();
+      foreach ($whNames as $name) {
+        $this->db->or_like('products.warehouses', $name, 'none');
+      }
+      $this->db->group_end();
+    }
+
+    $q = $this->db->get();
+
+    if ($q) {
+      $rows = $q->result();
+    } else {
+      die($this->db->error()['message']);
+    }
+
+    // Summary Report
+    $A1DateGrid = [NULL, 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
+      'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH', 'AI', 'AJ', 'AK', 'AL'];
+
+    $sheet = $this->ridintek->spreadsheet();
+    $sheet->loadFile(FCPATH . 'files/templates/Machine_Report.xlsx');
+
+    $sheet->getSheetByName('Sheet1');
+    $sheet->setTitle('Summary Report');
+    $sheet->setCellValue('A1', date('F Y', strtotime($startDate)));
+
+    $warehouses = $this->site->getWarehouses();
+    $pg = 10000; // Penalty
+
+    $r = 4;
+    $lastDate = intval(date('j', strtotime($endDate)));
+
+    foreach ($warehouses as $wh) {
+      if ($wh->code == 'ADV') continue; // No ADV warehouse please.
+
+      $sheet->setCellValue('A' . $r, $wh->name);
+      $sheet->setCellValue('C' . $r, "=COUNTIF(H{$r}:AL{$r},\"X\")");
+      $sheet->setCellValue('D' . $r, "=COUNTIF(H{$r}:AL{$r},\"P\")");
+      $sheet->setCellValue('E' . $r, "=C{$r}+D{$r}");
+      $sheet->setCellValue('F' . $r, "=IF(E{$r}>0,E{$r}*-{$pg},(\$E\$1*{$pg})/(LEFT(\$B\$2,SEARCH(\":\",\$B\$2)-1)))");
+
+      for ($x = 1; $x <= $lastDate; $x++) {
+        $items = [];
+        $dayCode = date('D', strtotime(date('Y-m-', strtotime($endDate)) . $x));
+
+        // No checked for other except DUR, FAT, TEM and UNG. Don't let them checked partially.
+        if ($dayCode == 'Sun') { // Sunday = Ahad
+          // d(date('Y-m-d D', strtotime(date('Y-m-', strtotime($endDate)) . $x))); die();
+          if ($wh->code != 'DUR' && $wh->code != 'FAT' && $wh->code != 'TEM' && $wh->code != 'UNG') {
+            continue;
+          }
+        }
+
+        $reports = $this->site->getProductReports([
+          'warehouse_id' => $wh->id, 'start_date' => $startDate, 'end_date' => $endDate
+        ]);
+
+        foreach ($rows as $row) { // Filter items first.
+          if ($row->active != 1) continue;
+          if ($row->warehouses != $wh->name) continue;
+
+          $items[] = $row;
+        }
+
+        $checkCount = 0;
+        $filteredItems = [];
+
+        foreach ($items as $item) {
+          $isNewItem = FALSE; // New item is not allowed.
+
+          if (!empty($item->purchased_at)) {
+            $isNewItem = (date('j', strtotime($item->purchased_at)) > $x ? TRUE : FALSE);
+          }
+
+          foreach ($reports as $report) {
+            $isTimeEqual = (date('j', strtotime($report->created_at)) == $x);
+            $needCheck   = ($isTimeEqual && !$isNewItem);
+
+            if ($report->product_id == $item->product_id && $needCheck) {
+              $checkCount++;
+              break;
+            }
+          }
+
+          if (!$isNewItem) $filteredItems[] = $item;
+        }
+
+        $itemTotal = count($filteredItems);
+
+        if (!$checkCount) {
+          $sheet->setCellValue($A1DateGrid[$x] . $r, 'X'); // Not checked.
+        } else if ($itemTotal == $checkCount) {
+          $sheet->setCellValue($A1DateGrid[$x] . $r, 'V'); // Fully checked.
+        } else {
+          // $sheet->setCellValue($A1DateGrid[$x] . $r, 'P'); // Partial checked.
+          $sheet->setCellValue($A1DateGrid[$x] . $r, 'V'); // Partial checked.
+        }
+      }
+
+      $r++;
+    }
+
+    // Machine Report
+
+    $sheet->getSheetByName('Sheet2');
+    $sheet->setTitle('Machine Report');
+
+    $r = 2;
+
+    foreach ($rows as $row) {
+      // if ($row->product_code != 'PCA2') continue; // TEMP
+
+      $reportBegin = '';
+      $reportEnd = date('Y-m-d H:i:s');
+
+      if (!empty($row->assigned_at)) { // If TS assigned, use assigned at as begin report date.
+        $reportBegin = $row->assigned_at;
+      }
+
+      $duration = ($reportBegin && $reportEnd ? getDaysInPeriod($reportBegin, $reportEnd) : 0);
+      if ($duration < 0) $duration = 0;
+
+      $sheet->setCellValue('A' . $r, $row->product_code);
+      $sheet->setCellValue('B' . $r, $row->product_name);
+      $sheet->setCellValue('C' . $r, $row->sn);
+      $sheet->setCellValue('D' . $r, $row->category_name);
+      $sheet->setCellValue('E' . $r, $row->subcategory_name);
+      $sheet->setCellValue('F' . $r, $row->priority);
+      $sheet->setCellValue('G' . $r, $row->order_date);
+      $sheet->setCellValue('H' . $r, $row->order_price);
+      $sheet->setCellValue('I' . $r, $row->disposal_date);
+      $sheet->setCellValue('J' . $r, $row->disposal_price);
+      $sheet->setCellValue('K' . $r, ($row->active ? 'Active' : 'Non Active'));
+      $sheet->setCellValue('L' . $r, $row->warehouses);
+      $sheet->setCellValue('M' . $r, $row->maintenance_qty);
+      $sheet->setCellValue('N' . $r, $row->maintenance_cost);
+      $sheet->setCellValue('O' . $r, lang($row->last_condition));
+      $sheet->setCellValue('P' . $r, htmlRemove($row->note));
+      $sheet->setCellValue('Q' . $r, $row->last_update);
+      $sheet->setCellValue('R' . $r, $row->assigned_at);
+      $sheet->setCellValue('S' . $r, $row->pic_name);
+      $sheet->setCellValue('T' . $r, $duration); // Duration
+      $sheet->setCellValue('U' . $r, $row->creator_name);
+
+      $colorStatus = NULL;
+
+      switch ($row->last_condition) {
+        case 'good':
+          $colorStatus = '00FF00';
+          break;
+        case 'off':
+          $colorStatus = 'FF0000';
+          break;
+        case 'trouble':
+          $colorStatus = 'FF8000';
+      }
+
+      if ($colorStatus) {
+        $sheet->setFillColor('O' . $r, $colorStatus);
+      }
+
+      $r++;
+    }
+
+    // Maintenance Logs
+
+    $rows = $this->site->getMaintenanceLogs(['start_date' => $startDate, 'end_date' => $endDate]);
+
+    $sheet->getSheetByName('Sheet3');
+    $sheet->setTitle('Maintenance Logs');
+
+    $r = 2;
+
+    foreach ($rows as $row) {
+      if (!$row->assigned_by) $row->assigned_by = 1;
+      if (!$row->pic_id) $row->pic_id = 1;
+
+      $assigner = $this->site->getUserByID($row->assigned_by);
+      $pic = $this->site->getUserByID($row->pic_id);
+      $loc = $this->site->getWarehouseByID($row->warehouse_id);
+      $item = $this->site->getProductByID($row->product_id);
+
+      $sheet->setCellValue('A' . $r, $item->code);
+      $sheet->setCellValue('B' . $r, $item->name);
+      $sheet->setCellValue('C' . $r, $row->assigned_at);
+      $sheet->setCellValue('D' . $r, $assigner->fullname);
+      $sheet->setCellValue('E' . $r, $row->fixed_at);
+      $sheet->setCellValue('F' . $r, $pic->fullname);
+      $sheet->setCellValue('G' . $r, $loc->name);
+      $sheet->setCellValue('H' . $r, htmlRemove($row->note));
+
+      $r++;
+    }
+
+    $sheet->getSheetByName('Machine Report');
+
+    $sheet->setColumnAutoWidth('A');
+    // $sheet->setColumnAutoWidth('B');
+    $sheet->setColumnAutoWidth('C');
+    $sheet->setColumnAutoWidth('D');
+    $sheet->setColumnAutoWidth('E');
+    $sheet->setColumnAutoWidth('F');
+    $sheet->setColumnAutoWidth('G');
+    $sheet->setColumnAutoWidth('H');
+    $sheet->setColumnAutoWidth('I');
+    $sheet->setColumnAutoWidth('J');
+    $sheet->setColumnAutoWidth('K');
+    $sheet->setColumnAutoWidth('L');
+    $sheet->setColumnAutoWidth('M');
+    $sheet->setColumnAutoWidth('N');
+    $sheet->setColumnAutoWidth('O');
+    // $sheet->setColumnAutoWidth('P');
+    $sheet->setColumnAutoWidth('Q');
+    $sheet->setColumnAutoWidth('R');
+    $sheet->setColumnAutoWidth('S');
+    $sheet->setColumnAutoWidth('T');
+    $sheet->setColumnAutoWidth('U');
+
+    $sheet->getSheet(0);
+    $sheet->setCellValue('A1', date('F Y', strtotime($startDate)));
+    $sheet->setBold('A1');
+
+    $name = $this->session->userdata('fullname');
+
+    $sheet->export('PrintERP-MachinePerformance-' . date('Ymd_His') . "-($name)");
+  }
+
+  public function sales_status()
+  {
+    $this->sma->checkPermissions('sales');
+    $this->data['product_categories'] = $this->site->getCategories();
+    $this->data['error']              = (validation_errors()) ? validation_errors() : $this->session->flashdata('error');
+    $this->data['warehouses']         = $this->site->getAllWarehouses();
+    $this->data['billers']            = $this->site->getAllBillers();
+    $bc                               = [
+      ['link' => base_url(), 'page' => lang('home')],
+      ['link' => admin_url('reports'), 'page' => lang('reports')],
+      ['link' => '#', 'page' => lang('sales_status')]
+    ];
+    $meta = ['page_title' => lang('sales_status'), 'bc' => $bc];
+    $this->data = array_merge($this->data, $meta);
+
+    $this->page_construct('reports/sales_status', $this->data);
+  }
+
+  // public function suggestions()
+  // {
+  //   $term = $this->input->get('term', true);
+  //   if (strlen($term) < 1) {
+  //     die();
+  //   }
+
+  //   $rows = $this->reports_model->getProductNames($term, 10); // $term, $limit = 5
+  //   if ($rows) {
+  //     foreach ($rows as $row) {
+  //       $pr[] = ['id' => $row->id, 'label' => $row->name . ' (' . $row->code . ')'];
+  //     }
+  //     sendJSON($pr);
+  //   } else {
+  //     echo false;
+  //   }
+  // }
+
+  public function trackingPODs()
+  {
+    // die("<b>Sedang Maintenance</b>");
+    $startDate = ($this->input->get('start_date') ?? date('Y-m-') . '01');
+    $endDate   = ($this->input->get('end_date') ?? date('Y-m-d'));
+
+    $sheet = $this->ridintek->spreadsheet();
+
+    $sheet->loadFile(FCPATH . 'files/templates/TrackingPOD_Report.xlsx');
+
+    // Tracking POD
+    $sheet->getSheetByName('Sheet1');
+    $sheet->setTitle('Tracking POD');
+
+    $r = 2;
+
+    $tracks = $this->site->getTrackingPODs(['start_date' => $startDate, 'end_date' => $endDate]);
+
+    foreach ($tracks as $track) {
+      $klikpod = $this->site->getProductByID($track->pod_id);
+      $pic = $this->site->getUserByID($track->created_by);
+      $warehouse = $this->site->getWarehouseByID($track->warehouse_id);
+
+      // Convert machine reject to minus.
+      $mcReject = ($track->mc_reject > 0 ? $track->mc_reject * -1 : $track->mc_reject);
+
+      $sheet->setCellValue('A' . $r, $track->created_at);
+      $sheet->setCellValue('B' . $r, $klikpod->code);
+      $sheet->setCellValue('C' . $r, $track->start_click);
+      $sheet->setCellValue('D' . $r, $track->end_click);
+      $sheet->setCellValue('E' . $r, $track->usage_click);
+      $sheet->setCellValue('F' . $r, $mcReject);
+      $sheet->setCellValue('G' . $r, "=I{$r}-D{$r}-F{$r}"); // op_reject
+      $sheet->setCellValue('H' . $r, "=F{$r}+G{$r}"); // total_reject
+      $sheet->setCellValue('I' . $r, $track->erp_click);
+      $sheet->setCellValue('J' . $r, $track->tolerance);
+      $sheet->setCellValue('K' . $r, "=ROUND(H{$r}*0.01*J{$r},0)"); // tolerance_click
+      $sheet->setCellValue('L' . $r, $track->cost_click);
+      $sheet->setCellValue('M' . $r, "=H{$r}-K{$r}"); // balance
+      $sheet->setCellValue('N' . $r, "=IF(M{$r}<0,M{$r}*L{$r},0)"); // total_penalty
+      $sheet->setCellValue('O' . $r, $pic->fullname);
+      $sheet->setCellValue('P' . $r, $warehouse->name);
+      $sheet->setCellValue('Q' . $r, htmlRemove($track->note));
+
+      $r++;
+    }
+
+    // Daily Report
+    $sheet->getSheetByName('Sheet2');
+    $sheet->setTitle('Daily Report');
+    $sheet->setCellValue('A1', date('F Y', strtotime($startDate)));
+
+    $A1DateGrid = [NULL, 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
+      'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH', 'AI', 'AJ'];
+
+    $lastDate = date('j', strtotime($endDate));
+
+    $pg = 20000;
+    $r = 4;
+    $warehouses = $this->site->getWarehouses();
+
+    foreach ($warehouses as $wh) {
+      if ($wh->code == 'ADV') continue;
+      if ($wh->code == 'BAL') continue;
+      if ($wh->code == 'LUC') continue;
+
+      $sheet->setCellValue('A' . $r, $wh->name);
+      $sheet->setCellValue('C' . $r, "=COUNTIF(F{$r}:AJ{$r},\"=X\")");
+      $sheet->setCellValue('D' . $r, "=IF(C{$r}=0,\$C\$1*{$pg}/LEFT(\$B\$2,SEARCH(\":\",\$B\$2)-1),-C{$r}*{$pg})");
+
+      $tracks = $this->site->getTrackingPODs([
+        'warehouse_id' => $wh->id,
+        'start_date' => $startDate,
+        'end_date' => $endDate
+      ]);
+
+      for ($x = 1; $x <= $lastDate; $x++) {
+        $isChecked = FALSE;
+        $dayCode = date('D', strtotime(date('Y-m-', strtotime($endDate)) . $x));
+
+        // On Sunday, for DUR, FAT, TEM and UNG only.
+        if ($dayCode == 'Sun') {
+          if ($wh->code != 'DUR' && $wh->code != 'FAT' && $wh->code != 'TEM' && $wh->code != 'UNG') {
+            continue;
+          }
+        }
+
+        foreach ($tracks as $track) {
+          if (date('j', strtotime($track->created_at)) == $x) {
+            $isChecked = TRUE;
+            break;
+          }
+        }
+
+        if ($isChecked) {
+          $sheet->setCellValue($A1DateGrid[$x] . $r, 'V');
+        } else {
+          $sheet->setCellValue($A1DateGrid[$x] . $r, 'X');
+        }
+      }
+
+      $r++;
+    }
+
+    // Outlet Penalty
+    $sheet->getSheetByName('Sheet3');
+    $sheet->setTitle('Outlet Penalty');
+    $sheet->setCellValue('A1', date('F Y', strtotime($startDate)));
+
+    $pgKlikPOD   = 1000;
+    $pgKlikPODBW = 300;
+
+    $klikpod   = $this->site->getProductByCode('KLIKPOD');
+    $klikpodbw = $this->site->getProductByCode('KLIKPODBW');
+
+    $r = 4;
+
+    foreach ($warehouses as $wh) {
+      if ($wh->code == 'ADV') continue;
+      if ($wh->code == 'BAL') continue;
+      if ($wh->code == 'LUC') continue;
+
+      $sheet->setCellValue('A' . $r, $wh->name);
+
+      $trackPODs = $this->site->getTrackingPODs([
+        'pod_id' => $klikpod->id,
+        'warehouse_id' => $wh->id,
+        'start_date' => $startDate,
+        'end_date' => $endDate,
+        'order' => ['created_at', 'ASC']
+      ]);
+
+      $trackPODBWs = $this->site->getTrackingPODs([
+        'pod_id' => $klikpodbw->id,
+        'warehouse_id' => $wh->id,
+        'start_date' => $startDate,
+        'end_date' => $endDate,
+        'order' => ['created_at', 'ASC']
+      ]);
+
+      if ($trackPODs) {
+        $startPOD = $trackPODs[0]->start_click;
+        $endPOD = $trackPODs[count($trackPODs) - 1]->end_click;
+      } else {
+        $startPOD = 0;
+        $endPOD = 0;
+      }
+
+      if ($trackPODBWs) {
+        $startPODBW = $trackPODBWs[0]->start_click;
+        $endPODBW = $trackPODBWs[count($trackPODBWs) - 1]->end_click;
+      } else {
+        $startPODBW = 0;
+        $endPODBW = 0;
+      }
+
+      $klikPODERP = 0;
+      $klikPODBWERP = 0;
+      $klikPODs   = $this->site->getStocks([
+        'product_id' => $klikpod->id,
+        'warehouse_id' => $wh->id
+      ], [
+        'start_date' => $startDate,
+        'end_date' => $endDate
+      ]);
+      $klikPODBWs = $this->site->getStocks([
+        'product_id' => $klikpodbw->id,
+        'warehouse_id' => $wh->id
+      ], [
+        'start_date' => $startDate,
+        'end_date' => $endDate
+      ]);
+
+      foreach ($klikPODs as $klikPOD) {
+        if ($klikPOD->status == 'received') $klikPODERP += $klikPOD->quantity;
+        if ($klikPOD->status == 'sent') $klikPODERP -= $klikPOD->quantity;
+      }
+
+      foreach ($klikPODBWs as $klikPODBW) {
+        if ($klikPOD->status == 'received') $klikPODBWERP += $klikPODBW->quantity;
+        if ($klikPOD->status == 'sent') $klikPODBWERP -= $klikPODBW->quantity;
+      }
+
+      // $usageKlikPOD      = 0;
+      // $usageKlikPODBW    = 0;
+      // $mcRejectKlikPOD   = 0;
+      // $opRejectKlikPOD   = 0;
+      // $mcRejectKlikPODBW = 0;
+      // $opRejectKlikPODBW = 0;
+      // $balanceKlikPOD    = 0;
+      // $balanceKlikPODBW  = 0;
+
+      // foreach ($tracks as $track) {
+      //   if ($track->pod_id == $klikpod->id) {
+      //     $usageKlikPOD += filterDecimal($track->usage_click);
+      //     $mcRejectKlikPOD += filterDecimal($track->mc_reject);
+      //     $opRejectKlikPOD += filterDecimal($track->op_reject);
+      //     $balanceKlikPOD += filterDecimal($track->balance);
+      //   }
+
+      //   if ($track->pod_id == $klikpodbw->id) {
+      //     $usageKlikPODBW += filterDecimal($track->usage_click);
+      //     $mcRejectKlikPODBW += filterDecimal($track->mc_reject);
+      //     $opRejectKlikPODBW += filterDecimal($track->op_reject);
+      //     $balanceKlikPODBW += filterDecimal($track->balance);
+      //   }
+      // }
+
+      $sheet->setCellValue('B' . $r, $startPOD); // start click
+      $sheet->setCellValue('C' . $r, $endPOD); // end click
+      $sheet->setCellValue('D' . $r, "=C{$r}-B{$r}"); // usage
+      $sheet->setCellValue('E' . $r, $klikPODERP); // erp click
+      $sheet->setCellValue('F' . $r, "=E{$r}-D{$r}"); // Balance
+      $sheet->setCellValue('G' . $r, "=IF(F{$r}<0,F{$r}*{$pgKlikPOD},0)"); // Subtotal Penalty
+      $sheet->setCellValue('H' . $r, $startPODBW); // start click bw
+      $sheet->setCellValue('I' . $r, $endPODBW); // end click bw
+      $sheet->setCellValue('J' . $r, "=I{$r}-H{$r}"); // usage bw
+      $sheet->setCellValue('K' . $r, $klikPODBWERP); // erp click bw
+      $sheet->setCellValue('L' . $r, "=K{$r}-J{$r}"); // Balance
+      $sheet->setCellValue('M' . $r, "=IF(L{$r}<0,L{$r}*{$pgKlikPODBW},0)"); // Subtotal Penalty bw
+      $sheet->setCellValue('N' . $r, "=F{$r}+L{$r}"); // Total Balance
+      $sheet->setCellValue('O' . $r, "=IF(N{$r}<0,G{$r}+M{$r},0)"); // If K{$r} < 0 then penalty else 0.
+
+      $r++;
+    }
+
+    // User Penalty
+    $sheet->getSheetByName('Sheet4');
+    $sheet->setTitle('User Penalty');
+    $sheet->setCellValue('A1', date('F Y', strtotime($startDate)));
+
+    $pgKlikPOD   = 1000;
+    $pgKlikPODBW = 300;
+
+    $klikpod   = $this->site->getProductByCode('KLIKPOD');
+    $klikpodbw = $this->site->getProductByCode('KLIKPODBW');
+
+    $userTracks = $this->site->getTrackingPODUsers(['start_date' => $startDate, 'end_date' => $endDate]);
+
+    $r = 4;
+
+    foreach ($userTracks as $userTrack) {
+      $user = $this->site->getUserByID($userTrack->created_by);
+      $tracks = $this->site->getTrackingPODs([
+        'created_by' => $user->id,
+        'start_date' => $startDate,
+        'end_date'   => $endDate
+      ]);
+
+      $sheet->setCellValue('A' . $r, $user->fullname);
+
+      $usageKlikPOD      = 0;
+      $usageKlikPODBW    = 0;
+      $mcRejectKlikPOD   = 0;
+      $opRejectKlikPOD   = 0;
+      $mcRejectKlikPODBW = 0;
+      $opRejectKlikPODBW = 0;
+      $balanceKlikPOD    = 0;
+      $balanceKlikPODBW  = 0;
+
+      foreach ($tracks as $track) {
+        if ($track->pod_id == $klikpod->id) {
+          $usageKlikPOD += filterDecimal($track->usage_click);
+          $mcRejectKlikPOD += filterDecimal($track->mc_reject);
+          $opRejectKlikPOD += filterDecimal($track->op_reject);
+          $balanceKlikPOD += filterDecimal($track->balance);
+        }
+
+        if ($track->pod_id == $klikpodbw->id) {
+          $usageKlikPODBW += filterDecimal($track->usage_click);
+          $mcRejectKlikPODBW += filterDecimal($track->mc_reject);
+          $opRejectKlikPODBW += filterDecimal($track->op_reject);
+          $balanceKlikPODBW += filterDecimal($track->balance);
+        }
+      }
+
+      $sheet->setCellValue('B' . $r, $usageKlikPOD);
+      $sheet->setCellValue('C' . $r, $mcRejectKlikPOD);
+      $sheet->setCellValue('D' . $r, $opRejectKlikPOD);
+      $sheet->setCellValue('E' . $r, "=C{$r}+D{$r}");
+      $sheet->setCellValue('F' . $r, $balanceKlikPOD); // Balance
+      $sheet->setCellValue('G' . $r, "=IF(F{$r}<0,F{$r}*{$pgKlikPOD},0)"); // Subtotal Penalty
+      $sheet->setCellValue('H' . $r, $usageKlikPODBW);
+      $sheet->setCellValue('I' . $r, $mcRejectKlikPODBW);
+      $sheet->setCellValue('J' . $r, $opRejectKlikPODBW);
+      $sheet->setCellValue('K' . $r, "=I{$r}+J{$r}");
+      $sheet->setCellValue('L' . $r, $balanceKlikPODBW); // Balance
+      $sheet->setCellValue('M' . $r, "=IF(L{$r}<0,L{$r}*{$pgKlikPODBW},0)"); // Subtotal Penalty
+      $sheet->setCellValue('N' . $r, "=F{$r}+L{$r}"); // Total Balance
+      $sheet->setCellValue('O' . $r, "=IF(N{$r}<0,G{$r}+M{$r},0)"); // If K{$r} < 0 then penalty else 0.
+
+      $r++;
+    }
+
+    $sheet->getSheetByName('Tracking POD'); // 1st
+    $sheet->setColumnAutoWidth('A');
+    $sheet->setColumnAutoWidth('P');
+
+    $sheet->getSheetByName('Outlet Penalty'); // 4th
+    $sheet->setCellValue('A1', date('F Y', strtotime($startDate)));
+    $sheet->setBold('A1');
+
+    $name = $this->session->userdata('fullname');
+
+    $sheet->export('PrintERP-TrackingPOD-' . date('Ymd_His') . "-($name)");
+  }
+}
+/* EOF */
