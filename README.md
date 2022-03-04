@@ -1,2 +1,7 @@
-# printerp
-Indoprinting PrintERP
+# PrintERP
+PrintERP atau Indoprinting ERP adalah software ERP (Enterprise Resource Planning) yang digunakan untuk menunjang operasional perusahaan CV. Indoprinting sejak 2020.
+
+# Author
+Name | Position
+-----|---------
+Riyan Widiyanto | DevOps Engineer/Full-Stack Programmer/Tester/Documenter/Troubleshooter/Kabeh...
