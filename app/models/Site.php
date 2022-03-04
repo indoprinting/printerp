@@ -5104,11 +5104,6 @@ class Site extends MY_Model
     return NULL;
   }
 
-  public function getProductVariants($product_id)
-  {
-    return NULL;
-  }
-
   public function getQuantityAlertProducts()
   {
     $this->db
