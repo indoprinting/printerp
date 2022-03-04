@@ -409,44 +409,42 @@ class Site extends MY_Model
    */
   public function addPayment($data = [])
   { // Add New: For global payments.
-    $ci = $this;
-    $ret = $this->ridintek->mutex('payment')->on('lock', function ($mutex) use ($ci, $data) {
-      if (isset($data['expense_id'])) {
-        $ref = $this->getExpenseByID($data['expense_id'])->reference;
-      } else if (isset($data['income_id'])) {
-        $ref = $this->getIncomeByID($data['income_id'])->reference;
-      } else if (isset($data['sale_id'])) {
-        $ref = $this->getSaleByID($data['sale_id'])->reference;
-      } else if (isset($data['purchase_id'])) {
-        $ref = $this->getStockPurchaseByID($data['purchase_id'])->reference;
-      } else if (isset($data['transfer_id'])) {
-        $ref = $this->getStockTransferByID($data['transfer_id'])->reference;
-      } else if (isset($data['mutation_id'])) {
-        $ref = $this->getBankMutationByID($data['mutation_id'])->reference;
-      }
+    if (isset($data['expense_id'])) {
+      $ref = $this->getExpenseByID($data['expense_id'])->reference;
+    } else if (isset($data['income_id'])) {
+      $ref = $this->getIncomeByID($data['income_id'])->reference;
+    } else if (isset($data['sale_id'])) {
+      $ref = $this->getSaleByID($data['sale_id'])->reference;
+    } else if (isset($data['purchase_id'])) {
+      $ref = $this->getStockPurchaseByID($data['purchase_id'])->reference;
+    } else if (isset($data['transfer_id'])) {
+      $ref = $this->getStockTransferByID($data['transfer_id'])->reference;
+    } else if (isset($data['mutation_id'])) {
+      $ref = $this->getBankMutationByID($data['mutation_id'])->reference;
+    }
 
-      if (empty($data['bank_id'])) return FALSE;
-
-      $data['date']       = ($data['date'] ?? date('Y-m-d H:i:s'));
-      $data['reference']  = $ref;
-      $data['created_by'] = ($data['created_by'] ?? $ci->session->userdata('user_id'));
-
-      $ci->db->trans_start();
-      $ci->db->insert('payments', $data); // Insert Payment.
-      $insert_id = $ci->db->insert_id();
-      $ci->db->trans_complete();
-
-      if ($ci->db->trans_status() !== FALSE) {
-        if ($data['type'] == 'received') {
-          $this->increaseBankAmount($data['bank_id'], $data['amount']);
-        } else if ($data['type'] == 'sent') {
-          $this->decreaseBankAmount($data['bank_id'], $data['amount']);
-        }
-        return $insert_id;
-      }
+    if (empty($data['bank_id'])) {
+      setLastError('bank_id is not valid.');
       return FALSE;
-    })->create()->close();
-    return $ret;
+    }
+
+    $data['date']       = ($data['date'] ?? date('Y-m-d H:i:s'));
+    $data['reference']  = $ref;
+    $data['created_by'] = ($data['created_by'] ?? $this->session->userdata('user_id'));
+
+    $this->db->insert('payments', $data); // Insert Payment.
+
+    if ($this->db->affected_rows()) {
+      $paymentId = $this->db->insert_id();
+
+      if ($data['type'] == 'received') {
+        $this->increaseBankAmount($data['bank_id'], $data['amount']);
+      } else if ($data['type'] == 'sent') {
+        $this->decreaseBankAmount($data['bank_id'], $data['amount']);
+      }
+      return $paymentId;
+    }
+    return FALSE;
   }
 
   /**
@@ -457,64 +455,56 @@ class Site extends MY_Model
   public function addPaymentValidation($data)
   { // Add New: For payment transfer validation.
     if (!empty($data)) {
-      $ci = $this;
-      $ret = $this->ridintek->mutex('payment_validation')->on('lock', function ($mutex) use ($ci, $data) {
-        $unique_code = 0;
-        $uqcodes = [];
+      $unique_code = 0;
+      $uqcodes = [];
 
-        if (empty($data['date'])) $data['date'] = date('Y-m-d H:i:s');
-        if (empty($data['expired_date'])) {
-          // Default expired: 2 day.
-          $date['expired_date'] = date('Y-m-d H:i:s', strtotime('+2 day', strtotime($data['date'])));
-        }
+      if (empty($data['date'])) $data['date'] = date('Y-m-d H:i:s');
+      if (empty($data['expired_date'])) {
+        // Default expired: 2 day.
+        $date['expired_date'] = date('Y-m-d H:i:s', strtotime('+2 day', strtotime($data['date'])));
+      }
 
-        if (!empty($data['unique_code']) && is_numeric($data['unique_code'])) {
-          $unique_code = $data['unique_code'];
-        }
+      if (!empty($data['unique_code']) && is_numeric($data['unique_code'])) {
+        $unique_code = $data['unique_code'];
+      }
 
-        if (!$unique_code) {
-          $unique_code = $ci->generateUniqueCode();
+      if (!$unique_code) {
+        $unique_code = $this->generateUniqueCode();
 
-          $q = $ci->db->get_where('payment_validations', ['status' => 'pending']);
+        $q = $this->db->get_where('payment_validations', ['status' => 'pending']);
 
-          if ($q->num_rows() > 0) {
-            foreach ($q->result() as $row) {
-              $uqcodes[] = $row->unique_code;
-            }
-          }
-
-          if ($uqcodes) {
-            while (TRUE) {
-              if (array_search($unique_code, $uqcodes) === FALSE) {
-                break;
-              } else {
-                $unique_code = $ci->generateUniqueCode();
-              }
-            }
+        if ($q->num_rows() > 0) {
+          foreach ($q->result() as $row) {
+            $uqcodes[] = $row->unique_code;
           }
         }
 
-        $data['unique_code'] = $unique_code;
-        $data['status']      = 'pending';
-
-        if (empty($data['created_by'])) {
-          $data['created_by'] = $ci->session->userdata('user_id');
+        if ($uqcodes) {
+          while (TRUE) {
+            if (array_search($unique_code, $uqcodes) === FALSE) {
+              break;
+            } else {
+              $unique_code = $this->generateUniqueCode();
+            }
+          }
         }
-        if (empty($data['biller_id'])) {
-          $data['biller_id'] = $ci->session->userdata('biller_id') ?? $ci->Settings->default_biller;
-        }
+      }
 
-        $ci->db->trans_start();
-        $ci->db->insert('payment_validations', $data);
-        $insert_id = $ci->db->insert_id();
-        $ci->db->trans_complete();
+      $data['unique_code'] = $unique_code;
+      $data['status']      = 'pending';
 
-        if ($ci->db->trans_status() !== FALSE) {
-          return $insert_id;
-        }
-        return FALSE;
-      })->create()->close();
-      return $ret;
+      if (empty($data['created_by'])) {
+        $data['created_by'] = $this->session->userdata('user_id');
+      }
+      if (empty($data['biller_id'])) {
+        $data['biller_id'] = $this->session->userdata('biller_id') ?? $this->Settings->default_biller;
+      }
+
+      $this->db->insert('payment_validations', $data);
+
+      if ($this->db->affected_rows()) {
+        return $this->db->insert_id();
+      }
     }
     return FALSE;
   }
@@ -585,12 +575,11 @@ class Site extends MY_Model
 
     $reportData = setCreatedBy($reportData);
 
-    $this->db->trans_start();
     $this->db->insert('product_report', $reportData);
-    $insertId = $this->db->insert_id();
-    $this->db->trans_complete();
 
-    if ($this->db->trans_status()) {
+    if ($this->db->affected_rows()) {
+      $insertId = $this->db->insert_id();
+
       addEvent("Created Product Report [{$insertId}]: {$product->code}, {$data['condition']}, {$data['note']}", 'info');
 
       $this->updateProducts([
@@ -621,7 +610,7 @@ class Site extends MY_Model
     if (!empty($products) && is_array($products)) {
       $product_ids = [];
       foreach ($products as $product) {
-        $product_data = [
+        $productData = [
           'code'               => $product['code'],
           'name'               => $product['name'],
           'unit'               => $product['unit'],
@@ -674,29 +663,27 @@ class Site extends MY_Model
               $ranges[] = $price_range;
             }
           }
-          $product_data['price_ranges_value'] = json_encode($ranges);
+          $productData['price_ranges_value'] = json_encode($ranges);
           unset($ranges);
         }
 
-        $this->db->trans_start();
-        $this->db->insert('products', $product_data);
-        $product_id = $this->db->insert_id();
-        $this->db->trans_complete();
+        $this->db->insert('products', $productData);
 
-        if ($this->db->trans_status()) {
-          $product_ids[] = $product_id;
+        if ($this->db->affected_rows()) {
+          $productId = $this->db->insert_id();
+          $product_ids[] = $productId;
 
           if ($product['type'] == 'combo') {
             if (!empty($product['combo_items']) && is_array($product['combo_items'])) { // Combo Items
               foreach ($product['combo_items'] as $combo_item) {
-                $cb_data = [
-                  'product_id' => $product_id,
+                $comboItemData = [
+                  'product_id' => $productId,
                   'item_code'  => $combo_item['item_code'],
                   'quantity'   => filterQuantity($combo_item['quantity']),
                   'unit_price' => $product['price']
                 ];
 
-                $this->db->insert('combo_items', $cb_data);
+                $this->db->insert('combo_items', $comboItemData);
               }
             }
 
@@ -705,8 +692,8 @@ class Site extends MY_Model
                 $key = ['price', 'price2', 'price3', 'price4', 'price5', 'price6'];
                 $price_ranges = array_combine($key, $price_group['price_ranges']);
 
-                $pp_data = [
-                  'product_id' => $product_id,
+                $PPData = [
+                  'product_id' => $productId,
                   'price_group_id' => $price_group['price_group_id'],
                   'price'  => $price_ranges['price'],
                   'price2' => $price_ranges['price2'],
@@ -716,7 +703,7 @@ class Site extends MY_Model
                   'price6' => $price_ranges['price6'],
                 ];
 
-                $this->addProductPrices($pp_data);
+                $this->addProductPrices($PPData);
               }
             }
           }
@@ -727,14 +714,14 @@ class Site extends MY_Model
 
             if ($warehouses) {
               foreach ($warehouses as $warehouse) {
-                $whp_data = [
-                  'product_id'   => $product_id,
+                $WHPData = [
+                  'product_id'   => $productId,
                   'product_code' => $product['code'],
                   'warehouse_id' => $warehouse->id,
                   'warehouse_code' => $warehouse->code
                 ];
 
-                $this->addWarehouseProduct($whp_data);
+                $this->addWarehouseProduct($WHPData);
               }
             }
           }
@@ -744,29 +731,29 @@ class Site extends MY_Model
               $total_safety_stock = 0;
 
               foreach ($product['safety_stock'] as $safety_stock) {
-                $wh_product_data = [
+                $WHPData = [
                   'safety_stock' => $safety_stock['quantity']
                 ];
 
-                $clause = ['product_id' => $product_id, 'warehouse_id' => $safety_stock['warehouse_id']];
+                $clause = ['product_id' => $productId, 'warehouse_id' => $safety_stock['warehouse_id']];
 
-                $this->updateWarehouseProduct($clause, $wh_product_data);
+                $this->updateWarehouseProduct($clause, $WHPData);
 
                 $total_safety_stock += floatval($safety_stock['quantity']);
               }
 
-              $clause = ['id' => $product_id];
+              $clause = ['id' => $productId];
               $this->db->update('products', ['safety_stock' => filterQuantity($total_safety_stock)], $clause);
             }
 
             if (!empty($product['stock_opname'])) {
               foreach ($product['stock_opname'] as $stock_opname) { // Stock Opname
-                $wh_product_data = [
+                $WHPData = [
                   'user_id'  => $stock_opname['user_id'],
                   'so_cycle' => $stock_opname['so_cycle']
                 ];
-                $clause = ['product_id' => $product_id, 'warehouse_id' => $stock_opname['warehouse_id']];
-                $this->updateWarehouseProduct($clause, $wh_product_data);
+                $clause = ['product_id' => $productId, 'warehouse_id' => $stock_opname['warehouse_id']];
+                $this->updateWarehouseProduct($clause, $WHPData);
               }
             }
           }
@@ -784,63 +771,10 @@ class Site extends MY_Model
    */
   public function addProductPrices($data)
   {
-    $this->db->trans_start();
     $this->db->insert('product_prices', $data);
-    $insert_id = $this->db->insert_id();
-    $this->db->trans_complete();
 
-    if ($this->db->trans_status()) {
-      return $insert_id;
-    }
-    return FALSE;
-  }
-
-  /**
-   * THE ONLY FUNCTION TO ADD PAYROLL.
-   * @param array $data [ date, *user_id, *category_id, *amount, *status(pending|paid), note ]
-   */
-  public function addPayroll($data)
-  {
-    $payroll_data = [];
-
-    $payroll_data['date'] = ($data['date'] ?? date('Y-m-d H:i:s'));
-    $payroll_data['user_id'] = $data['user_id'];
-    $payroll_data['category_id'] = $data['category_id'];
-    $payroll_data['amount'] = $data['amount'];
-    $payroll_data['status'] = $data['status'];
-
-    if (!empty($data['note'])) $payroll_data['note'] = $data['note'];
-
-    $this->db->trans_start();
-    $this->db->insert('payrolls', $payroll_data);
-    $payroll_id = $this->db->insert_id();
-    $this->db->trans_complete();
-
-    if ($this->db->trans_status()) {
-      return $payroll_id;
-    }
-    return FALSE;
-  }
-
-  /**
-   * THE ONLY FUNCTION TO ADD PAYROLL CATEGORY.
-   * @param array $data [ *code, *name, *type(decrease|increase)].
-   */
-  public function addPayrollCategory($data)
-  {
-    $category_data = [];
-
-    if (!empty($data['code'])) $category_data['code'] = $data['code'];
-    if (!empty($data['name'])) $category_data['name'] = $data['name'];
-    if (!empty($data['type'])) $category_data['type'] = $data['type'];
-
-    $this->db->trans_start();
-    $this->db->insert('payroll_categories', $category_data);
-    $paycat_id = $this->db->insert_id();
-    $this->db->trans_complete();
-
-    if ($this->db->trans_status()) {
-      return $paycat_id;
+    if ($this->db->affected_rows()) {
+      return $this->db->insert_id();
     }
     return FALSE;
   }
@@ -3014,32 +2948,6 @@ class Site extends MY_Model
   }
 
   /**
-   * THE ONLY FUNCTION TO DELETE PAYROLL.
-   */
-  public function deletePayroll($payroll_id)
-  {
-    if ($payroll_id) {
-      if ($this->db->delete('payrolls', ['id' => $payroll_id])) {
-        return TRUE;
-      }
-    }
-    return FALSE;
-  }
-
-  /**
-   * THE ONLY FUNCTION TO DELETE PAYROLL CATEGORY.
-   */
-  public function deletePayrollCategory($category_id)
-  {
-    if ($category_id) {
-      if ($this->db->delete('payroll_categories', ['id' => $category_id])) {
-        return TRUE;
-      }
-    }
-    return FALSE;
-  }
-
-  /**
    * THE ONLY FUNCTION TO DELETE SALE.
    */
   public function deleteSale($sale_id)
@@ -3655,19 +3563,6 @@ class Site extends MY_Model
     $this->db->group_end();
     $q = $this->db->get('units');
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
-    }
-    return [];
-  }
-
-  public function getAllPayrollCategories()
-  {
-    $q = $this->db->get('payroll_categories');
-
-    if ($q && $q->num_rows() > 0) {
       foreach ($q->result() as $row) {
         $data[] = $row;
       }
@@ -5303,16 +5198,6 @@ class Site extends MY_Model
       }
 
       return $ref_no;
-    }
-    return NULL;
-  }
-
-  public function getPayrollCategoryByID($id)
-  {
-    $q = $this->db->get_where('payroll_categories', ['id' => $id]);
-
-    if ($q && $q->num_rows() > 0) {
-      return $q->row();
     }
     return NULL;
   }
@@ -8264,7 +8149,7 @@ class Site extends MY_Model
                 $key = ['price', 'price2', 'price3', 'price4', 'price5', 'price6'];
                 $price_ranges = array_combine($key, $price_group['price_ranges']);
 
-                $pp_data = [
+                $PPData = [
                   'product_id' => $product['product_id'],
                   'price_group_id' => $price_group['price_group_id'],
                   'price'  => $price_ranges['price'],
@@ -8275,7 +8160,7 @@ class Site extends MY_Model
                   'price6' => $price_ranges['price6'],
                 ];
 
-                $this->addProductPrices($pp_data);
+                $this->addProductPrices($PPData);
               }
             }
           }
@@ -8338,51 +8223,6 @@ class Site extends MY_Model
     if ($q->num_rows() > 0) {
       $ref = $q->row();
       $this->db->update('order_ref', [$field => $ref->{$field} + 1], ['ref_id' => '1']);
-      return TRUE;
-    }
-    return FALSE;
-  }
-
-  /**
-   * THE ONLY FUNCTION TO UPDATE PAYROLL.
-   */
-  public function updatePayroll($payroll_id, $data)
-  {
-    $payroll_data = [];
-
-    if (!empty($data['date']))        $payroll_data['date']        = $data['date'];
-    if (!empty($data['user_id']))     $payroll_data['user_id']     = $data['user_id'];
-    if (!empty($data['category_id'])) $payroll_data['category_id'] = $data['category_id'];
-    if (isset($data['amount']))       $payroll_data['amount']      = $data['amount'];
-    if (!empty($data['status']))      $payroll_data['status']      = $data['status'];
-    if (isset($data['note']))         $payroll_data['note']        = $data['note'];
-
-    $this->db->trans_start();
-    $this->db->update('payrolls', $payroll_data, ['id' => $payroll_id]);
-    $this->db->trans_complete();
-
-    if ($this->db->trans_status()) {
-      return TRUE;
-    }
-    return FALSE;
-  }
-
-  /**
-   * THE ONLY FUNCTION TO UPDATE PAYROLL CATEGORY.
-   */
-  public function updatePayrollCategory($category_id, $data)
-  {
-    $category_data = [];
-
-    if (!empty($data['code'])) $category_data['code'] = $data['code'];
-    if (!empty($data['name'])) $category_data['name'] = $data['name'];
-    if (!empty($data['type'])) $category_data['type'] = $data['type'];
-
-    $this->db->trans_start();
-    $this->db->update('payroll_categories', $category_data, ['id' => $category_id]);
-    $this->db->trans_complete();
-
-    if ($this->db->trans_status()) {
       return TRUE;
     }
     return FALSE;
