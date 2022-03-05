@@ -21,11 +21,6 @@ class Procurements extends MY_Controller
 
     $this->load->helper('security');
     $this->load->library('form_validation');
-    $this->load->admin_model('procurements_model');
-    $this->load->admin_model('products_model');
-    $this->load->admin_model('settings_model');
-    $this->load->admin_model('transfers_model');
-    $this->load->admin_model('users_model');
 
     $this->data['status_mode'] = FALSE; // Used by purchases. Delete soon
     $this->po_mode = 'edit';
@@ -2157,7 +2152,7 @@ class Procurements extends MY_Controller
       $this->data['payment']      = $payment;
       $this->data['purchase']     = $purchase;
       $this->data['bank']         = $this->site->getBankById($payment->bank_id);
-      $this->data['user']         = $this->users_model->getUserById($payment->created_by);
+      $this->data['user']         = $this->site->getUserById($payment->created_by);
       $this->load->view($this->theme . 'procurements/purchases/update_payment_status', $this->data);
     }
   }
@@ -3525,7 +3520,7 @@ class Procurements extends MY_Controller
     }
 
     $sr = $term;
-    $rows = $this->procurements_model->getProductNames($sr, $from_warehouse_id, 15);
+    $rows = $this->site->getProductNames($sr, $from_warehouse_id, 15);
     if ($rows) {
       $po_items = [];
       $r = 0;
@@ -3600,7 +3595,7 @@ class Procurements extends MY_Controller
     $this->data['show_price'] = ($this->input->get('price') == 1 ? TRUE : FALSE);
 
     $this->data['error'] = (validation_errors() ? validation_errors() : $this->session->flashdata('error'));
-    $transfer            = $this->transfers_model->getTransferByID($transfer_id);
+    $transfer            = $this->site->getStockTransferByID($transfer_id);
     if (!$this->session->userdata('view_right')) {
       $this->sma->view_rights($transfer->created_by, true);
     }

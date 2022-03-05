@@ -1479,18 +1479,20 @@ class Products extends MY_Controller
     $this->data['warehouse_id'] = $warehouse_id;
     $this->data['warehouse']    = $this->site->getWarehouseByID($warehouse_id);
 
-    $clauses = [];
-    $options = [];
+    $clause = [];
 
-    if ($product_id)   $clauses['product_id']   = $product_id;
-    if ($start_date)   $options['start_date']   = $start_date;
-    if ($end_date)     $options['end_date']     = $end_date;
-    if ($warehouse_id) $clauses['warehouse_id'] = $warehouse_id;
+    if ($product_id)   $clause['product_id']   = $product_id;
+    if ($start_date)   $clause['start_date']   = $start_date;
+    if ($end_date)     $clause['end_date']     = $end_date;
+    if ($warehouse_id) $clause['warehouse_id'] = $warehouse_id;
 
-    $options['order'] = 'ASC';
+    $clause['order'] = [
+      'created_at', 'ASC'
+    ];
 
-    $beginning_qty  = $this->site->getStockBeginningQuantity($clauses, $start_date);
-    $rows           = $this->site->getStocks($clauses, $options);
+    $rows = $this->site->getStocks($clause);
+    unset($clause['start_date'], $clause['end_date'], $clause['order']);
+    $beginning_qty  = $this->site->getStockBeginningQuantity($clause, $start_date);
 
     $this->data['beginning_qty'] = $beginning_qty;
     $this->data['rows']          = $rows;
