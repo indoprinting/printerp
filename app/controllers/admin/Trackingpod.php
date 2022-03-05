@@ -17,7 +17,8 @@ class Trackingpod extends MY_Controller
     if ($this->requestMethod == 'POST') {
       $endClicks   = $this->input->post('end_click'); // Array
       $mcRejects   = $this->input->post('mc_reject'); // Array
-      $date        = ($this->isAdmin ? $this->input->post('date') : date('Y-m-d'));
+      $dateTime    = ($this->isAdmin ? $this->input->post('date') : $this->serverDateTime);
+      $date        = date('Y-m-d', strtotime($dateTime));
       $warehouseId = $this->input->post('warehouse');
       $note        = $this->input->post('note');
 
@@ -96,7 +97,7 @@ class Trackingpod extends MY_Controller
         'cost_click'   => $costClick,
         'warehouse_id' => $warehouseId,
         'note'         => htmlEncode($note),
-        'created_at'   => $date,
+        'created_at'   => $dateTime,
         'created_by'   => $this->input->post('created_by')
       ];
 

@@ -39,42 +39,8 @@ class Db_model extends CI_Model
     return false;
   }
 
-  public function getChartData_() // old
-  {
-    $myQuery = "SELECT S.month,
-    COALESCE(S.sales, 0) as sales,
-    COALESCE( P.purchases, 0 ) as purchases,
-    COALESCE(S.tax1, 0) as tax1,
-    COALESCE(S.tax2, 0) as tax2,
-    COALESCE( P.ptax, 0 ) as ptax
-    FROM (  SELECT  date_format(date, '%Y-%m') Month,
-        SUM(total) Sales,
-        SUM(product_tax) tax1,
-        SUM(order_tax) tax2
-        FROM " . $this->db->dbprefix('sales') . "
-        WHERE date >= date_sub( now( ) , INTERVAL 12 MONTH )
-        GROUP BY date_format(date, '%Y-%m')) S
-      LEFT JOIN ( SELECT  date_format(date, '%Y-%m') Month,
-            SUM(product_tax) ptax,
-            SUM(order_tax) otax,
-            SUM(total) purchases
-            FROM " . $this->db->dbprefix('purchases') . "
-            GROUP BY date_format(date, '%Y-%m')) P
-      ON S.Month = P.Month
-      ORDER BY S.Month";
-    $q = $this->db->query($myQuery);
-    if ($q->num_rows() > 0) {
-      foreach (($q->result()) as $row) {
-        $data[] = $row;
-      }
-      return $data;
-    }
-    return false;
-  }
-
   public function getChartData()
   {
-    //return false;
     $myQuery = "SELECT Penjualan.bulan,
     COALESCE(Penjualan.grand_total, 0) AS grand_total,
     COALESCE(Penjualan.total_paid, 0) AS total_paid,
@@ -89,6 +55,21 @@ class Db_model extends CI_Model
       GROUP BY date_format(date, '%Y-%m')
     ) AS Penjualan
     ORDER BY Penjualan.bulan ASC";
+
+    // $myQuery = "SELECT Penjualan.bulan,
+    // COALESCE(Penjualan.grand_total, 0) AS grand_total,
+    // '0' AS total_paid,
+    // '0' AS total_balance
+    // FROM (
+    //   SELECT date_format(date, '%Y-%m') AS bulan,
+    //   SUM(grand_total) AS grand_total,
+    //   '0' AS total_paid,
+    //   '0' AS total_balance
+    //   FROM sales
+    //   WHERE date >= date_sub( now(), INTERVAL 12 MONTH )
+    //   GROUP BY date_format(date, '%Y-%m')
+    // ) AS Penjualan
+    // ORDER BY Penjualan.bulan ASC";
 
     $q = $this->db->query($myQuery);
 
