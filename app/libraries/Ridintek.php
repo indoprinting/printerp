@@ -14,6 +14,97 @@ use PhpOffice\PhpSpreadsheet\Reader;
 use PhpOffice\PhpSpreadsheet\Writer;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 
+/**
+ * File Upload class.
+ */
+class FileUpload {
+  protected $file;
+  protected $files;
+
+  public function __construct()
+  {
+    if (is_cli()) die("FileUpload() class cannot be run in CLI mode.");
+
+    $this->file  = NULL;
+    $this->files = $_FILES;
+  }
+
+  public function has($filename)
+  {
+    return (isset($this->files[$filename]));
+  }
+
+  public function file($filename)
+  {
+    if ($this->has($filename)) {
+      $this->file = $this->files[$filename];
+    }
+    return $this;
+  }
+
+  public function getExtension()
+  {
+    if ($this->file) {
+      if (strpos($this->getName(), '.') !== FALSE) {
+        $s = explode('.', $this->getName());
+        return '.' . $s[1];
+      }
+    }
+    return NULL;
+  }
+
+  public function getRandomName()
+  {
+    if ($this->file) {
+      return bin2hex(random_bytes(16)) . $this->getExtension();
+    }
+    return NULL;
+  }
+
+  public function getName()
+  {
+    if ($this->file) {
+      return $this->file['name'];
+    }
+    return NULL;
+  }
+
+  public function getSize()
+  {
+    if ($this->file) {
+      return (int)$this->file['size'];
+    }
+    return NULL;
+  }
+
+  public function getTempName()
+  {
+    if ($this->file) {
+      return $this->file['tmp_name'];
+    }
+    return NULL;
+  }
+
+  public function getType()
+  {
+    if ($this->file) {
+      return $this->file['type'];
+    }
+    return NULL;
+  }
+
+  public function move($path, $newName = NULL)
+  {
+    if ($this->file) {
+      $path = rtrim($path, '/') . '/';
+      $newName = ($newName ?? $this->getName());
+
+      return move_uploaded_file($this->file['tmp_name'], $path . $newName);
+    }
+    return FALSE;
+  }
+}
+
 class Ridintek
 {
   private $cache;
