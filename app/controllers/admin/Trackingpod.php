@@ -52,24 +52,24 @@ class Trackingpod extends MY_Controller
       $lastTrack = ($tracks[0] ?? NULL);
       unset($tracks);
 
-      // Get current click from PrintERP data.
+      // Get current today complete click from PrintERP data.
       $erpClick = 0;
-      // $warehouseProduct = $this->site->getWarehouseProduct($product->id, $warehouseId);
-      // $erpClick = ceil($warehouseProduct->quantity);
+      $warehouseProduct = $this->site->getWarehouseProduct($product->id, $warehouseId);
+      $erpClick = ceil($warehouseProduct->quantity);
 
-      $stocks = $this->site->getStocks([
-        'product_id' => $product->id, 'warehouse_id' => $warehouseId,
-        'start_date' => $date, 'end_date' => $date
-      ]);
+      // $stocks = $this->site->getStocks([
+      //   'product_id' => $product->id, 'warehouse_id' => $warehouseId,
+      //   'start_date' => $date, 'end_date' => $date
+      // ]);
 
-      foreach ($stocks as $stock) {
-        // Problem 2022-02-28. No received or sent quantity, just erpClick+= ceil(...)
-        if ($stock->status == 'received') {
-          $erpClick += ceil($stock->quantity);
-        } else if ($stock->status == 'sent') {
-          $erpClick -= ceil($stock->quantity);
-        }
-      }
+      // foreach ($stocks as $stock) {
+      //   // Problem 2022-02-28. No received or sent quantity, just erpClick+= ceil(...)
+      //   if ($stock->status == 'received') {
+      //     $erpClick += ceil($stock->quantity);
+      //   } else if ($stock->status == 'sent') {
+      //     $erpClick -= ceil($stock->quantity);
+      //   }
+      // }
 
       if (!$lastTrack) { // For first time use, we tolerance the start click.
         $startClick = $erpClick;
