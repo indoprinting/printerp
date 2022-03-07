@@ -56,18 +56,51 @@
 
       <div class="row">
         <div class="col-md-12">
-          <fieldset class="scheduler-border well-warning">
-            <legend class="scheduler-border well-info">Machine</legend>
-            <div class="col-md-6">
+          <fieldset class="scheduler-border well-success">
+            <legend class="scheduler-border well-info">Editable Data</legend>
+            <div class="col-md-4">
               <div class="form-group">
                 <label for="end_click">End Click</label>
-                <input type="text" id="end_click" class="form-control currency" name="end_click" value="<?= $track->end_click ?>" required>
+                <input type="text" id="end_click" class="form-control currency" name="end_click[]" value="<?= formatDecimal($track->end_click) ?>">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-group">
+                <label for="mc_reject">Machine Reject</label>
+                <input type="text" id="mc_reject" class="form-control currency" name="mc_reject[]" value="<?= formatDecimal($track->mc_reject * -1) ?>">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-group">
+                <label for="erp_click">ERP Click</label>
+                <input type="text" id="erp_click" class="form-control currency" name="erp_click" value="<?= formatDecimal($track->erp_click) ?>">
+              </div>
+            </div>
+          </fieldset>
+          <fieldset class="scheduler-border well-warning">
+            <legend class="scheduler-border well-info">Read-Only Data</legend>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="start_click">Start Click</label>
+                <input type="text" id="start_click" class="form-control currency" name="start_click" value="<?= formatDecimal($track->start_click) ?>" disabled>
               </div>
             </div>
             <div class="col-md-6">
               <div class="form-group">
-                <label for="mc_reject">Reject Machine</label>
-                <input type="text" id="mc_reject" class="form-control currency" name="mc_reject" value="<?= $track->mc_reject ?>">
+                <label for="usage_click">Usage Click</label>
+                <input type="text" id="usage_click" class="form-control currency" name="usage_click" value="<?= formatDecimal($track->usage_click) ?>" disabled>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="op_reject">Operator Reject</label>
+                <input type="text" id="op_reject" class="form-control currency" name="op_reject" value="<?= formatDecimal($track->op_reject) ?>" disabled>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="total_reject">Total Reject</label>
+                <input type="text" id="total_reject" class="form-control currency" name="total_reject" value="<?= formatDecimal($track->mc_reject + $track->op_reject) ?>" disabled>
               </div>
             </div>
           </fieldset>
