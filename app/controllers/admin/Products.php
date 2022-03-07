@@ -162,37 +162,29 @@ class Products extends MY_Controller
       $i = isset($_POST['product_id']) ? sizeof($_POST['product_id']) : 0;
       for ($r = 0; $r < $i; $r++) {
         $product_id   = $_POST['product_id'][$r];
-        $adj_quantity = $_POST['quantity'][$r]; // Original quantity/ Adjustment quantity.
+        $quantity = $_POST['quantity'][$r]; // Original quantity/ Adjustment quantity.
 
-        if (!is_numeric($adj_quantity)) continue;
+        if (!is_numeric($quantity)) continue;
 
-        if ($mode == 'formula') {
-          $quantity = $adj_quantity;
-          $type     = 'received';
-        } else
-        if ($mode == 'overwrite') {
-          $current_qty = $this->site->getStockQuantity($product_id, $warehouse_id, ['end_date' => $date]);
+        // if ($mode == 'formula') {
+        //   $quantity = $adj_quantity;
+        //   $type     = 'received';
+        // } else
+        // if ($mode == 'overwrite') {
+        //   $current_qty = $this->site->getStockQuantity($product_id, $warehouse_id, ['end_date' => $date]);
 
-          if ($current_qty == $adj_quantity) continue;
+        //   if ($current_qty == $adj_quantity) continue;
 
-          $adjusted = getAdjustedQty($current_qty, $adj_quantity); // Get Adjusted Quantity.
-          $quantity = $adjusted['quantity'];
-          $type     = $adjusted['type'];
-        }
+        //   $adjusted = getAdjustedQty($current_qty, $adj_quantity); // Get Adjusted Quantity.
+        //   $quantity = $adjusted['quantity'];
+        //   $type     = $adjusted['type'];
+        // }
 
         $products[] = [
           'product_id'     => $product_id,
-          'quantity'       => $quantity,
-          'adjustment_qty' => $adj_quantity,
-          'type'           => $type,
-          'warehouse_id'   => $warehouse_id,
+          'quantity'       => $quantity
         ];
       }
-
-      // if ($this->Owner) {
-      //   d($adjusted);
-      //   d($products); die();
-      // }
 
       if (empty($products)) {
         $this->form_validation->set_rules('product', lang('products'), 'required');
@@ -200,41 +192,29 @@ class Products extends MY_Controller
         krsort($products);
       }
 
-      $adjustment_data = [
+      $adjustmentData = [
         'date'         => $date,
         'warehouse_id' => $warehouse_id,
-        'mode'         => $mode,
+        'mode'         => $mode, // overwrite|formula
         'note'         => $note,
-        'created_by'   => $this->session->userdata('user_id')
+        'end_date'     => $date
       ];
 
-      if ($_FILES['document']['size'] > 0) {
+      $uploader = new FileUpload();
+
+      if ($uploader->has('document')) {
         checkPath($this->digital_upload_path);
 
-        $this->load->library('upload');
-        $config['upload_path']   = $this->digital_upload_path;
-        $config['allowed_types'] = $this->digital_file_types;
-        $config['max_size']      = $this->allowed_file_size;
-        $config['overwrite']     = false;
-        $config['encrypt_name']  = true;
-        $this->upload->initialize($config);
-        if (!$this->upload->do_upload('document')) {
-          $error = $this->upload->display_errors();
-          $this->session->set_flashdata('error', $error);
-          redirect($_SERVER['HTTP_REFERER']);
+        $attachment = $uploader->getRandomName();
+
+        if ($uploader->move($this->digital_upload_path, $attachment)) {
+          $adjustmentData['attachment'] = $attachment;
         }
-        $photo              = $this->upload->file_name;
-        $adjustment_data['attachment'] = $photo;
       }
     }
 
     if ($this->form_validation->run() == true) {
-
-      if ($this->Owner) {
-        //rd_print('$data:', $data, '$products:', $products); die();
-      }
-
-      if ($this->site->addStockAdjustment($adjustment_data, $products)) {
+      if ($this->site->addAdjustmentStock($adjustmentData, $products)) {
         $this->session->set_userdata('remove_qals', 1);
         $this->session->set_flashdata('message', lang('quantity_adjusted'));
         admin_redirect('products/quantity_adjustments');
@@ -298,13 +278,13 @@ class Products extends MY_Controller
       $warehouse_id = $this->input->post('warehouse');
       $note         = $this->sma->clear_tags($this->input->post('note'));
 
-      $adjustment_data = [
+      $adjustmentData = [
         'date'         => $date,
         'warehouse_id' => $warehouse_id,
         'mode'         => $mode,
         'note'         => $note,
         'created_by'   => $this->session->userdata('user_id'),
-        'count_id'     => null,
+        'end_date'     => $date
       ];
 
       if ($_FILES['csv_file']['size'] > 0) {
@@ -326,7 +306,7 @@ class Products extends MY_Controller
         }
 
         $csv = $this->upload->file_name;
-        $adjustment_data['attachment'] = $csv;
+        $adjustmentData['attachment'] = $csv;
 
         $arrResult = [];
         $handle    = fopen($this->upload_adjustments_import_path . $csv, 'r');
@@ -368,31 +348,13 @@ class Products extends MY_Controller
         foreach ($final as $pr) {
           if ($product = $this->site->getProductByCode(trim($pr['code']))) { // Check if product exists.
             $product_id = $product->id;
-            $adj_quantity = trim($pr['quantity']); // Original quantity/ Adjustment quantity.
-            $current_qty = $this->site->getStockQuantity($product_id, $warehouse_id, ['end_date' => $date]);
+            $quantity = trim($pr['quantity']); // Original quantity/ Adjustment quantity.
 
-            if (!is_numeric($adj_quantity)) continue;
-
-            if ($mode == 'formula') {
-              $quantity = $adj_quantity;
-              $type     = 'received';
-            } else
-            if ($mode == 'overwrite') {
-              if ($current_qty == $adj_quantity) continue;
-
-              $adjusted = getAdjustedQty($current_qty, $adj_quantity); // Get Adjusted Quantity.
-              $quantity = $adjusted['quantity'];
-              $type     = $adjusted['type'];
-            } else {
-              die('Error');
-            }
+            if (!is_numeric($quantity)) continue;
 
             $products[] = [
-              'product_id'     => $product_id,
-              'quantity'       => $quantity,
-              'adjustment_qty' => $adj_quantity,
-              'type'           => $type,
-              'warehouse_id'   => $warehouse_id,
+              'product_id' => $product_id,
+              'quantity'   => $quantity
             ];
           } else {
             $err_msg .= lang('check_product_code') . ' (' . $pr['code'] . '). ' . lang('product_code_x_exist') . ' Column: ' . $rw . '<br>';
@@ -405,7 +367,7 @@ class Products extends MY_Controller
     }
 
     if ($this->form_validation->run() == true) {
-      if ($this->site->addStockAdjustment($adjustment_data, $products)) {
+      if ($this->site->addAdjustmentStock($adjustmentData, $products)) {
         $msg = lang('quantity_adjusted') . ($err_msg ? '<br>' . $err_msg : '');
         $this->session->set_flashdata('message', $msg);
         admin_redirect('products/quantity_adjustments');
