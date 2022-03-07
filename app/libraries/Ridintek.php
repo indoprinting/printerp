@@ -102,7 +102,7 @@ class FileUpload {
   public function move($path, $newName = NULL)
   {
     if ($this->file) {
-      $path = trim($path, '/') . '/';
+      $path = rtrim($path, '/') . '/';
       $newName = ($newName ?? $this->getName());
 
       if (move_uploaded_file($this->file['tmp_name'], $path . $newName)) {
