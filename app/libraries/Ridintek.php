@@ -22,7 +22,7 @@ class FileUpload {
   {
     if (is_cli()) die("FileUpload() class cannot be run in CLI mode.");
 
-    $this->files    = $_FILES;
+    $this->files = $_FILES;
   }
 
   /**
@@ -31,9 +31,10 @@ class FileUpload {
    */
   public function has($filename)
   {
+    $this->is_moved = FALSE;
+
     if (isset($this->files[$filename]) && $this->files[$filename]['size'] > 0) {
       $this->file = $this->files[$filename];
-      $this->is_moved = FALSE;
       return TRUE;
     }
     return FALSE;
@@ -66,10 +67,26 @@ class FileUpload {
     return NULL;
   }
 
-  public function getSize()
+  /**
+   * Get file size.
+   * @param string unit Unit to check. byte, kb, mb, gb
+   */
+  public function getSize($unit = 'byte')
   {
     if ($this->file) {
-      return (int)$this->file['size'];
+      switch ($unit) {
+        case 'kb':
+          $acc = 1024; break;
+        case 'mb':
+          $acc = (1024 * 1024); break;
+        case 'gb':
+          $acc = (1024 * 1024 * 1024); break;
+        case 'byte':
+        default:
+          $acc = 1;
+      }
+
+      return ceil($this->file['size'] / $acc);
     }
     return NULL;
   }
@@ -105,7 +122,7 @@ class FileUpload {
       $path = rtrim($path, '/') . '/';
       $newName = ($newName ?? $this->getName());
 
-      if (move_uploaded_file($this->file['tmp_name'], $path . $newName)) {
+      if (move_uploaded_file($this->getTempName(), $path . $newName)) {
         $this->is_moved = TRUE;
         return TRUE;
       }
