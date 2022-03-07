@@ -87,30 +87,18 @@ class Trackingpod extends MY_Controller
         'created_by'   => $this->input->post('created_by')
       ];
 
-      if ($_FILES['attachment']['size'] > 0) {
+      $uploader = new FileUpload();
+
+      if ($uploader->has('attachment') && !$uploader->isMoved()) {
         checkPath($this->upload_trackingpod_path);
 
-        $this->load->library('upload');
+        $attachment = $uploader->getRandomName();
 
-        $config = [
-          'allowed_types' => $this->upload_digital_type,
-          'encrypt_name'  => TRUE,
-          'max_size'      => $this->upload_allowed_size,
-          'overwrite'     => FALSE,
-          'upload_path'   => $this->upload_trackingpod_path
-        ];
-
-        $this->upload->initialize($config);
-
-        if (!$this->upload->do_upload('attachment')) {
-          $error = $this->upload->display_errors();
-          $this->session->set_flashdata('error', $error);
-          redirect($_SERVER['HTTP_REFERER']);
-          exit();
+        if ($uploader->move($this->upload_trackingpod_path, $attachment)) {
+          $trackData['attachment'] = $attachment;
+        } else {
+          sendJSON(['success' => 0, 'message' => 'Attachment gagal di upload.']);
         }
-
-        $attachment = $this->upload->file_name;
-        $trackData['attachment'] = $attachment;
       } else {
         sendJSON(['success' => 0, 'message' => 'Attachment berupa foto display mesin POD dibutuhkan.']);
       }
@@ -159,7 +147,7 @@ class Trackingpod extends MY_Controller
     if ($this->requestMethod == 'POST') {
       $endClicks   = $this->input->post('end_click'); // Array
       $mcRejects   = $this->input->post('mc_reject'); // Array
-      $date        = ($this->isAdmin ? $this->input->post('date') : $this->serverDateTime);
+      $dateTime    = ($this->isAdmin ? $this->input->post('date') : $this->serverDateTime);
       $warehouseId = $this->input->post('warehouse');
       $note        = $this->input->post('note');
 
@@ -195,22 +183,8 @@ class Trackingpod extends MY_Controller
 
       // Get current click from PrintERP data.
       $erpClick = 0;
-      // $warehouseProduct = $this->site->getWarehouseProduct($product->id, $warehouseId);
-      // $erpClick = ceil($warehouseProduct->quantity);
-
-      $stocks = $this->site->getStocks([
-        'product_id' => $product->id, 'warehouse_id' => $warehouseId,
-        'start_date' => $date, 'end_date' => $date
-      ]);
-
-      foreach ($stocks as $stock) {
-        // Problem 2022-02-28. No received or sent quantity, just erpClick+= ceil(...)
-        if ($stock->status == 'received') {
-          $erpClick += ceil($stock->quantity);
-        } else if ($stock->status == 'sent') {
-          $erpClick -= ceil($stock->quantity);
-        }
-      }
+      $warehouseProduct = $this->site->getWarehouseProduct($product->id, $warehouseId);
+      $erpClick = ceil($warehouseProduct->quantity);
 
       if (!$lastTrack) { // For first time use, we tolerance the start click.
         $startClick = $erpClick;
@@ -230,48 +204,34 @@ class Trackingpod extends MY_Controller
 
       $trackData = [
         'pod_id'       => $product->id,
-        'start_click'  => $startClick,
+        // 'start_click'  => $startClick,
         'end_click'    => $endClick,
         'mc_reject'    => $mcReject,
         'erp_click'    => $erpClick,
-        'tolerance'    => $tolerance,
-        'cost_click'   => $costClick,
+        // 'tolerance'    => $tolerance,
+        // 'cost_click'   => $costClick,
         'warehouse_id' => $warehouseId,
         'note'         => htmlEncode($note),
-        'created_at'   => $date,
+        'created_at'   => $dateTime,
         'created_by'   => $this->input->post('created_by')
       ];
 
-      if ($_FILES['attachment']['size'] > 0) {
+      $uploader = new FileUpload();
+
+      if ($uploader->has('attachment') && !$uploader->isMoved()) {
         checkPath($this->upload_trackingpod_path);
 
-        $this->load->library('upload');
+        $attachment = $uploader->getRandomName();
 
-        $config = [
-          'allowed_types' => $this->upload_digital_type,
-          'encrypt_name'  => TRUE,
-          'max_size'      => $this->upload_allowed_size,
-          'overwrite'     => FALSE,
-          'upload_path'   => $this->upload_trackingpod_path
-        ];
-
-        $this->upload->initialize($config);
-
-        if (!$this->upload->do_upload('attachment')) {
-          $error = $this->upload->display_errors();
-          $this->session->set_flashdata('error', $error);
-          redirect($_SERVER['HTTP_REFERER']);
-          exit();
+        if ($uploader->move($this->upload_trackingpod_path, $attachment)) {
+          $trackData['attachment'] = $attachment;
+        } else {
+          sendJSON(['success' => 0, 'message' => 'Attachment gagal di upload.']);
         }
-
-        $attachment = $this->upload->file_name;
-        $trackData['attachment'] = $attachment;
-      } else {
-        sendJSON(['success' => 0, 'message' => 'Attachment berupa foto display mesin POD dibutuhkan.']);
       }
 
-      if ($this->site->addTrackingPOD($trackData)) {
-        sendJSON(['success' => 1, 'message' => 'Berhasil menambahkan Tracking POD.']);
+      if ($this->site->updateTrackingPOD($trackId, $trackData)) {
+        sendJSON(['success' => 1, 'message' => 'Berhasil mengubah Tracking POD.']);
       } else {
         sendJSON(['success' => 0, 'message' => getLastError()]);
       }
