@@ -27,7 +27,6 @@
             </div>
           </div>
           <div class="col-xs-6 pull-right text-right order_barcodes">
-            <img src="<?= admin_url('misc/barcode/' . $this->sma->base64url_encode($inv->reference) . '/code128/74/0/1'); ?>" alt="<?= $inv->reference; ?>" class="bcimg" />
             <?= $this->ridintek->qrcode(admin_url('products/view_adjustment/' . $inv->id)); ?>
           </div>
         </div>
