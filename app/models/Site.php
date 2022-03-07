@@ -31,6 +31,92 @@ class Site extends MY_Model
   }
 
   /**
+   * New Adjustment Stock.
+   * @param array $data [ *warehouse_id, *mode(formula|overwrite), note, end_date ]
+   * @param array $products [[ *product_id, *quantity ]]
+   */
+  public function addAdjustmentStock(array $data, array $products)
+  {
+    $data['date'] = ($data['date'] ?? date('Y-m-d H:i:s'));
+    $data['mode'] = ($data['mode'] ?? 'overwrite');
+
+    if ($warehouse = $this->getWarehouseByID($data['warehouse_id'])) {
+      if (!$warehouse) {
+        setLastError('Warehouse is not exists.');
+        return FALSE;
+      }
+
+      if (!is_array($products)) {
+        setLastError('Products is not an array.');
+        return FALSE;
+      }
+
+      $adjustmentData = [
+        'date' => ($data['date'] ?? date('Y-m-d H:i:s')),
+        'reference' => $this->getReference('adjustment'),
+        'mode' => $data['mode'],
+        'note' => ($data['note'] ?? ''),
+        'warehouse_id' => $warehouse->id,
+        'created_by' => ($data['created_by'] ?? NULL)
+      ];
+
+      $adjustmentData = setCreatedBy($adjustmentData);
+
+      $this->db->insert('adjustments', $adjustmentData);
+
+      if ($this->db->affected_rows()) {
+        $adjustmentId = $this->db->insert_id();
+
+        $this->updateReference('adjustment');
+
+        foreach ($products as $product) {
+          $clause = ['product_id' => $product['product_id'], 'warehouse_id' => $warehouse->id];
+
+          if (isset($data['end_date'])) $clause['end_date'] = $data['end_date'];
+
+          $quantity = 0;
+          $stocks = $this->getStocks($clause);
+
+          foreach ($stocks as $stock) {
+            // Will be deprecated.
+            if ($stock->status == 'received') {
+              $quantity += $stock->quantity;
+            } else if ($stock->status == 'sent') {
+              $quantity -= $stock->quantity;
+            }
+            // NEW: Using these if not using status again. Replace above.
+            // $quantity += $stock->quantity;
+          }
+
+          if ($data['mode'] == 'overwrite') {
+            // $adjusted['quantity'] = 12345, $adjusted['type'] = 'received|sent';
+            $adjusted = getAdjustedQty($quantity, $product['quantity']);
+          } else if ($data['mode'] == 'formula') {
+            $adjusted = [
+              'quantity' => $product['quantity'],
+              'type'     => 'received'
+            ];
+          }
+
+          $this->addStockQuantity([
+            'date'           => $data['date'],
+            'adjustment_id'  => $adjustmentId,
+            'product_id'     => $product['product_id'],
+            'quantity'       => $adjusted['quantity'],
+            'adjustment_qty' => $product['quantity'],
+            'status'         => $adjusted['type'],
+            'warehouse_id'   => $data['warehouse_id'],
+            'created_by'     => ($data['created_by'] ?? $this->session->userdata('user_id'))
+          ]);
+        }
+
+        return $adjustmentId;
+      }
+    }
+    return FALSE;
+  }
+
+  /**
    * Add new bank
    * @param array $data [ *code, *biller_id, *name, number, holder,
    * amount, type(Transfer|Cash), bic, active(1|0) ]
@@ -1294,6 +1380,9 @@ class Site extends MY_Model
     return FALSE;
   }
 
+  /**
+   * @deprecated Remove soon
+   */
   public function addStockAdjustment($data, $products)
   {
     $data['reference'] = $this->getReference('adjustment');
@@ -1441,10 +1530,7 @@ class Site extends MY_Model
         if ($rest_qty > 0) { // If rest_qty > 0 then add as adjustment plus and status Good.
           $adjustment_plus_items[] = [
             'product_id'     => $item['product_id'],
-            'quantity'       => $rest_qty,
-            'adjustment_qty' => $item['first_qty'],
-            'type'           => 'received',
-            'warehouse_id'   => $warehouse->id
+            'quantity'       => $item['first_qty']
           ];
 
           $total_plus += $item['subtotal'];
@@ -1452,10 +1538,7 @@ class Site extends MY_Model
           if (($item_first_qty + $item_reject_qty) == $item_quantity) { // Adjustment min and status Good.
             $adjustment_min_items[] = [
               'product_id'     => $item['product_id'],
-              'quantity'       => $item_reject_qty,
-              'adjustment_qty' => $item['first_qty'],
-              'type'           => 'sent',
-              'warehouse_id'   => $warehouse->id
+              'quantity'       => $item['first_qty']
             ];
           } else { // Status Checked.
             if (empty($status)) $status = 'checked';
@@ -1501,7 +1584,7 @@ class Site extends MY_Model
         }
 
         if ($adjustment_plus_items) { // Adjustment Plus.
-          $adjustment_data = [
+          $adjustmentData = [
             'date'         => $data['date'],
             'warehouse_id' => $warehouse->id,
             'mode'         => 'overwrite',
@@ -1509,13 +1592,13 @@ class Site extends MY_Model
             'created_by'   => $data['created_by']
           ];
 
-          if ($adjustment_id = $this->addStockAdjustment($adjustment_data, $adjustment_plus_items)) {
+          if ($adjustment_id = $this->addAdjustmentStock($adjustmentData, $adjustment_plus_items)) {
             $this->db->update('stock_opnames', ['adjustment_plus_id' => $adjustment_id], ['id' => $opname_id]);
           }
         }
 
         if ($adjustment_min_items) { // Adjustment Min.
-          $adjustment_data = [
+          $adjustmentData = [
             'date'         => $data['date'],
             'warehouse_id' => $warehouse->id,
             'mode'         => 'overwrite',
@@ -1523,7 +1606,7 @@ class Site extends MY_Model
             'created_by'   => $data['created_by']
           ];
 
-          if ($adjustment_id = $this->addStockAdjustment($adjustment_data, $adjustment_min_items)) {
+          if ($adjustment_id = $this->addAdjustmentStock($adjustmentData, $adjustment_min_items)) {
             // adjustment_min_id used by confirmed SO.
             // $this->db->update('stock_opnames', ['adjustment_min_id' => $adjustment_id], ['id' => $opname_id]);
           }
@@ -1854,7 +1937,10 @@ class Site extends MY_Model
       $from_warehouse   = $this->getWarehouseByCode('LUC'); // Default to_warehouse of transfer.
       $to_warehouse     = $this->getWarehouseByID($warehouse_id);
       $settingsJSON     = $this->getSettingsJSON();
+      // Return [start_date, end_date, days]
       $opt              = getPastMonthPeriod($settingsJSON->safety_stock_period);
+      // Remove unnecessary 'days'
+      unset($opt['days']);
       // Get sold items by warehouse id.
       $warehouse_stocks = $this->getSoldItemsByWarehouseID($warehouse_id, $opt);
 
@@ -2014,12 +2100,12 @@ class Site extends MY_Model
    */
   public function addTrackingPOD($data)
   {
-    $date       = ($data['created_at'] ?? date('Y-m-d H:i:s'));
+    $dateTime       = ($data['created_at'] ?? date('Y-m-d H:i:s'));
     $todayClick = 0;
 
     $tracks = $this->getTrackingPODs(['pod_id' => $data['pod_id'], 'warehouse_id' => $data['warehouse_id']],
     [
-      'start_date' => date('Y-m-d', strtotime($date)), 'end_date'   => date('Y-m-d', strtotime($date))
+      'start_date' => date('Y-m-d', strtotime($dateTime)), 'end_date'   => date('Y-m-d', strtotime($dateTime))
     ]);
 
     foreach ($tracks as $track) {
@@ -2049,25 +2135,21 @@ class Site extends MY_Model
 
     if ($this->db->affected_rows()) {
       if ($data['end_click'] != $data['erp_click']) { // Adjustment if end_click != erp_click.
-        $adjusted = getAdjustedQty($data['erp_click'], $data['end_click']);
-
         $adjustmentData = [
           'date'         => ($data['created_at'] ?? date('Y-m-d H:i:s')),
           'warehouse_id' => $data['warehouse_id'],
           'mode'         => 'overwrite',
           'note'         => 'Tracking POD Rejected' . (empty($note) ? '.' : ': ' . $note),
-          'created_by'   => $data['created_by']
+          'created_by'   => $data['created_by'],
+          'end_date'     => $dateTime
         ];
 
         $adjustmentItems[] = [
           'product_id'     => $data['pod_id'],
-          'quantity'       => $adjusted['quantity'],
-          'adjustment_qty' => $data['end_click'],
-          'type'           => $adjusted['type'],
-          'warehouse_id'   => $data['warehouse_id'],
+          'quantity'       => $data['end_click']
         ];
 
-        if ($adjustmentId = $this->addStockAdjustment($adjustmentData, $adjustmentItems)) {
+        if ($adjustmentId = $this->addAdjustmentStock($adjustmentData, $adjustmentItems)) {
           $this->db->update('trackingpod', ['adjustment_id' => $adjustmentId], ['id' => $trackId]);
         }
       }
@@ -8874,28 +8956,25 @@ class Site extends MY_Model
         foreach ($items as $item) {
           if ($item['quantity'] > $item['last_qty']) { // If quantity > last_qty, adjustment minus.
             $product = $this->getProductByID($item['product_id']);
-            $adjusted = getAdjustedQty($item['quantity'], ($item['last_qty'] ?? $item['first_qty']));
 
             $adjustment_min_items[] = [
-              'product_id'     => $item['product_id'],
-              'quantity'       => $adjusted['quantity'],
-              'adjustment_qty' => $item['last_qty'],
-              'type'           => $adjusted['type'], // received / sent
-              'warehouse_id'   => $opname->warehouse_id
+              'product_id' => $item['product_id'],
+              'quantity'   => ($item['last_qty'] ?? $item['first_qty'])
             ];
           }
         }
 
         if ($adjustment_min_items) {
-          $adjustment_data = [
+          $adjustmentData = [
             'date'         => $data['updated_at'],
             'warehouse_id' => $opname->warehouse_id,
-            'mode'         => 'overwrite', // Not mandatory. It CAN be empty. Just info only.
+            'mode'         => 'overwrite', // MANDATORY!. It CANNOT be empty. overwrite or formula.
             'note'         => $opname->reference,
-            'created_by'   => $opname->created_by
+            'created_by'   => $opname->created_by,
+            'end_date'     => $opname->date
           ];
 
-          if ($adjustment_id = $this->addStockAdjustment($adjustment_data, $adjustment_min_items)) {
+          if ($adjustment_id = $this->addAdjustmentStock($adjustmentData, $adjustment_min_items)) {
             $this->db->update('stock_opnames', ['adjustment_min_id' => $adjustment_id], ['id' => $opname_id]);
           }
         }
@@ -9290,25 +9369,21 @@ class Site extends MY_Model
         }
 
         if ($TData['end_click'] != $TData['erp_click']) { // Adjustment if end_click != erp_click.
-          $adjusted = getAdjustedQty($TData['erp_click'], $TData['end_click']);
-
           $adjustmentData = [
             'date'         => ($TData['created_at'] ?? date('Y-m-d H:i:s')),
             'warehouse_id' => $TData['warehouse_id'],
             'mode'         => 'overwrite',
             'note'         => $TData['note'],
-            'created_by'   => $TData['created_by']
+            'created_by'   => $TData['created_by'],
+            'end_date'     => $track->created_at
           ];
 
           $adjustmentItems[] = [
-            'product_id'     => $TData['pod_id'],
-            'quantity'       => $adjusted['quantity'],
-            'adjustment_qty' => $TData['end_click'],
-            'type'           => $adjusted['type'],
-            'warehouse_id'   => $TData['warehouse_id'],
+            'product_id' => $TData['pod_id'],
+            'quantity'   => $TData['end_click']
           ];
 
-          if ($adjustmentId = $this->addStockAdjustment($adjustmentData, $adjustmentItems)) {
+          if ($adjustmentId = $this->addAdjustmentStock($adjustmentData, $adjustmentItems)) {
             // ORIGINAL UPDATE #2
             $this->db->update('trackingpod', ['adjustment_id' => $adjustmentId], ['id' => $trackId]);
           }
