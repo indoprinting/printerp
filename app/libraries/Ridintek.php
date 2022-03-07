@@ -5,14 +5,10 @@ define('MXPATH', FCPATH . 'mutex' . DIRECTORY_SEPARATOR);
 
 use chillerlan\QRCode\QRCode;
 use chillerlan\QRCode\QROptions;
-use Google\Client;
-use GuzzleHttp\Client as GuzzleHttpClient;
-use Laminas\Barcode\Barcode;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\{Alignment, Fill}; // PHP 7.0
 use PhpOffice\PhpSpreadsheet\Reader;
 use PhpOffice\PhpSpreadsheet\Writer;
-use PhpOffice\PhpSpreadsheet\Cell\DataType;
 
 /**
  * File Upload class.
