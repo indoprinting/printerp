@@ -41,35 +41,37 @@ class Db_model extends CI_Model
 
   public function getChartData()
   {
-    $myQuery = "SELECT Penjualan.bulan,
-    COALESCE(Penjualan.grand_total, 0) AS grand_total,
-    COALESCE(Penjualan.total_paid, 0) AS total_paid,
-    COALESCE(Penjualan.total_balance, 0) AS total_balance
-    FROM (
-      SELECT date_format(date, '%Y-%m') AS bulan,
-      SUM(grand_total) AS grand_total,
-      SUM(paid) AS total_paid,
-      SUM(balance) AS total_balance
-      FROM sales
-      WHERE date >= date_sub( now(), INTERVAL 12 MONTH )
-      GROUP BY date_format(date, '%Y-%m')
-    ) AS Penjualan
-    ORDER BY Penjualan.bulan ASC";
-
-    // $myQuery = "SELECT Penjualan.bulan,
-    // COALESCE(Penjualan.grand_total, 0) AS grand_total,
-    // '0' AS total_paid,
-    // '0' AS total_balance
-    // FROM (
-    //   SELECT date_format(date, '%Y-%m') AS bulan,
-    //   SUM(grand_total) AS grand_total,
-    //   '0' AS total_paid,
-    //   '0' AS total_balance
-    //   FROM sales
-    //   WHERE date >= date_sub( now(), INTERVAL 12 MONTH )
-    //   GROUP BY date_format(date, '%Y-%m')
-    // ) AS Penjualan
-    // ORDER BY Penjualan.bulan ASC";
+    if ($this->isLocal) { // If localhost.
+      $myQuery = "SELECT Penjualan.bulan,
+      '0' AS grand_total,
+      '0' AS total_paid,
+      '0' AS total_balance
+      FROM (
+        SELECT date_format(date, '%Y-%m') AS bulan,
+        '0' AS grand_total,
+        '0' AS total_paid,
+        '0' AS total_balance
+        FROM sales
+        WHERE date >= date_sub( now(), INTERVAL 12 MONTH )
+        GROUP BY date_format(date, '%Y-%m')
+      ) AS Penjualan
+      ORDER BY Penjualan.bulan ASC";
+    } else {
+      $myQuery = "SELECT Penjualan.bulan,
+      COALESCE(Penjualan.grand_total, 0) AS grand_total,
+      COALESCE(Penjualan.total_paid, 0) AS total_paid,
+      COALESCE(Penjualan.total_balance, 0) AS total_balance
+      FROM (
+        SELECT date_format(date, '%Y-%m') AS bulan,
+        SUM(grand_total) AS grand_total,
+        SUM(paid) AS total_paid,
+        SUM(balance) AS total_balance
+        FROM sales
+        WHERE date >= date_sub( now(), INTERVAL 12 MONTH )
+        GROUP BY date_format(date, '%Y-%m')
+      ) AS Penjualan
+      ORDER BY Penjualan.bulan ASC";
+    }
 
     $q = $this->db->query($myQuery);
 
