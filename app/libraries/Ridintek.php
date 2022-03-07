@@ -18,28 +18,29 @@ use PhpOffice\PhpSpreadsheet\Cell\DataType;
  * File Upload class.
  */
 class FileUpload {
-  protected $file;
+  protected $file = NULL;
   protected $files;
+  protected $is_moved = FALSE;
 
   public function __construct()
   {
     if (is_cli()) die("FileUpload() class cannot be run in CLI mode.");
 
-    $this->file  = NULL;
-    $this->files = $_FILES;
+    $this->files    = $_FILES;
   }
 
+  /**
+   * Check if file has been uploaded and has size more than zero.
+   * @param string $filename Filename.
+   */
   public function has($filename)
   {
-    return (isset($this->files[$filename]));
-  }
-
-  public function file($filename)
-  {
-    if ($this->has($filename)) {
+    if (isset($this->files[$filename]) && $this->files[$filename]['size'] > 0) {
       $this->file = $this->files[$filename];
+      $this->is_moved = FALSE;
+      return TRUE;
     }
-    return $this;
+    return FALSE;
   }
 
   public function getExtension()
@@ -93,13 +94,25 @@ class FileUpload {
     return NULL;
   }
 
+  /**
+   * Check if file has been moved or not.
+   * @return bool
+   */
+  public function isMoved()
+  {
+    return $this->is_moved;
+  }
+
   public function move($path, $newName = NULL)
   {
     if ($this->file) {
-      $path = rtrim($path, '/') . '/';
+      $path = trim($path, '/') . '/';
       $newName = ($newName ?? $this->getName());
 
-      return move_uploaded_file($this->file['tmp_name'], $path . $newName);
+      if (move_uploaded_file($this->file['tmp_name'], $path . $newName)) {
+        $this->is_moved = TRUE;
+        return TRUE;
+      }
     }
     return FALSE;
   }
