@@ -1221,8 +1221,7 @@ function addAlert(message, type) {
       '<div class="alert alert-' +
       type +
       '">' +
-      '<button type="button" class="close" data-dismiss="alert">' +
-      '&times;</button>' +
+      '<button type="button" class="close" data-dismiss="alert"><i class="fad fa-times"></i></button>' +
       message +
       '</div>'
     );
@@ -1235,8 +1234,7 @@ function addModalAlert(message, type) {
       '<div class="alert alert-' +
       type +
       '">' +
-      '<button type="button" class="close" data-dismiss="alert">' +
-      '&times;</button>' +
+      '<button type="button" class="close" data-dismiss="alert"><i class="fad fa-times"></i></button>' +
       message +
       '</div>'
     );
