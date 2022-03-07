@@ -264,29 +264,22 @@ class Sales extends MY_Controller
         'source'         => 'PrintERP'
       ];
 
-      if ($_FILES['document']['size'] > 0) {
+      $uploader = new FileUpload();
+
+      if ($uploader->has('document')) {
         checkPath($this->upload_sales_path);
 
-        $this->load->library('upload');
-
-        $config['upload_path']   = $this->upload_sales_path;
-        $config['allowed_types'] = $this->upload_digital_type;
-        $config['max_size']      = $this->upload_allowed_size;
-        $config['overwrite']     = false;
-        $config['encrypt_name']  = true;
-
-        $this->upload->initialize($config);
-
-        if (!$this->upload->do_upload('document')) {
-          $error = $this->upload->display_errors();
-          $this->session->set_flashdata('error', $error);
-          redirect($_SERVER['HTTP_REFERER']);
-          exit();
+        if ($uploader->getSize('mb') > 2) {
+          $this->session->set_flashdata('error', 'Besar attachment tidak boleh lebih dari 2MB.');
+          redirect($_SERVER['HTTP_REFERER'] ?? 'admin/sales/add');
         }
 
-        $photo = $this->upload->file_name;
-        $sale_data['attachment'] = $photo;
-      } elseif (!getPermission('sales-no_attachment')) {
+        $attachment = $uploader->getRandomName();
+
+        if ($uploader->move($this->upload_sales_path, $attachment)) {
+          $sale_data['attachment'] = $attachment;
+        }
+      } else if (!getPermission('sales-no_attachment')) {
         if ($customerGroup->name == 'TOP') { // Prevent CS create sale without attachment for Customer TOP.
           $this->session->set_flashdata('error', lang('top_no_attachment'));
           redirect($_SERVER['HTTP_REFERER'] ?? 'admin/sales');
