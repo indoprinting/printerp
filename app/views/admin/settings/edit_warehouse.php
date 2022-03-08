@@ -77,6 +77,12 @@
             <?php echo form_input('visit_weeks', ($warehouse_js->visit_weeks ?? ''), 'class="form-control" id="visit_weeks"'); ?>
           </div>
         </div>
+        <div class="col-md-6">
+          <div class="form-group">
+            <input type="checkbox" id="active" name="active" value="1">
+            <label class="control-label" for="active"><?= lang('active') ?></label>
+          </div>
+        </div>
         <div class="col-md-12">
           <div class="form-group">
             <label class="control-label" for="address"><?php echo $this->lang->line('address'); ?></label>
@@ -96,3 +102,12 @@
   <?php echo form_close(); ?>
 <script type="text/javascript" src="<?= $assets ?>js/custom.js"></script>
 <script async src="<?= $assets ?>js/modal.js?v=<?= $res_hash ?>"></script>
+<script>
+  (function() {
+    let active = '<?= $warehouse->active ?>';
+
+    if (active == 1) {
+      $('#active').iCheck('check');
+    }
+  })();
+</script>
