@@ -1486,9 +1486,9 @@ class system_settings extends MY_Controller
 
     $this->load->library('datatables');
     $this->datatables
-      ->select("{$this->db->dbprefix('categories')}.id as id, {$this->db->dbprefix('categories')}.image, {$this->db->dbprefix('categories')}.code, {$this->db->dbprefix('categories')}.name, {$this->db->dbprefix('categories')}.slug, c.name as parent", false)
+      ->select("categories.id as id, categories.image, categories.code, categories.name, categories.slug, c.name as parent")
       ->from('categories')
-      ->join('categories c', 'c.id=categories.parent_id', 'left')
+      ->join('categories c', 'c.code LIKE categories.parent_code', 'left')
       ->group_by('categories.id')
       ->add_column('Actions', '<div class="text-center">' . $print_barcode . " <a href='" . admin_url('system_settings/edit_category/$1') . "' data-toggle='modal' data-target='#myModal' class='tip' title='" . lang('edit_category') . "'><i class=\"fad fa-edit\"></i></a> <a href='#' class='tip po' title='<b>" . lang('delete_category') . "</b>' data-content=\"<p>" . lang('r_u_sure') . "</p><a class='btn btn-danger po-delete' href='" . admin_url('system_settings/delete_category/$1') . "'>" . lang('i_m_sure') . "</a> <button class='btn po-close'>" . lang('no') . "</button>\"  rel='popover'><i class=\"fad fa-trash\"></i></a></div>", 'id');
 
