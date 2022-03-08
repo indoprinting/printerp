@@ -805,7 +805,7 @@ function getIncomeStatementReport($opt)
 
   // BEGIN COLLECT DATA.
   $expenses     = $ci->site->getExpenses($opt);
-  $expenseGroup = $ci->site->getExpenseCategories(['order' => ['name' => 'name', 'sort' => 'ASC']]);
+  $expenseGroup = $ci->site->getExpenseCategories(['order' => ['name', 'ASC']]);
   $incomes      = $ci->site->getIncomes($opt);
   $incomeGroup  = $ci->site->getIncomeCategories();
   $sales        = $ci->site->getSales($opt);
