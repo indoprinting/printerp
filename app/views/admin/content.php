@@ -918,11 +918,6 @@
                               <i class="fad fa-warehouse"></i><span class="text"> <?= lang('warehouses'); ?></span>
                             </a>
                           </li>
-                          <li id="system_settings_email_templates">
-                            <a href="<?= admin_url('system_settings/email_templates') ?>">
-                              <i class="fad fa-envelope"></i><span class="text"> <?= lang('email_templates'); ?></span>
-                            </a>
-                          </li>
                           <li id="system_settings_user_groups">
                             <a href="<?= admin_url('system_settings/user_groups') ?>">
                               <i class="fad fa-key"></i><span class="text"> <?= lang('group_permissions'); ?></span>
