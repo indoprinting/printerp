@@ -9357,38 +9357,36 @@ class Site extends MY_Model
     $TData['balance']         = $balance;
     $TData['total_penalty']   = $totalPenalty;
 
-    $this->db->trans_start();
     $this->db->update('trackingpod', $TData, ['id' => $trackId]); // ORIGINAL UPDATE #1
-    $this->db->trans_complete();
 
-    if ($this->db->trans_status()) {
+    if ($this->db->affected_rows()) {
       // Update Adjustment if any change.
-      if ($track->end_click != $TData['end_click'] || $track->mc_reject != $TData['mc_reject']) {
-        if (!empty($track->adjustment_id)) { // Delete old adjustment.
-          $this->deleteStockAdjustment($track->adjustment_id);
-        }
+      // if ($track->end_click != $TData['end_click'] || $track->mc_reject != $TData['mc_reject']) {
+      //   if (!empty($track->adjustment_id)) { // Delete old adjustment.
+      //     $this->deleteStockAdjustment($track->adjustment_id);
+      //   }
 
-        if ($TData['end_click'] != $TData['erp_click']) { // Adjustment if end_click != erp_click.
-          $adjustmentData = [
-            'date'         => ($TData['created_at'] ?? date('Y-m-d H:i:s')),
-            'warehouse_id' => $TData['warehouse_id'],
-            'mode'         => 'overwrite',
-            'note'         => $TData['note'],
-            'created_by'   => $TData['created_by'],
-            'end_date'     => $track->created_at
-          ];
+      //   if ($TData['end_click'] != $TData['erp_click']) { // Adjustment if end_click != erp_click.
+      //     $adjustmentData = [
+      //       'date'         => ($TData['created_at'] ?? date('Y-m-d H:i:s')),
+      //       'warehouse_id' => $TData['warehouse_id'],
+      //       'mode'         => 'overwrite',
+      //       'note'         => $TData['note'],
+      //       'created_by'   => $TData['created_by'],
+      //       'end_date'     => $track->created_at
+      //     ];
 
-          $adjustmentItems[] = [
-            'product_id' => $TData['pod_id'],
-            'quantity'   => $TData['end_click']
-          ];
+      //     $adjustmentItems[] = [
+      //       'product_id' => $TData['pod_id'],
+      //       'quantity'   => $TData['end_click']
+      //     ];
 
-          if ($adjustmentId = $this->addAdjustmentStock($adjustmentData, $adjustmentItems)) {
-            // ORIGINAL UPDATE #2
-            $this->db->update('trackingpod', ['adjustment_id' => $adjustmentId], ['id' => $trackId]);
-          }
-        }
-      }
+      //     if ($adjustmentId = $this->addAdjustmentStock($adjustmentData, $adjustmentItems)) {
+      //       // ORIGINAL UPDATE #2
+      //       $this->db->update('trackingpod', ['adjustment_id' => $adjustmentId], ['id' => $trackId]);
+      //     }
+      //   }
+      // }
 
       return TRUE;
     }
@@ -9439,45 +9437,24 @@ class Site extends MY_Model
    */
   public function updateWarehouse($clause, $data)
   {
-    $clauses = [];
-    if (!empty($clause['id']))    $clauses['id']    = $clause['id'];
-    if (!empty($clause['code']))  $clauses['code']  = $clause['code'];
-    if (!empty($clause['name']))  $clauses['name']  = $clause['name'];
-    if (!empty($clause['email'])) $clauses['email'] = $clause['email'];
-
-    $wh_data = [];
-    if (!empty($data['code']))               $wh_data['code']               = $data['code'];
-    if (!empty($data['name']))               $wh_data['name']               = $data['name'];
-    if (!empty($data['address']))            $wh_data['address']            = $data['address'];
-    if (!empty($data['geolocation']))        $wh_data['geolocation']        = $data['geolocation'];
-    if (!empty($data['map']))                $wh_data['map']                = $data['map'];
-    if (!empty($data['phone']))              $wh_data['phone']              = $data['phone'];
-    if (!empty($data['email']))              $wh_data['email']              = $data['email'];
-    if (!empty($data['price_group_id']))     $wh_data['price_group_id']     = $data['price_group_id'];
-    if (!empty($data['max_counter']))        $wh_data['max_counter']        = $data['max_counter'];
-    if (!empty($data['queue_attempt_json'])) $wh_data['queue_attempt_json'] = $data['queue_attempt_json'];
-    if (!empty($data['active']))             $wh_data['active']             = $data['active'];
-    if (!empty($data['json_data']))          $wh_data['json_data']          = $data['json_data'];
-
-    if (isset($clauses['code'])) {
-      $this->db->like('code', $clauses['code']);
-      unset($clauses['code']);
+    if (isset($clause['code'])) {
+      $this->db->like('code', $clause['code']);
+      unset($clause['code']);
     }
 
-    if (isset($clauses['name'])) {
-      $this->db->like('name', $clauses['name']);
-      unset($clauses['name']);
+    if (isset($clause['name'])) {
+      $this->db->like('name', $clause['name']);
+      unset($clause['name']);
     }
 
-    if (isset($clauses['email'])) {
-      $this->db->like('email', $clauses['email']);
-      unset($clauses['email']);
+    if (isset($clause['email'])) {
+      $this->db->like('email', $clause['email']);
+      unset($clause['email']);
     }
 
-    $this->db->trans_start();
-    $this->db->update('warehouses', $wh_data, $clauses); // ORIGINAL UPDATE.
-    $this->db->trans_complete();
-    if ($this->db->trans_status() !== FALSE) {
+    $this->db->update('warehouses', $data, $clause); // ORIGINAL UPDATE.
+
+    if ($this->db->affected_rows()) {
       return TRUE;
     }
     return FALSE;
