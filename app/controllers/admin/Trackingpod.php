@@ -136,7 +136,7 @@ class Trackingpod extends MY_Controller
   }
 
   /**
-   * NOT IMPLEMENTED
+   * TRYING TO IMPLEMENT
    */
   public function edit($trackId)
   {
@@ -147,6 +147,7 @@ class Trackingpod extends MY_Controller
     if ($this->requestMethod == 'POST') {
       $endClicks   = $this->input->post('end_click'); // Array
       $mcRejects   = $this->input->post('mc_reject'); // Array
+      $erpClick    = filterDecimal($this->input->post('erp_click'));
       $dateTime    = ($this->isAdmin ? $this->input->post('date') : $this->serverDateTime);
       $warehouseId = $this->input->post('warehouse');
       $note        = $this->input->post('note');
@@ -172,36 +173,6 @@ class Trackingpod extends MY_Controller
         sendJSON(['success' => 0, 'message' => "End Click diisi angka lebih dari 0."]);
       }
 
-      $tracks = $this->site->getTrackingPODs([
-        'pod_id' => $product->id,
-        'warehouse_id' => $warehouseId,
-        'order' => ['created_at', 'DESC']
-      ]);
-
-      $lastTrack = ($tracks[0] ?? NULL);
-      unset($tracks);
-
-      // Get current click from PrintERP data.
-      $erpClick = 0;
-      $warehouseProduct = $this->site->getWarehouseProduct($product->id, $warehouseId);
-      $erpClick = ceil($warehouseProduct->quantity);
-
-      if (!$lastTrack) { // For first time use, we tolerance the start click.
-        $startClick = $erpClick;
-      } else {
-        $startClick = $lastTrack->end_click; // End Click as Start Click.
-      }
-
-      $costClick = ($product->code == 'KLIKPOD' ? 1000 : 300); // Else 300 for KLIKPODBW.
-      $tolerance = ($product->code == 'KLIKPOD' ? 10 : 10); // Else 10% for KLIKPODBW.
-
-      if ($endClick < $startClick) {
-        sendJSON([
-          'success' => 0,
-          'message' => "End Click ({$endClick}) tidak boleh kurang dari Start Click ({$startClick})."
-        ]);
-      }
-
       $trackData = [
         'pod_id'       => $product->id,
         // 'start_click'  => $startClick,
@@ -215,6 +186,8 @@ class Trackingpod extends MY_Controller
         'created_at'   => $dateTime,
         'created_by'   => $this->input->post('created_by')
       ];
+
+      // print_r($trackData); die();
 
       $uploader = new FileUpload();
 
