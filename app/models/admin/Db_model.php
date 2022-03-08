@@ -41,6 +41,39 @@ class Db_model extends CI_Model
 
   public function getChartData()
   {
+    $rows = [];
+
+    for ($a = 12; $a >= 0; $a--)
+    {
+      $dateMonth = date('Y-m', strtotime("-{$a} month"));
+      $this->db
+        ->select("SUM(grand_total) AS total, SUM(paid) AS total_paid, SUM(balance) AS total_balance")
+        ->from('sales')
+        ->where("date LIKE '{$dateMonth}%'");
+
+      // d($this->db->get_compiled_select()); die();
+
+      $q = $this->db->get();
+
+      if ($this->db->affected_rows()) {
+        $row = $q->row();
+
+        $rows[] = (object)[
+          'bulan' => $dateMonth,
+          'grand_total' => $row->total,
+          'total_paid' => $row->total_paid,
+          'total_balance' => $row->total_balance
+        ];
+      }
+    }
+
+    // d($rows); die();
+
+    return $rows;
+  }
+
+  public function getChartData_old()
+  {
     if ($this->isLocal) { // If localhost.
       $myQuery = "SELECT Penjualan.bulan,
       '0' AS grand_total,
