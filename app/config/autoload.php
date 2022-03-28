@@ -135,4 +135,4 @@ $autoload['language'] = array();
 |   $autoload['model'] = array('first_model' => 'first');
 */
 
-$autoload['model'] = array('site', 'qms_model');
+$autoload['model'] = array('app', 'site', 'qms_model');

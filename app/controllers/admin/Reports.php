@@ -20,19 +20,202 @@ class Reports extends MY_Controller
     // $this->load->admin_model('reports_model');
   }
 
+  /**
+   * Balance Sheet Report
+   *
+   * Progress
+   */
   public function balancesheet()
   {
     $startDate = ($this->input->get('start_date') ?? date('Y-m-') . '01');
     $endDate   = ($this->input->get('end_date') ?? date('Y-m-d'));
 
-    $payments = $this->site->getPayments([], ['start_date' => $startDate, 'end_date' => $endDate]);
+    $billerId    = ($this->input->get('biller') ?? NULL);
+    $warehouseId = ($this->input->get('warehouse') ?? NULL);
 
-    $cash = 0;
+    $clause = [
+      'start_date' => $startDate,
+      'end_date'   => $endDate
+    ];
 
-    foreach ($payments as $payment) {
-      if ($payment->type == 'received') $cash += $payment->amount;
-      if ($payment->type == 'sent')     $cash -= $payment->amount;
+    // SALES (biller && warehouse)
+    if ($billerId)    $clause['biller_id']    = $billerId;
+    if ($warehouseId) $clause['warehouse_id'] = $warehouseId;
+    $sales = $this->site->getSales($clause);
+    $paidSales = 0;
+    $piutang = 0;
+    foreach ($sales as $sale) {
+      $paidSales += $sale->paid;
+      $piutang += $sale->balance;
     }
+    unset($clause['biller_id'], $clause['warehouse_id']);
+
+    // EXPENSES (biller)
+    $exCategory = [
+      'K001' => 0,
+      'K002' => 0,
+      'K003' => 0,
+      'K004' => 0,
+      'K005' => 0,
+      'K006' => 0,
+      'K007' => 0,
+      'K008' => 0,
+      'K009' => 0,
+      'K010' => 0,
+      'K011' => 0,
+      'K012' => 0,
+      'K013' => 0,
+      'K014' => 0,
+      'K015' => 0,
+      'K016' => 0,
+      'K017' => 0,
+      'K018' => 0,
+      'K019' => 0,
+      'K020' => 0,
+      'K021' => 0,
+      'K022' => 0,
+      'K023' => 0,
+      'K024' => 0,
+      'K025' => 0,
+      'K026' => 0,
+      'K027' => 0,
+      'K028' => 0,
+      'K029' => 0,
+      'K030' => 0,
+      'K031' => 0,
+      'K032' => 0,
+      'K033' => 0,
+      'K034' => 0,
+      'K035' => 0,
+      'K036' => 0,
+      'K037' => 0,
+      'K038' => 0,
+      'K039' => 0,
+      'K040' => 0,
+      'K041' => 0,
+      'K042' => 0
+    ];
+
+    if ($billerId) $clause['biller_id'] = $billerId;
+    $expenses = $this->site->getExpenses($clause);
+
+    foreach ($expenses as $expense) {
+      if ($expense->payment_status != 'paid') continue; // Paid required.
+
+      $expenseCategory = $this->site->getExpenseCategory(['id' => $expense->category_id]);
+
+      if ($expenseCategory->code == 'K001') $exCategory['K001'] += $expense->amount;
+      if ($expenseCategory->code == 'K002') $exCategory['K002'] += $expense->amount;
+      if ($expenseCategory->code == 'K003') $exCategory['K003'] += $expense->amount;
+      if ($expenseCategory->code == 'K004') $exCategory['K004'] += $expense->amount;
+      if ($expenseCategory->code == 'K005') $exCategory['K005'] += $expense->amount;
+      if ($expenseCategory->code == 'K006') $exCategory['K006'] += $expense->amount;
+      if ($expenseCategory->code == 'K007') $exCategory['K007'] += $expense->amount;
+      if ($expenseCategory->code == 'K008') $exCategory['K008'] += $expense->amount;
+      if ($expenseCategory->code == 'K009') $exCategory['K009'] += $expense->amount;
+      if ($expenseCategory->code == 'K010') $exCategory['K010'] += $expense->amount;
+      if ($expenseCategory->code == 'K011') $exCategory['K011'] += $expense->amount;
+      if ($expenseCategory->code == 'K012') $exCategory['K012'] += $expense->amount;
+      if ($expenseCategory->code == 'K013') $exCategory['K013'] += $expense->amount;
+      if ($expenseCategory->code == 'K014') $exCategory['K014'] += $expense->amount;
+      if ($expenseCategory->code == 'K015') $exCategory['K015'] += $expense->amount;
+      if ($expenseCategory->code == 'K016') $exCategory['K016'] += $expense->amount;
+      if ($expenseCategory->code == 'K017') $exCategory['K017'] += $expense->amount;
+      if ($expenseCategory->code == 'K018') $exCategory['K018'] += $expense->amount;
+      if ($expenseCategory->code == 'K019') $exCategory['K019'] += $expense->amount;
+      if ($expenseCategory->code == 'K020') $exCategory['K020'] += $expense->amount;
+      if ($expenseCategory->code == 'K021') $exCategory['K021'] += $expense->amount;
+      if ($expenseCategory->code == 'K022') $exCategory['K022'] += $expense->amount;
+      if ($expenseCategory->code == 'K023') $exCategory['K023'] += $expense->amount;
+      if ($expenseCategory->code == 'K024') $exCategory['K024'] += $expense->amount;
+      if ($expenseCategory->code == 'K025') $exCategory['K025'] += $expense->amount;
+      if ($expenseCategory->code == 'K026') $exCategory['K026'] += $expense->amount;
+      if ($expenseCategory->code == 'K027') $exCategory['K027'] += $expense->amount;
+      if ($expenseCategory->code == 'K028') $exCategory['K028'] += $expense->amount;
+      if ($expenseCategory->code == 'K029') $exCategory['K029'] += $expense->amount;
+      if ($expenseCategory->code == 'K030') $exCategory['K030'] += $expense->amount;
+      if ($expenseCategory->code == 'K031') $exCategory['K031'] += $expense->amount;
+      if ($expenseCategory->code == 'K032') $exCategory['K032'] += $expense->amount;
+      if ($expenseCategory->code == 'K033') $exCategory['K033'] += $expense->amount;
+      if ($expenseCategory->code == 'K034') $exCategory['K034'] += $expense->amount;
+      if ($expenseCategory->code == 'K035') $exCategory['K035'] += $expense->amount;
+      if ($expenseCategory->code == 'K036') $exCategory['K036'] += $expense->amount;
+      if ($expenseCategory->code == 'K037') $exCategory['K037'] += $expense->amount;
+      if ($expenseCategory->code == 'K038') $exCategory['K038'] += $expense->amount;
+      if ($expenseCategory->code == 'K039') $exCategory['K039'] += $expense->amount;
+      if ($expenseCategory->code == 'K040') $exCategory['K040'] += $expense->amount;
+      if ($expenseCategory->code == 'K041') $exCategory['K041'] += $expense->amount;
+      if ($expenseCategory->code == 'K042') $exCategory['K042'] += $expense->amount;
+    }
+    unset($clause['biller_id']);
+
+    // INCOMES (biller)
+    $inCategory = [
+      'M001' => 0,
+      'M002' => 0,
+      'M003' => 0,
+      'M004' => 0,
+      'M005' => 0,
+      'M006' => 0,
+      'M007' => 0,
+      'M008' => 0,
+      'M009' => 0,
+    ];
+
+    if ($billerId) $clause['biller_id'] = $billerId;
+    $incomes = $this->site->getIncomes($clause);
+
+    foreach ($incomes as $income) {
+      $category = $this->site->getIncomeCategory(['id' => $income->category_id]);
+
+      if ($category->code == 'M001') $inCategory['M001'] += $income->amount;
+      if ($category->code == 'M002') $inCategory['M002'] += $income->amount;
+      if ($category->code == 'M003') $inCategory['M003'] += $income->amount;
+      if ($category->code == 'M004') $inCategory['M004'] += $income->amount;
+      if ($category->code == 'M005') $inCategory['M005'] += $income->amount;
+      if ($category->code == 'M006') $inCategory['M006'] += $income->amount;
+      if ($category->code == 'M007') $inCategory['M007'] += $income->amount;
+      if ($category->code == 'M008') $inCategory['M008'] += $income->amount;
+      if ($category->code == 'M009') $inCategory['M009'] += $income->amount;
+    }
+    unset($clause['biller_id']);
+
+    // PAYMENTS (biller)
+    if ($billerId) $clause['biller_id'] = $billerId;
+    $hutangVendor = 0;
+    $payments = $this->site->getPayments($clause);
+    $cashAmount = 0;
+    foreach ($payments as $payment) {
+      if ($payment->type == 'received') $cashAmount += $payment->amount;
+      if ($payment->type == 'sent')     $cashAmount -= $payment->amount;
+
+      if ($payment->purchase_id) {
+        $hutangVendor += $payment->amount;
+      }
+    }
+    unset($clause['biller_id']);
+
+    // STOCKS (warehouse)
+    if ($warehouseId) $clause['warehouse_id'] = $warehouseId;
+    $stocks = $this->site->getStocks($clause);
+    $stockValue = 0;
+    foreach ($stocks as $stock) {
+      if ($stock->purchase_id) {
+        if ($stock->status == 'received') $stockValue += $stock->cost;
+      }
+    }
+    unset($clause['warehouse_id']);
+
+    // PURCHASES (warehouse)
+    // if ($warehouseId) $clause['warehouse_id'] = $warehouseId;
+    // $purchases = $this->site->getStockPurchases($clause);
+    // $hutangVendor = 0;
+    // foreach ($purchases as $purchase) {
+    //   if ($purchase->balance > 0) {
+    //     $hutangVendor += $purchase->balance;
+    //   }
+    // }
+    // unset($clause['warehouse_id']);
 
     $sheet = $this->ridintek->spreadsheet();
 
@@ -42,7 +225,73 @@ class Reports extends MY_Controller
     $sheet->setCellValue('B1', $startDate);
     $sheet->setCellValue('C1', $endDate);
 
-    $sheet->setCellValue('B5', $cash);
+    // NERACA
+    // Activa Lancar
+    $sheet->setCellValue('B5', $cashAmount); // Cash
+    $sheet->setCellValue('B6', $stockValue); // Stok Bahan
+    $sheet->setCellValue('B7', $piutang); // Piutang Indoprinting
+
+    // Activa Tetap
+    $sheet->setCellValue('B10', 0); // Bangunan
+    $sheet->setCellValue('B11', 0); // Mobil
+
+    // Hutang
+    $sheet->setCellValue('B16', 0); // Hutang supplier
+    $sheet->setCellValue('B17', 0); // Hutang Bank BNI
+    $sheet->setCellValue('B18', 0); // Hutang Bank BRI
+
+    // Tambahan Modal
+    $sheet->setCellValue('B21', 0); // Modal
+    $sheet->setCellValue('B22', 0); // Laba
+
+    // ARUS KAS
+    // Kas Masuk
+    $sheet->setCellValue('E5', $paidSales); // Penjualan outlet (total uang diterima)
+    $sheet->setCellValue('E6', 0); // Penjualan asset
+    $sheet->setCellValue('E7', $inCategory['M002']); // Peminjaman dari Bank
+    $sheet->setCellValue('E8', $inCategory['M003']); // Terace Rent
+    $sheet->setCellValue('E9', $inCategory['M004']); // ATM Rent
+    $sheet->setCellValue('E10', $inCategory['M005']); // Another Income
+    $sheet->setCellValue('E11', $inCategory['M006']); // Pendapatan Baltis Inn
+
+    // Kas Keluar
+    $sheet->setCellValue('E16', $exCategory['K009']); // Salary & Wage
+    $sheet->setCellValue('E17', $exCategory['K008']); // Interest Investation
+    $sheet->setCellValue('E18', $exCategory['K001']); // Bank Administration
+    $sheet->setCellValue('E19', $exCategory['K026']); // Biaya PPH
+    $sheet->setCellValue('E20', $exCategory['K027']); // Biaya PPN
+    $sheet->setCellValue('E21', $exCategory['K014']); // PLN
+    $sheet->setCellValue('E22', $exCategory['K011']); // Internet & Telepon
+    $sheet->setCellValue('E23', $exCategory['K017']); // PDAM
+    $sheet->setCellValue('E24', $exCategory['K006']); // Office Stationery
+    $sheet->setCellValue('E25', $exCategory['K002']); // Drink Water
+    $sheet->setCellValue('E26', $exCategory['K007']); // BBM, Tol & Parkir
+    $sheet->setCellValue('E27', $exCategory['K024']); // Maintenance of Production Machine
+    $sheet->setCellValue('E28', $exCategory['K025']); // Maintenance of Finishing Machine
+    $sheet->setCellValue('E29', $exCategory['K041']); // Maintenance of AC & Sparepart
+    $sheet->setCellValue('E30', $exCategory['K016']); // Maintenance of Vehicle & Sparepart
+    $sheet->setCellValue('E31', $exCategory['K023']); // Maintenance of Building
+    $sheet->setCellValue('E32', $exCategory['K029']); // Promotion, Advertisement, SMS Blast, Wreaths
+    $sheet->setCellValue('E33', $exCategory['K032']); // Outlet Rent
+    $sheet->setCellValue('E34', $exCategory['K037']); // Expedition Cost
+    $sheet->setCellValue('E35', $exCategory['K038']); // Import Cost (Shiping, Bank, PPH, PPN, Denda, Penumpukan, Kb2)
+    $sheet->setCellValue('E36', $exCategory['K005']); // Insurance of Health and Labor
+    $sheet->setCellValue('E37', $exCategory['K003']); // Insurance and Building Tax
+    $sheet->setCellValue('E38', $exCategory['K004']); // Insurance and Vehicle Tax
+    $sheet->setCellValue('E39', $exCategory['K010']); // Application, Hosting and Web
+    $sheet->setCellValue('E40', $exCategory['K012']); // RT Fee, Security & Garbage Disposal
+    $sheet->setCellValue('E41', $exCategory['K042']); // Advertising Vendor
+    $sheet->setCellValue('E42', $exCategory['K033']); // CSR (Corporate Social Resposibility)
+    $sheet->setCellValue('E43', $exCategory['K013']); // Another Cost
+    $sheet->setCellValue('E44', $exCategory['K018']); // Purchase of Vehicle
+    $sheet->setCellValue('E45', $exCategory['K019']); // Purchase of Land and Building
+    $sheet->setCellValue('E46', $exCategory['K020']); // Purchase of Production Machine
+    $sheet->setCellValue('E47', $exCategory['K022']); // Purchase of Finishing Machine
+    $sheet->setCellValue('E48', $exCategory['K021']); // Purchase of Computers and Supporting Equipment
+    $sheet->setCellValue('E49', $exCategory['K030']); // Purchase of Building Construction
+    $sheet->setCellValue('E50', $exCategory['K040']); // Purchase of Another Investation Cost
+    $sheet->setCellValue('E51', $exCategory['K028']); // Prive
+    $sheet->setCellValue('E52', $hutangVendor); // Pembayaran Hutang Vendor (IDP bayar hutang ke vendor)
 
     $name = $this->session->userdata('fullname');
 
@@ -501,7 +750,7 @@ class Reports extends MY_Controller
 
     $r2 = 3;
 
-    $payments = $this->site->getPayments([], [
+    $payments = $this->site->getPayments([
       'start_date' => $startDate, 'end_date' => $endDate, 'has' => 'sale_id'
     ]);
 
@@ -842,7 +1091,6 @@ class Reports extends MY_Controller
         $opt['biller_id'][] = $biller->id;
       }
     }
-
 
     if (!$xls) { // Send to DataTables.
       sendJSON([
@@ -2470,6 +2718,7 @@ class Reports extends MY_Controller
 
       // Convert machine reject to minus.
       $mcReject = ($track->mc_reject > 0 ? $track->mc_reject * -1 : $track->mc_reject);
+      $opReject = ($track->op_reject > 0 ? 0 : $track->op_reject);
 
       $sheet->setCellValue('A' . $r, $track->created_at);
       $sheet->setCellValue('B' . $r, $klikpod->code);
@@ -2477,7 +2726,7 @@ class Reports extends MY_Controller
       $sheet->setCellValue('D' . $r, $track->end_click);
       $sheet->setCellValue('E' . $r, $track->usage_click);
       $sheet->setCellValue('F' . $r, $mcReject);
-      $sheet->setCellValue('G' . $r, "=I{$r}-D{$r}-F{$r}"); // op_reject
+      $sheet->setCellValue('G' . $r, $opReject); // op_reject
       $sheet->setCellValue('H' . $r, "=F{$r}+G{$r}"); // total_reject
       $sheet->setCellValue('I' . $r, $track->erp_click);
       $sheet->setCellValue('J' . $r, $track->tolerance);
@@ -2507,6 +2756,7 @@ class Reports extends MY_Controller
     $warehouses = $this->site->getWarehouses();
 
     foreach ($warehouses as $wh) {
+      if ($wh->active == 0)   continue;
       if ($wh->code == 'ADV') continue;
       if ($wh->code == 'BAL') continue;
       if ($wh->code == 'LUC') continue;
@@ -2563,6 +2813,7 @@ class Reports extends MY_Controller
     $r = 4;
 
     foreach ($warehouses as $wh) {
+      if ($wh->active == 0)   continue;
       if ($wh->code == 'ADV') continue;
       if ($wh->code == 'BAL') continue;
       if ($wh->code == 'LUC') continue;
@@ -2585,6 +2836,17 @@ class Reports extends MY_Controller
         'order' => ['created_at', 'ASC']
       ]);
 
+      $penaltyPOD   = 0;
+      $penaltyPODBW = 0;
+
+      foreach ($trackPODs as $trackPOD) {
+        $penaltyPOD += $trackPOD->total_penalty;
+      }
+
+      foreach ($trackPODBWs as $trackPODBW) {
+        $penaltyPODBW += $trackPODBW->total_penalty;
+      }
+
       if ($trackPODs) {
         $startPOD = $trackPODs[0]->start_click;
         $endPOD = $trackPODs[count($trackPODs) - 1]->end_click;
@@ -2605,68 +2867,40 @@ class Reports extends MY_Controller
       $klikPODBWERP = 0;
       $klikPODs   = $this->site->getStocks([
         'product_id' => $klikpod->id,
-        'warehouse_id' => $wh->id
-      ], [
+        'warehouse_id' => $wh->id,
         'start_date' => $startDate,
         'end_date' => $endDate
       ]);
       $klikPODBWs = $this->site->getStocks([
         'product_id' => $klikpodbw->id,
-        'warehouse_id' => $wh->id
-      ], [
+        'warehouse_id' => $wh->id,
         'start_date' => $startDate,
         'end_date' => $endDate
       ]);
 
       foreach ($klikPODs as $klikPOD) {
-        if ($klikPOD->status == 'received') $klikPODERP += $klikPOD->quantity;
-        if ($klikPOD->status == 'sent') $klikPODERP -= $klikPOD->quantity;
+        if ($klikPOD->sale_id > 0) $klikPODERP += $klikPOD->quantity;
+        // if ($klikPOD->status == 'received') $klikPODERP += $klikPOD->quantity;
+        // if ($klikPOD->status == 'sent') $klikPODERP -= $klikPOD->quantity;
       }
 
       foreach ($klikPODBWs as $klikPODBW) {
-        if ($klikPOD->status == 'received') $klikPODBWERP += $klikPODBW->quantity;
-        if ($klikPOD->status == 'sent') $klikPODBWERP -= $klikPODBW->quantity;
+        if ($klikPODBW->sale_id > 0) $klikPODBWERP += $klikPODBW->quantity;
+        // if ($klikPODBW->status == 'received') $klikPODBWERP += $klikPODBW->quantity;
+        // if ($klikPODBW->status == 'sent') $klikPODBWERP -= $klikPODBW->quantity;
       }
-
-      // $usageKlikPOD      = 0;
-      // $usageKlikPODBW    = 0;
-      // $mcRejectKlikPOD   = 0;
-      // $opRejectKlikPOD   = 0;
-      // $mcRejectKlikPODBW = 0;
-      // $opRejectKlikPODBW = 0;
-      // $balanceKlikPOD    = 0;
-      // $balanceKlikPODBW  = 0;
-
-      // foreach ($tracks as $track) {
-      //   if ($track->pod_id == $klikpod->id) {
-      //     $usageKlikPOD += filterDecimal($track->usage_click);
-      //     $mcRejectKlikPOD += filterDecimal($track->mc_reject);
-      //     $opRejectKlikPOD += filterDecimal($track->op_reject);
-      //     $balanceKlikPOD += filterDecimal($track->balance);
-      //   }
-
-      //   if ($track->pod_id == $klikpodbw->id) {
-      //     $usageKlikPODBW += filterDecimal($track->usage_click);
-      //     $mcRejectKlikPODBW += filterDecimal($track->mc_reject);
-      //     $opRejectKlikPODBW += filterDecimal($track->op_reject);
-      //     $balanceKlikPODBW += filterDecimal($track->balance);
-      //   }
-      // }
 
       $sheet->setCellValue('B' . $r, $startPOD); // start click
       $sheet->setCellValue('C' . $r, $endPOD); // end click
       $sheet->setCellValue('D' . $r, "=C{$r}-B{$r}"); // usage
       $sheet->setCellValue('E' . $r, $klikPODERP); // erp click
-      $sheet->setCellValue('F' . $r, "=E{$r}-D{$r}"); // Balance
-      $sheet->setCellValue('G' . $r, "=IF(F{$r}<0,F{$r}*{$pgKlikPOD},0)"); // Subtotal Penalty
-      $sheet->setCellValue('H' . $r, $startPODBW); // start click bw
-      $sheet->setCellValue('I' . $r, $endPODBW); // end click bw
-      $sheet->setCellValue('J' . $r, "=I{$r}-H{$r}"); // usage bw
-      $sheet->setCellValue('K' . $r, $klikPODBWERP); // erp click bw
-      $sheet->setCellValue('L' . $r, "=K{$r}-J{$r}"); // Balance
-      $sheet->setCellValue('M' . $r, "=IF(L{$r}<0,L{$r}*{$pgKlikPODBW},0)"); // Subtotal Penalty bw
-      $sheet->setCellValue('N' . $r, "=F{$r}+L{$r}"); // Total Balance
-      $sheet->setCellValue('O' . $r, "=IF(N{$r}<0,G{$r}+M{$r},0)"); // If K{$r} < 0 then penalty else 0.
+      $sheet->setCellValue('F' . $r, $penaltyPOD); // Subtotal Penalty
+      $sheet->setCellValue('G' . $r, $startPODBW); // start click bw
+      $sheet->setCellValue('H' . $r, $endPODBW); // end click bw
+      $sheet->setCellValue('I' . $r, "=H{$r}-G{$r}"); // usage bw
+      $sheet->setCellValue('J' . $r, $klikPODBWERP); // erp click bw
+      $sheet->setCellValue('K' . $r, $penaltyPODBW); // Subtotal Penalty bw
+      $sheet->setCellValue('L' . $r, "=F{$r}+K{$r}"); // Amount Penalty
 
       $r++;
     }

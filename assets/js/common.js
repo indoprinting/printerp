@@ -1,5 +1,5 @@
 // Custom Javascript Code
-$('[href="#"]').click(function (e) {
+$(document).on('click', '[href$="#"]', function (e) {
   e.preventDefault();
 });
 /**
@@ -123,6 +123,12 @@ $.fn.dataTableFilter = function (opt = null) { // My own jQuery plugins for exte
   }
 }
 
+$(document).on('click', '[data-toggle="delete-row"]', function (e) {
+  let tbody = this.closest('tbody');
+
+  tbody.removeChild(this.closest('tr[data-id]'));
+});
+
 /**
  * Clear all notifications.
  */
@@ -151,7 +157,7 @@ $(document).on('click', '[data-action="confirm"]', function (e) {
       $.ajax({
         success: (data) => {
           if (isObject(data)) {
-            if (data.success || (typeof data.error != 'undefined' && !data.error)) {
+            if (data.status == 200 || data.success || (typeof data.error != 'undefined' && !data.error)) {
               if (typeof oTable == 'object') oTable.fnDraw(false);
               if (typeof Table == 'object')  Table.draw(false);
               if (typeof Table2 == 'object') Table2.draw(false);
@@ -201,8 +207,19 @@ $(document).on('blur', '.currency', function () {
   $(this).val(formatCurrency($(this).val())).trigger('change');
 });
 $(document).on('focus', '.currency', function () {
-  let val = $(this).val();
-  $(this).val(val.replaceAll(new RegExp(',', 'g'), ''));
+  $(this).val($(this).val().replaceAll(new RegExp(',', 'g'), ''));
+});
+$(document).on('blur', '.quantity', function () {
+  if (isNaN(this.value)) {
+    $(this).val(window._lastValue).trigger('change');
+    return false;
+  }
+
+  $(this).val(parseFloat(this.value)).trigger('change');
+});
+$(document).on('focus', '.quantity', function () {
+  window._lastValue = this.value;
+  this.select();
 });
 let old_key = null;
 $(document).on('keyup', function (e) {
@@ -548,7 +565,7 @@ function httpRequest(method, url, data = null, options = {}) {
   ajaxopt.method = method;
   ajaxopt.url = url;
 
-  console.log(method, url, options);
+  // console.log(method, url, options);
 
   $.ajax(ajaxopt);
 }
@@ -562,7 +579,7 @@ function initiCheck() {
 }
 
 function initSelect2() {
-  $('select, .select')
+  $('select.select, select.select2')
     .not('.skip')
     .select2({ minimumResultsForSearch: 7, theme: 'classic' });
 
@@ -1300,6 +1317,13 @@ $(document).on('click', '.slrevert', function (e) {
 
 $(document).ready(function () {
   document.title = site.page_title + ' - ' + site.name + ' ' + $.fn.PrintERP.version;
+
+  if (typeof toastr !== 'undefined' && isObject(toastr)) {
+    toastr.options = {
+      progressBar: true,
+      timeOut: 2000
+    };
+  }
 
   if (navigator.geolocation) {
     // navigator.geolocation.getCurrentPosition(function (pos) {

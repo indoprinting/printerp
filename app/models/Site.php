@@ -603,6 +603,47 @@ class Site extends MY_Model
   }
 
   /**
+   * Add product mutation
+   * @param array $data [ attachment, *status, *from_warehouse_id, *to_warehouse_id, note,
+   *  created_at, created_by ]
+   * @param array $items [ *product_id, *quantity, received_qty, *status ]
+   */
+  public function addProductMutation(array $data, array $items)
+  {
+    $data = setCreatedBy($data);
+
+    if ($items) {
+      $data['items'] = '';
+
+      foreach ($items as $item) {
+        $product = $this->site->getProductByID($item['product_id']);
+
+        if ($product) {
+          $data['items'] .= "- ({$product->code}) ". getExcerpt($product->name) . '<br>';
+        }
+      }
+    }
+
+    $this->db->insert('product_mutation', $data);
+
+    if ($this->db->affected_rows()) {
+      $insertId = $this->db->insert_id();
+
+      if ($items) {
+        foreach ($items as $item) {
+          $product = $this->site->getProductByID($item['product_id']);
+          $item['pm_id'] = $insertId;
+          $item['product_code'] = $product->code;
+
+          $this->db->insert('product_mutation_item', $item);
+        }
+      }
+      return $insertId;
+    }
+    return FALSE;
+  }
+
+  /**
    * Add product report.
    *
    * @param array $data
@@ -1648,10 +1689,10 @@ class Site extends MY_Model
     $data['created_by']    = ($data['created_by'] ?? $this->session->userdata('user_id'));
     $data['supplier_name'] = $supplier->name;
 
-    $this->db->trans_start();
+    $this->db->insert('purchases', $data);
 
-    if ($this->db->insert('purchases', $data)) {
-      $purchase_id = $this->db->insert_id();
+    if ($this->db->affected_rows()) {
+      $purchaseId = $this->db->insert_id();
 
       if ($this->getReference('purchase') == $data['reference']) {
         $this->updateReference('purchase');
@@ -1660,7 +1701,7 @@ class Site extends MY_Model
       foreach ($items as $item) {
         $this->addStockQuantity([
           'date'          => $data['date'],
-          'purchase_id'   => $purchase_id,
+          'purchase_id'   => $purchaseId,
           'product_id'    => $item['product_id'],
           'cost'          => $item['cost'],
           'purchased_qty' => $item['purchased_qty'],
@@ -1671,11 +1712,7 @@ class Site extends MY_Model
           'spec'          => $item['spec']
         ]);
       }
-    }
-
-    $this->db->trans_complete();
-    if ($this->db->trans_status() !== FALSE) {
-      return $purchase_id;
+      return $purchaseId;
     }
     return FALSE;
   }
@@ -1803,6 +1840,7 @@ class Site extends MY_Model
 
       if (!empty($data['adjustment_id']))   $stock_data['adjustment_id']   = $data['adjustment_id'];
       if (!empty($data['internal_use_id'])) $stock_data['internal_use_id'] = $data['internal_use_id'];
+      if (!empty($data['pm_id']))           $stock_data['pm_id']           = $data['pm_id'];
       if (!empty($data['purchase_id']))     $stock_data['purchase_id']     = $data['purchase_id'];
       if (!empty($data['sale_id']))         $stock_data['sale_id']         = $data['sale_id'];
       if (!empty($data['transfer_id']))     $stock_data['transfer_id']     = $data['transfer_id'];
@@ -2117,6 +2155,8 @@ class Site extends MY_Model
 
     $usageClick     = $data['end_click'] - $data['start_click'];
     $opReject       = $data['erp_click'] - $data['end_click'] - $mcReject;
+    // If opReject minus then opReject else if plus then 0.
+    $opReject       = ($opReject < 0 ? $opReject : 0);
     $toleranceClick = round(($mcReject + $opReject) * 0.01 * $data['tolerance']); // 0.01 == 100%
     $balance        = ($mcReject + $opReject) - $toleranceClick;
     $totalPenalty   = ($balance < 0 ? $balance * $data['cost_click'] : 0);
@@ -3067,6 +3107,36 @@ class Site extends MY_Model
       return true;
     }
     return false;
+  }
+
+  public function deleteProductMutations($clause = [])
+  {
+    $pms = $this->getProductMutations($clause);
+    $deleted = 0;
+
+    foreach ($pms as $pm) {
+      $pmitems = $this->getProductMutationItems(['pm_id' => $pm->id]);
+
+      $this->db->delete('product_mutation', ['id' => $pm->id]);
+
+      if ($this->db->affected_rows()) {
+        $this->db->delete('product_mutation_item', ['pm_id' => $pm->id]);
+        $this->db->delete('stocks', ['pm_id' => $pm->id]);
+
+        foreach ($pmitems as $pmitem) {
+          $this->syncProductQty($pmitem->product_id, $pm->from_warehouse_id);
+          $this->syncProductQty($pmitem->product_id, $pm->to_warehouse_id);
+        }
+
+        $attachment = getAttachmentPaths('products_mutation') . $pm->attachment;
+
+        if (is_file($attachment)) unlink($attachment);
+
+        $deleted++;
+      }
+    }
+
+    return $deleted;
   }
 
   public function deleteProductReport($reportId)
@@ -4386,15 +4456,22 @@ class Site extends MY_Model
     return NULL;
   }
 
+  public function getExpenseCategory($clause = [])
+  {
+    if ($category = $this->getExpenseCategories($clause)) {
+      return $category[0];
+    }
+    return NULL;
+  }
+
   public function getExpenseCategories($clause = [])
   {
-    $clauses = [];
-
     if (!empty($clause['order'])) { // ORDER BY name ASC
       $this->db->order_by($clause['order'][0], $clause['order'][1]);
+      unset($clause['order']);
     }
 
-    $q = $this->db->get_where('expense_categories', $clauses);
+    $q = $this->db->get_where('expense_categories', $clause);
 
     if ($q && $q->num_rows() > 0) {
       foreach ($q->result() as $row) {
@@ -4435,37 +4512,31 @@ class Site extends MY_Model
    */
   public function getExpenses($clause)
   {
-    $clauses = [];
-
-    if (!empty($clause['id'])) $clauses['id'] = $clause['id'];
     if (!empty($clause['reference'])) {
       $this->db->like('reference', $clause['reference']);
     }
-    if (!empty($clause['approved_by']))    $clauses['approved_by']    = $clause['approved_by'];
-    if (!empty($clause['bank_id']))        $clauses['bank_id']        = $clause['bank_id'];
-    if (!empty($clause['created_by']))     $clauses['created_by']     = $clause['created_by'];
-    if (!empty($clause['payment_status'])) $clauses['payment_status'] = $clause['payment_status'];
-    if (!empty($clause['status']))         $clauses['status']         = $clause['status'];
-    if (!empty($clause['supplier_id']))    $clauses['supplier_id']    = $clause['supplier_id'];
 
     if (!empty($clause['biller_id']) && gettype($clause['biller_id']) == 'array') {
       $billers = implode(',', $clause['biller_id']);
       $this->db->where("biller_id IN ({$billers})");
-    } else if (!empty($clause['biller_id'])) {
-      $clauses['biller_id'] = $clause['biller_id'];
+      unset($clause['biller_id']);
     }
 
-    if (!empty($clause['start_date']) || !empty($clause['end_date'])) {
-      $startDate = ($clause['start_date'] ?? date('Y-m-') . '01');
-      $endDate   = ($clause['end_date']   ?? date('Y-m-d'));
-      $this->db->where("date BETWEEN '{$startDate} 00:00:00' AND '{$endDate} 23:59:59'");
+    if (!empty($clause['start_date'])) {
+      $this->db->where("date >= '{$clause['start_date']} 00:00:00'");
+      unset($clause['start_date']);
+    }
+    if (!empty($clause['end_date'])) {
+      $this->db->where("date <= '{$clause['end_date']} 23:59:59'");
+      unset($clause['end_date']);
     }
 
-    if (!empty($clause['order'])) {
-      $this->db->order_by($clause['order']['name'], $clause['order']['sort']);
+    if (!empty($clause['order']) && is_array($clause['order'])) {
+      $this->db->order_by($clause['order'][0], $clause['order'][1]);
+      unset($clause['order']);
     }
 
-    $q = $this->db->get_where('expenses', $clauses);
+    $q = $this->db->get_where('expenses', $clause);
 
     if ($q && $q->num_rows()) {
       foreach ($q->result() as $row) {
@@ -4570,9 +4641,22 @@ class Site extends MY_Model
     return [];
   }
 
-  public function getIncomeCategories()
+  public function getIncomeCategory($clause = [])
   {
-    $q = $this->db->get('income_categories');
+    if ($category = $this->getIncomeCategories($clause)) {
+      return $category[0];
+    }
+    return NULL;
+  }
+
+  public function getIncomeCategories($clause = [])
+  {
+    if (!empty($clause['order'])) { // ORDER BY name ASC
+      $this->db->order_by($clause['order'][0], $clause['order'][1]);
+    }
+
+    $q = $this->db->get_where('income_categories', $clause);
+
     if ($q->num_rows() > 0) {
       foreach ($q->result() as $data) {
         $row[] = $data;
@@ -4590,27 +4674,31 @@ class Site extends MY_Model
   {
     $clauses = [];
 
-    if (!empty($clause['id'])) $clauses['id'] = $clause['id'];
     if (!empty($clause['reference'])) {
       $this->db->like('reference', $clause['reference']);
     }
-    if (!empty($clause['bank_id']))        $clauses['bank_id']        = $clause['bank_id'];
-    if (!empty($clause['created_by']))     $clauses['created_by']     = $clause['created_by'];
 
     if (!empty($clause['biller_id']) && gettype($clause['biller_id']) == 'array') {
       $billers = implode(',', $clause['biller_id']);
       $this->db->where("biller_id IN ({$billers})");
-    } else if (!empty($clause['biller_id'])) {
-      $clauses['biller_id'] = $clause['biller_id'];
+      unset($clause['biller_id']);
     }
 
-    if (!empty($clause['start_date']) || !empty($clause['end_date'])) {
-      $startDate = ($clause['start_date'] ?? date('Y-m-') . '01');
-      $endDate   = ($clause['end_date']   ?? date('Y-m-d'));
-      $this->db->where("date BETWEEN '{$startDate} 00:00:00' AND '{$endDate} 23:59:59'");
+    if (!empty($clause['start_date'])) {
+      $this->db->where("date >= '{$clause['start_date']} 00:00:00'");
+      unset($clause['start_date']);
+    }
+    if (!empty($clause['end_date'])) {
+      $this->db->where("date <= '{$clause['end_date']} 23:59:59'");
+      unset($clause['end_date']);
     }
 
-    $q = $this->db->get_where('incomes', $clauses);
+    if (!empty($clause['order']) && is_array($clause['order'])) {
+      $this->db->order_by($clause['order'][0], $clause['order'][1]);
+      unset($clause['order']);
+    }
+
+    $q = $this->db->get_where('incomes', $clause);
 
     if ($q && $q->num_rows()) {
       foreach ($q->result() as $row) {
@@ -4785,8 +4873,9 @@ class Site extends MY_Model
     if (!empty($clause['bank_id']))   $clauses['bank_id']   = $clause['bank_id'];
     if (!empty($clause['biller_id'])) $clauses['biller_id'] = $clause['biller_id'];
 
-    $end_date = date('Y-m-d', strtotime('-1 day', strtotime($date)));
-    $payments   = $this->getPayments($clauses, ['end_date' => $end_date]);
+    $clauses['end_date'] = date('Y-m-d', strtotime('-1 day', strtotime($date)));
+
+    $payments   = $this->getPayments($clauses);
 
     $beginning_amount = 0;
 
@@ -4813,47 +4902,30 @@ class Site extends MY_Model
   /**
    * GET PAYMENTS.
    * @param object $clause [ id, expense_id, income_id, mutation_id, purchase_id, sale_id, transfer_id,
-   *   bank_id, method ]
-   * @param object $options [ start_date, end_date, has ]
+   *   bank_id, method, start_date, end_date, order(column|sort) ]
    */
-  public function getPayments($clause = [], $options = NULL)
+  public function getPayments($clause = [])
   {
-    $clauses = [];
-
-    if (!empty($clause['id']))          $clauses['id']          = $clause['id'];
-    if (!empty($clause['expense_id']))  $clauses['expense_id']  = $clause['expense_id'];
-    if (!empty($clause['income_id']))   $clauses['income_id']   = $clause['income_id'];
-    if (!empty($clause['mutation_id'])) $clauses['mutation_id'] = $clause['mutation_id'];
-    if (!empty($clause['purchase_id'])) $clauses['purchase_id'] = $clause['purchase_id'];
-    if (!empty($clause['sale_id']))     $clauses['sale_id']     = $clause['sale_id'];
-    if (!empty($clause['transfer_id'])) $clauses['transfer_id'] = $clause['transfer_id'];
-
-    if (!empty($clause['bank_id'])) $clauses['bank_id'] = $clause['bank_id'];
-    if (!empty($clause['method']))  $clauses['method']  = $clause['method'];
-
-    if (!empty($options['start_date']) && !empty($options['end_date'])) {
-      $start_date = $options['start_date'];
-      $end_date   = $options['end_date'];
-      $this->db->where("date BETWEEN '{$start_date} 00:00:00' AND '{$end_date} 23:59:59'");
-    } else if (!empty($options['start_date'])) {
-      $start_date = $options['start_date'];
-      $this->db->where("date >= '{$start_date} 00:00:00'");
-    } else if (!empty($options['end_date'])) {
-      $end_date = $options['end_date'];
-      $this->db->where("date <= '{$end_date} 23:59:59'");
+    if (!empty($clause['start_date'])) {
+      $this->db->where("date >= '{$clause['start_date']} 00:00:00'");
+      unset($clause['start_date']);
+    }
+    if (!empty($clause['end_date'])) {
+      $this->db->where("date <= '{$clause['end_date']} 23:59:59'");
+      unset($clause['end_date']);
     }
 
-    if (!empty($options['has'])) {
-      $this->db->where("{$options['has']} IS NOT NULL");
+    if (!empty($clause['has'])) {
+      $this->db->where("{$clause['has']} IS NOT NULL");
+      unset($clause['has']);
     }
 
-    if (!empty($options['order_by'])) {
-      $this->db->order_by($options['order_by']['column'], $options['order_by']['sort']);
-    } else {
-      $this->db->order_by('date', 'DESC');
+    if (!empty($clause['order']) && is_array($clause['order'])) {
+      $this->db->order_by($clause['order'][0], $clause['order'][1]);
+      unset($clause['order']);
     }
 
-    $q = $this->db->get_where('payments', $clauses);
+    $q = $this->db->get_where('payments', $clause);
 
     if ($q && $q->num_rows() > 0) {
       foreach ($q->result() as $row) {
@@ -5089,6 +5161,64 @@ class Site extends MY_Model
   }
 
   /**
+   * Get product mutation.
+   * @param array $clause [ id, status, from_warehouse_id, to_warehouse_id, created_by, updated_by,
+   *  start_date, end_date, order ]
+   */
+  public function getProductMutation($clause = [])
+  {
+    if ($rows = $this->getProductMutations($clause)) {
+      return $rows[0];
+    }
+    return NULL;
+  }
+
+  /**
+   * Get product mutation items.
+   * @param array $clause [ id, pm_id, product_id, product_code, status ]
+   */
+  public function getProductMutationItems($clause = [])
+  {
+    $q = $this->db->get_where('product_mutation_item', $clause);
+
+    if ($q && $q->num_rows()) {
+      return $q->result();
+    }
+    return [];
+  }
+
+  /**
+   * Get product mutations.
+   * @param array $clause [ id, status, from_warehouse_id, to_warehouse_id, created_by, updated_by,
+   *  start_date, end_date, order ]
+   */
+  public function getProductMutations($clause = [])
+  {
+
+    if (!empty($clause['start_date'])) {
+      $this->db->where("created_at >= '{$clause['start_date']} 00:00:00'");
+      unset($clause['start_date']);
+    }
+
+    if (!empty($clause['end_date'])) {
+      $this->db->where("created_at >= '{$clause['end_date']} 00:00:00'");
+      unset($clause['end_date']);
+    }
+
+    if (!empty($clause['order']) && is_array($clause['order'])) {
+      $this->db->order_by($clause['order'][0], $clause['order'][1]);
+      unset($clause['order']);
+    }
+
+    $q = $this->db->get_where('product_mutation', $clause);
+
+    if ($q && $q->num_rows()) {
+      return $q->result();
+    }
+    return [];
+  }
+
+  /**
    * To find product for Stock Transfer or Stock Purchase. Standard Only.
    */
   public function getProductNames($term, $limit = 10, $options = [])
@@ -5102,7 +5232,7 @@ class Site extends MY_Model
     }
 
     $this->db->where_in('type', ['service', 'standard']);
-    $this->db->where("`code` LIKE '%{$term}%' OR `name` LIKE '%{$term}%'");
+    $this->db->where("code LIKE '%{$term}%' OR name LIKE '%{$term}%'");
     $this->db->limit($limit);
 
     $q = $this->db->get('products');
@@ -5227,15 +5357,79 @@ class Site extends MY_Model
     return [];
   }
 
+  /**
+   * (NEW) Get products for select2.
+   * @param string $term Search terms.
+   * @param array $opt [ type:(standard|combo|service), limit:10, warehouse_id ]
+   */
+  public function getProductSelect2($term, $opt = [])
+  {
+    $hasWarehouse = (isset($opt['warehouse_id']));
+
+    $whQty = ($hasWarehouse ? 'warehouses_products.quantity' : 'products.quantity');
+
+    $this->db
+      ->select("products.id, CONCAT('(', products.code, ') ', products.name) AS text, products.code,
+        products.name, cost, {$whQty}")
+      ->from('products');
+
+    if ($hasWarehouse) {
+      $this->db->join('warehouses_products', 'warehouses_products.product_id = products.id', 'left');
+      $this->db->where('warehouses_products.warehouse_id', $opt['warehouse_id']);
+    }
+
+    if ($term && gettype($term) == 'string') {
+      $this->db->where(
+        "(products.code LIKE '%{$term}%' OR products.name LIKE '%{$term}%')"
+      );
+    }
+
+    if (isset($opt['type'])) {
+      if (gettype($opt['type']) == 'string') {
+        $this->db->like('products.type', $opt['type'], 'none');
+      }
+      if (is_array($opt['type'])) {
+        $this->db->where_in('products.type', $opt['type']);
+      }
+    }
+
+    if (isset($opt['order'])) {
+      $this->db->order_by($opt['order'][0], $opt['order'][1]);
+    }
+
+    if (isset($opt['limit'])) {
+      $this->db->limit($opt['limit']);
+    }
+
+    $this->db->group_by('products.id');
+
+    $q = $this->db->get();
+
+    if ($q && $q->num_rows()) {
+      return $q->result();
+    }
+    return [];
+  }
+
+  /**
+   * @deprecated Replace with getProductSelect2()
+   */
   public function getProductSuggestions($term, $type = 'standard', $limit = 10)
   {
-    if (empty($term)) return [];
-    $this->db->select("id, CONCAT('(', code, ') ', name) AS text");
-    if (isset($term['id'])) {
-      $this->db->where('id', $term['id']);
-    } else {
+    $this->db->select("id, CONCAT('(', code, ') ', name) AS text, code, name, cost, quantity");
+
+    if (is_array($term)) {
+      if (isset($term['id'])) {
+        $this->db->where('id', $term['id']);
+      }
+
+      if (isset($term['warehouse_id'])) {
+
+      }
+    } else if (gettype($term) == 'string') {
       $this->db->where("(id LIKE '%" . $term . "%' OR code LIKE '%" . $term . "%' OR name LIKE '%" . $term . "%')");
     }
+
     if ($type) {
       if (stripos($type, ',') > 0) { // 'service,standard'
         $ty = explode(',', $type);
@@ -5247,14 +5441,10 @@ class Site extends MY_Model
       } else {
         $this->db->like('type', $type);
       }
-    } else {
-      $this->db->like('type', 'standard'); // Default to standard.
     }
-    if ($limit) {
-      $this->db->limit($limit);
-    } else {
-      $this->db->limit(10); // Default to 10.
-    }
+
+    $this->db->limit($limit); // Default to 10.
+
     $q = $this->db->get('products');
     if ($q->num_rows() > 0) {
       foreach ($q->result() as $row) {
@@ -6051,31 +6241,37 @@ class Site extends MY_Model
 
   /**
    * THE ONLY FUNCTION TO GET STOCK PURCHASES.
-   * @param array $clause [ id, warehouse_id, start_date, end_date ]
+   * @param array $clause [ id, warehouse_id, start_date, end_date, order[column, sort]]
    */
   public function getStockPurchases($clause)
   {
-    $clauses = [];
-
-    if (!empty($clause['id'])) $clauses['id'] = $clause['id'];
     if (!empty($clause['reference'])) {
       $this->db->like('reference', $clause['reference'], 'none');
+      unset($clause['reference']);
     }
 
     if (!empty($clause['warehouse_id']) && gettype($clause['warehouse_id']) == 'array') {
       $warehouses = implode(',', $clause['warehouse_id']);
       $this->db->where("warehouse_id IN ({$warehouses})");
-    } else if (!empty($clause['warehouse_id'])) {
-      $clauses['warehouse_id'] = $clause['warehouse_id'];
+      unset($clause['warehouse_id']);
     }
 
-    if (!empty($clause['start_date']) || !empty($clause['end_date'])) {
-      $startDate = ($clause['start_date'] ?? date('Y-m-') . '01');
-      $endDate   = ($clause['end_date']   ?? date('Y-m-d'));
-      $this->db->where("date BETWEEN '{$startDate} 00:00:00' AND '{$endDate} 23:59:59'");
+    if (!empty($clause['start_date'])) {
+      $this->db->where("date >= '{$clause['start_date']} 00:00:00'");
+      unset($clause['start_date']);
+    }
+    if (!empty($clause['end_date'])) {
+      $this->db->where("date <= '{$clause['end_date']} 23:23:59'");
+      unset($clause['end_date']);
     }
 
-    $q = $this->db->get_where('purchases', $clauses);
+    if (!empty($clause['order']) && gettype($clause['order']) == 'array') {
+      // $clause['order'][0] = 'created_at | $clause['order'][1] = 'ASC'
+      $this->db->order_by($clause['order'][0], $clause['order'][1]);
+      unset($clause['order']);
+    }
+
+    $q = $this->db->get_where('purchases', $clause);
 
     if ($q && $q->num_rows() > 0) {
       foreach ($q->result() as $row) {
@@ -6825,8 +7021,6 @@ class Site extends MY_Model
 
   public function getWarehouses($clause = [])
   {
-    $this->db->where('active', 1);
-
     $q = $this->db->get_where('warehouses', $clause);
     if ($q->num_rows() > 0) {
       foreach ($q->result() as $row) {
@@ -8215,6 +8409,80 @@ class Site extends MY_Model
     return FALSE;
   }
 
+  /**
+   * Update product mutation
+   * @param int $pmId Product Mutation ID
+   * @param array $data [ attachment, status, from_warehouse_id, to_warehouse_id, note ]
+   * @param array $items Optional: [ *product_id, *quantity, received_qty, *status ]
+   */
+  public function updateProductMutation($pmId, array $data, array $items = [])
+  {
+    $pm = $this->getProductMutation(['id' => $pmId]);
+
+    $data = setUpdatedBy($data);
+
+    $this->db->update('product_mutation', $data, ['id' => $pmId]);
+
+    if ($this->db->affected_rows()) {
+      if ($items) {
+        $this->db->delete('product_mutation_item', ['pm_id' => $pmId]);
+        $this->db->delete('stocks', ['pm_id' => $pmId]);
+
+        foreach ($items as $item) {
+          $product = $this->site->getProductByID($item['product_id']);
+
+          if ($product) {
+            $item['pm_id'] = $pm->id;
+            $item['product_code'] = $product->code;
+
+            if ($item['status'] == 'received' || $item['status'] == 'received_partial') {
+              $balance = ($item['quantity'] - $item['received_qty']);
+
+              $item['status'] = ($balance > 0 ? 'received_partial' : 'received');
+
+              if ($item['status'] == 'received_partial') {
+                $this->db->update('product_mutation', ['status' => 'received_partial'], ['id' => $pmId]);
+              }
+            }
+
+            $this->db->insert('product_mutation_item', $item);
+
+            if ($this->db->affected_rows()) {
+              if ($item['status'] == 'sent') {
+                $this->addStockQuantity([
+                  'pm_id'        => $pmId,
+                  'product_id'   => $item['product_id'],
+                  'quantity'     => $item['quantity'],
+                  'status'       => 'sent',
+                  'warehouse_id' => $pm->from_warehouse_id
+                ]);
+              }
+
+              if ($item['status'] == 'received' || $item['status'] == 'received_partial') {
+                $this->addStockQuantity([
+                  'pm_id'      => $pmId,
+                  'product_id' => $item['product_id'],
+                  'quantity'   => $item['received_qty'],
+                  'status'     => 'sent',
+                  'warehouse_id' => $pm->from_warehouse_id
+                ]);
+                $this->addStockQuantity([
+                  'pm_id'      => $pmId,
+                  'product_id' => $item['product_id'],
+                  'quantity'   => $item['received_qty'],
+                  'status'     => 'received',
+                  'warehouse_id' => $pm->to_warehouse_id
+                ]);
+              }
+            }
+          }
+        }
+      }
+      return TRUE;
+    }
+    return FALSE;
+  }
+
   public function updateProductReport($reportId, $reportData)
   {
     if ($this->db->update('product_report', $reportData, ['id' => $reportId])) {
@@ -8546,7 +8814,7 @@ class Site extends MY_Model
               $total_qty    += $qty;
               $sale_items[]  = $item;
 
-              $_item = $this->site->getProductByID($item['product_id']);
+              $_item = $this->getProductByID($item['product_id']);
               addEvent("Updated Sale Item [{$_item->name}], W:{$item_w}, L:{$item_l}, ".
                 "Price:{$price}, Qty:{$quantity}", 'warning');
             }
@@ -8712,7 +8980,7 @@ class Site extends MY_Model
 
       // If old status == completed and new status == finished then send WA.
       if ($sale->status == 'completed' && $status == 'finished') {
-        $customer = $this->site->getCustomerByID($sale->customer_id);
+        $customer = $this->getCustomerByID($sale->customer_id);
         $customerJS = getJSON($customer->json_data);
 
         if (!isset($customerJS->notify_wa) || $customerJS->notify_wa != 0) {
@@ -8733,7 +9001,7 @@ class Site extends MY_Model
             "Terima kasih \u{1F64F},\nIndoprinting Team\n\n" .
             "_#PesanOtomatis_";
 
-          $this->site->addWAJob([
+          $this->addWAJob([
             'sale_id'   => $sale->id,
             'phone'     => $customer->phone,
             'message'   => $text,
@@ -9298,13 +9566,10 @@ class Site extends MY_Model
 
   public function updateSupplier($supplier_id, $data)
   {
-    if ($supplier_id &&  !empty($data)) {
-      $this->db->trans_start();
-      $this->db->update('suppliers', $data, ['id' => $supplier_id]);
-      $this->db->trans_complete();
-      if ($this->db->trans_status() !== FALSE) {
-        return TRUE;
-      }
+    $this->db->update('suppliers', $data, ['id' => $supplier_id]);
+
+    if ($this->db->affected_rows()) {
+      return TRUE;
     }
     return FALSE;
   }
@@ -9346,6 +9611,8 @@ class Site extends MY_Model
 
     $usageClick     = $TData['end_click'] - $TData['start_click'];
     $opReject       = $TData['erp_click'] - $TData['end_click'] - $mcReject;
+    // If opReject minus then opReject else if plus then 0.
+    $opReject       = ($opReject < 0 ? $opReject : 0);
     $toleranceClick = round(($mcReject + $opReject) * 0.01 * $TData['tolerance']);
     $balance        = ($mcReject + $opReject) - $toleranceClick;
     $totalPenalty   = ($balance < 0 ? $balance * $TData['cost_click'] : 0);
@@ -9360,34 +9627,6 @@ class Site extends MY_Model
     $this->db->update('trackingpod', $TData, ['id' => $trackId]); // ORIGINAL UPDATE #1
 
     if ($this->db->affected_rows()) {
-      // Update Adjustment if any change.
-      // if ($track->end_click != $TData['end_click'] || $track->mc_reject != $TData['mc_reject']) {
-      //   if (!empty($track->adjustment_id)) { // Delete old adjustment.
-      //     $this->deleteStockAdjustment($track->adjustment_id);
-      //   }
-
-      //   if ($TData['end_click'] != $TData['erp_click']) { // Adjustment if end_click != erp_click.
-      //     $adjustmentData = [
-      //       'date'         => ($TData['created_at'] ?? date('Y-m-d H:i:s')),
-      //       'warehouse_id' => $TData['warehouse_id'],
-      //       'mode'         => 'overwrite',
-      //       'note'         => $TData['note'],
-      //       'created_by'   => $TData['created_by'],
-      //       'end_date'     => $track->created_at
-      //     ];
-
-      //     $adjustmentItems[] = [
-      //       'product_id' => $TData['pod_id'],
-      //       'quantity'   => $TData['end_click']
-      //     ];
-
-      //     if ($adjustmentId = $this->addAdjustmentStock($adjustmentData, $adjustmentItems)) {
-      //       // ORIGINAL UPDATE #2
-      //       $this->db->update('trackingpod', ['adjustment_id' => $adjustmentId], ['id' => $trackId]);
-      //     }
-      //   }
-      // }
-
       return TRUE;
     }
     return FALSE;

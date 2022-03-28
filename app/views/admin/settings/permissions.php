@@ -357,18 +357,39 @@
                   </td>
                 </tr>
                 <tr>
+                  <td><?= lang('products_mutations'); ?></td>
+                  <td class="text-center">
+                    <input type="checkbox" value="1" class="checkbox" name="products-mutation_view" <?php echo ($gp->{'products-mutation_view'} ?? FALSE) ? 'checked' : ''; ?>>
+                  </td>
+                  <td class="text-center">
+                    <input type="checkbox" value="1" class="checkbox" name="products-mutation_add" <?php echo ($gp->{'products-mutation_add'} ?? FALSE) ? 'checked' : ''; ?>>
+                  </td>
+                  <td class="text-center">
+                    <input type="checkbox" value="1" class="checkbox" name="products-mutation_edit" <?php echo ($gp->{'products-mutation_edit'} ?? FALSE) ? 'checked' : ''; ?>>
+                  </td>
+                  <td class="text-center">
+                    <input type="checkbox" value="1" class="checkbox" name="products-mutation_delete" <?php echo ($gp->{'products-mutation_delete'} ?? FALSE) ? 'checked' : ''; ?>>
+                  </td>
+                  <td>
+                    <span style="display:inline-block;">
+                      <input type="checkbox" value="1" id="products-mutation_status" class="checkbox" name="products-mutation_status" <?php echo ($gp->{'products-mutation_status'} ?? FALSE) ? 'checked' : ''; ?>>
+                      <label for="products-mutation_status" class="padding05"><?= lang('mutation_status') ?></label>
+                    </span>
+                  </td>
+                </tr>
+                <tr>
                   <td><?= lang('sales'); ?></td>
                   <td class="text-center">
-                    <input type="checkbox" value="1" class="checkbox" name="sales-index" <?php echo $gp->{'sales-index'} ? 'checked' : ''; ?>>
+                    <input type="checkbox" value="1" class="checkbox" name="sales-index" <?php echo ($gp->{'sales-index'} ?? FALSE) ? 'checked' : ''; ?>>
                   </td>
                   <td class="text-center">
-                    <input type="checkbox" value="1" class="checkbox" name="sales-add" <?php echo $gp->{'sales-add'} ? 'checked' : ''; ?>>
+                    <input type="checkbox" value="1" class="checkbox" name="sales-add" <?php echo ($gp->{'sales-add'} ?? FALSE) ? 'checked' : ''; ?>>
                   </td>
                   <td class="text-center">
-                    <input type="checkbox" value="1" class="checkbox" name="sales-edit" <?php echo $gp->{'sales-edit'} ? 'checked' : ''; ?>>
+                    <input type="checkbox" value="1" class="checkbox" name="sales-edit" <?php echo ($gp->{'sales-edit'} ?? FALSE) ? 'checked' : ''; ?>>
                   </td>
                   <td class="text-center">
-                    <input type="checkbox" value="1" class="checkbox" name="sales-delete" <?php echo $gp->{'sales-delete'} ? 'checked' : ''; ?>>
+                    <input type="checkbox" value="1" class="checkbox" name="sales-delete" <?php echo ($gp->{'sales-delete'} ?? FALSE) ? 'checked' : ''; ?>>
                   </td>
                   <td>
                     <span style="display:inline-block;">

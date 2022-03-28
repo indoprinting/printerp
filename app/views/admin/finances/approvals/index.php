@@ -179,7 +179,7 @@ if ($this->input->post('to_date')) {
                       $bk[$bank->name] = $bank->name;
                   }
                 }
-                echo form_dropdown('acc_from', $bk, ($this->input->post('acc_from') ?? ''), 'class="form-control"'); ?>
+                echo form_dropdown('acc_from', $bk, ($this->input->post('acc_from') ?? ''), 'class="form-control select2"'); ?>
               </div>
             </div>
             <div class="col-sm-4">
@@ -194,7 +194,7 @@ if ($this->input->post('to_date')) {
                       $bk[$bank->name] = $bank->name;
                   }
                 }
-                echo form_dropdown('acc_to', $bk, ($this->input->post('acc_to') ?? ''), 'class="form-control"'); ?>
+                echo form_dropdown('acc_to', $bk, ($this->input->post('acc_to') ?? ''), 'class="form-control select2"'); ?>
               </div>
             </div>
           </div>

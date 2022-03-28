@@ -621,7 +621,11 @@ class Sales extends MY_Controller
     if ($this->requestMethod == 'POST' && $this->input->is_ajax_request()) {
       $paymentId = $this->input->post('id');
 
-      if ($this->site->deletePayment($paymentId)) {
+      $sale = $this->site->getSaleByPaymentID($paymentId);
+
+      if ($this->site->deletePayment($paymentId) && $sale) {
+
+        $this->site->syncSales(['sale_id' => $sale->id]);
         sendJSON(['error' => 0, 'msg' => 'Payment has been deleted successfully.']);
       }
 
@@ -664,7 +668,60 @@ class Sales extends MY_Controller
     $this->load->view($this->theme . 'sales/details', $this->data);
   }
 
-  /* ------------------------------------------------------------------------ */
+  public function discpay()
+  {
+    checkPermission('sales-add_discount_payment');
+
+    if ($this->requestMethod == 'POST') {
+      $vals = $this->input->post('val'); // val[]
+      $disc = $this->input->post('discount'); // 10
+      $bankId = $this->input->post('bank'); // bank_id
+
+      if ($vals && is_array($vals)) {
+        $failed  = 0;
+        $success = 0;
+
+        if ($disc == 0) {
+          sendJSON([
+            'error' => 1, 'message' => 'Discount harus lebih dari 0%'
+          ]);
+        }
+
+        foreach ($vals as $saleId) {
+          $sale = $this->site->getSaleByID($saleId);
+
+          if ($sale && $sale->payment_status != 'paid') {
+            $discount = ($sale->grand_total * $disc * 0.01);
+            $this->site->updateSale($sale->id, ['discount' => $discount]);
+            $this->site->addSalePayment([
+              'sale_id'    => $sale->id,
+              'amount'     => $sale->grand_total - $discount,
+              'method'     => 'Transfer',
+              'bank_id'    => $bankId,
+              'created_by' => $this->session->userdata('user_id'),
+              'type'       => 'received'
+            ]);
+            $this->site->syncSales(['sale_id' => $sale->id]);
+            $success++;
+          } else {
+            $failed++;
+          }
+        }
+
+        sendJSON([
+          'error' => 0,
+          'message' => "Sales berhasil didiskon dan dilunasi. Success {$success} sale and Failed {$failed} sale."
+        ]);
+      }
+
+      sendJSON([
+        'error' => 1,
+        'message' => 'Tidak ada sales yang dipilih'
+      ]);
+    }
+
+    $this->load->view($this->theme . 'sales/discpay', $this->data);
+  }
 
   public function edit($id = null)
   {
@@ -1907,7 +1964,6 @@ class Sales extends MY_Controller
     $this->data['biller']      = $this->site->getBillerByID($inv->biller_id);
     $this->data['created_by']  = $this->site->getUser($inv->created_by);
     $this->data['updated_by']  = $inv->updated_by ? $this->site->getUser($inv->updated_by) : null;
-    $this->data['warehouse']   = $this->site->getWarehouseByID($inv->warehouse_id);
     $this->data['inv']         = $inv;
     $this->data['rows']        = $this->site->getSaleItemsBySaleID($sale_id);
     $this->data['saleJS']      = json_decode($inv->json_data);

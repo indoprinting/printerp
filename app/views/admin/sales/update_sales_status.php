@@ -71,7 +71,7 @@
           $stat['draft'] = lang('draft');
         }
         ?>
-        <?= form_dropdown('status', $stat, $inv->status, 'class="form-control select" id="status" required="required" style="width:100%;"'); ?>
+        <?= form_dropdown('status', $stat, $inv->status, 'class="form-control select2" id="status" required="required" style="width:100%;"'); ?>
       </div>
 
       <div class="form-group">

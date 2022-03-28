@@ -45,7 +45,9 @@ class FileUpload {
     if ($this->file) {
       if (strpos($this->getName(), '.') !== FALSE) {
         $s = explode('.', $this->getName());
-        return '.' . $s[1];
+        $len = count($s);
+
+        return '.' . $s[$len - 1];
       }
     }
     return NULL;
@@ -120,6 +122,7 @@ class FileUpload {
   {
     if ($this->file) {
       $path = rtrim($path, '/') . '/';
+      checkPath($path);
       $newName = ($newName ?? $this->getName());
 
       if (move_uploaded_file($this->getTempName(), $path . $newName)) {

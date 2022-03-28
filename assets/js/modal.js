@@ -52,9 +52,9 @@ $(document).ready(function (e) {
     }
   });
 
-  $('select').select2({ theme: 'classic' });
+  // $('select').select2({ theme: 'classic' });
 
-  $('select.select').select2({ minimumResultsForSearch: 1, tags: false, theme: 'classic' });
+  $('select.select2').select2({ minimumResultsForSearch: 1, tags: false, theme: 'classic' });
 
   $('select.select-tags').select2({ minimumResultsForSearch: 1, tags: true, theme: 'classic' });
 

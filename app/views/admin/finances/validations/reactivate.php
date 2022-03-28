@@ -51,7 +51,7 @@
               }
             }
           ?>
-          <?= form_dropdown('to_bank', $bk, '', 'class="form-control" placeholder="Select Account To" id="to_bank" required="required" style="width:100%;"'); ?>
+          <?= form_dropdown('to_bank', $bk, '', 'class="form-control select2" placeholder="Select Account To" id="to_bank" required="required" style="width:100%;"'); ?>
         </div>
       </div>
     </div>

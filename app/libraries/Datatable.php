@@ -358,4 +358,10 @@ class Datatable
     }
     return $this;
   }
+
+  public function where_in($column, $items = [])
+  {
+    $this->ci->db->where_in($column, $items);
+    return $this;
+  }
 }

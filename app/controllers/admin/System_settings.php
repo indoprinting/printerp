@@ -13,7 +13,7 @@ class system_settings extends MY_Controller
       loginPage();
     }
 
-    if ( ! $this->Owner && ! $this->Admin && ! getPermission('edit-system')) {
+    if (!$this->Owner && !$this->Admin && !getPermission('edit-system')) {
       $this->session->set_flashdata('warning', lang('access_denied'));
       redirect('admin');
     }
@@ -178,7 +178,8 @@ class system_settings extends MY_Controller
     $this->form_validation->set_rules('rate', lang('exchange_rate'), 'required|numeric');
 
     if ($this->form_validation->run() == true) {
-      $data = ['code'   => $this->input->post('code'),
+      $data = [
+        'code'   => $this->input->post('code'),
         'name'        => $this->input->post('name'),
         'rate'        => $this->input->post('rate'),
         'symbol'      => $this->input->post('symbol'),
@@ -205,7 +206,8 @@ class system_settings extends MY_Controller
     $this->form_validation->set_rules('percent', lang('group_percentage'), 'required|numeric');
 
     if ($this->form_validation->run() == true) {
-      $data = ['name' => $this->input->post('name'),
+      $data = [
+        'name' => $this->input->post('name'),
         'percent'   => $this->input->post('percent'),
       ];
     } elseif ($this->input->post('add_customer_group')) {
@@ -292,7 +294,8 @@ class system_settings extends MY_Controller
     }
   }
 
-  public function add_price_range() {
+  public function add_price_range()
+  {
     $this->form_validation->set_rules('name', lang('Range Name'), 'trim|is_unique[price_ranges.name]|required|alpha_numeric_spaces');
 
     if ($this->form_validation->run() == true) {
@@ -319,7 +322,8 @@ class system_settings extends MY_Controller
     $this->form_validation->set_rules('rate', lang('tax_rate'), 'required|numeric');
 
     if ($this->form_validation->run() == true) {
-      $data = ['name' => $this->input->post('name'),
+      $data = [
+        'name' => $this->input->post('name'),
         'code'      => $this->input->post('code'),
         'type'      => $this->input->post('type'),
         'rate'      => $this->input->post('rate'),
@@ -1029,7 +1033,8 @@ class system_settings extends MY_Controller
     $this->form_validation->set_rules('rate', lang('exchange_rate'), 'required|numeric');
 
     if ($this->form_validation->run() == true) {
-      $data = ['code'   => $this->input->post('code'),
+      $data = [
+        'code'   => $this->input->post('code'),
         'name'        => $this->input->post('name'),
         'rate'        => $this->input->post('rate'),
         'symbol'      => $this->input->post('symbol'),
@@ -1061,7 +1066,8 @@ class system_settings extends MY_Controller
     $this->form_validation->set_rules('percent', lang('group_percentage'), 'required|numeric');
 
     if ($this->form_validation->run() == true) {
-      $data = ['name' => $this->input->post('name'),
+      $data = [
+        'name' => $this->input->post('name'),
         'percent'   => $this->input->post('percent'),
       ];
     } elseif ($this->input->post('edit_customer_group')) {
@@ -1220,7 +1226,8 @@ class system_settings extends MY_Controller
     $this->form_validation->set_rules('rate', lang('tax_rate'), 'required|numeric');
 
     if ($this->form_validation->run() == true) {
-      $data = ['name' => $this->input->post('name'),
+      $data = [
+        'name' => $this->input->post('name'),
         'code'      => $this->input->post('code'),
         'type'      => $this->input->post('type'),
         'rate'      => $this->input->post('rate'),
@@ -1553,7 +1560,8 @@ class system_settings extends MY_Controller
     echo $this->datatables->generate();
   }
 
-  public function getPriceRanges() { // Get Price Ranges
+  public function getPriceRanges()
+  { // Get Price Ranges
     $this->load->library('datatables');
     $this->datatables->select('id, name')
       ->from('price_ranges')
@@ -1722,7 +1730,8 @@ class system_settings extends MY_Controller
       admin_redirect('system_settings/brands');
     } else {
       $this->data['error']    = (validation_errors() ? validation_errors() : $this->session->flashdata('error'));
-      $this->data['userfile'] = ['name' => 'userfile',
+      $this->data['userfile'] = [
+        'name' => 'userfile',
         'id'                          => 'userfile',
         'type'                        => 'text',
         'value'                       => $this->form_validation->set_value('userfile'),
@@ -1811,7 +1820,8 @@ class system_settings extends MY_Controller
       }
 
       $this->data['error']    = (validation_errors() ? validation_errors() : $this->session->flashdata('error'));
-      $this->data['userfile'] = ['name' => 'userfile',
+      $this->data['userfile'] = [
+        'name' => 'userfile',
         'id'                          => 'userfile',
         'type'                        => 'text',
         'value'                       => $this->form_validation->set_value('userfile'),
@@ -1820,7 +1830,7 @@ class system_settings extends MY_Controller
     }
   }
 
-  public function import_expense_categories ()
+  public function import_expense_categories()
   {
     $this->load->helper('security');
     $this->form_validation->set_rules('csv_file', lang('upload_file'), 'xss_clean');
@@ -1854,7 +1864,8 @@ class system_settings extends MY_Controller
         $header_id = array_shift($arrResult);
         $titles = array_shift($arrResult);
         $keys = ['no', 'use', 'code', 'name'];
-        $csvs = []; $data_expense = [];
+        $csvs = [];
+        $data_expense = [];
         $updated = 0;
 
         if ($header_id[0] != 'EXCA') {
@@ -1929,7 +1940,8 @@ class system_settings extends MY_Controller
         $header_id = array_shift($arrResult);
         $titles = array_shift($arrResult);
         $keys   = ['no', 'use', 'code', 'name'];
-        $csvs  = []; $data = [];
+        $csvs  = [];
+        $data = [];
         $updated = 0;
 
         if ($header_id[0] != 'INCA') {
@@ -1968,7 +1980,8 @@ class system_settings extends MY_Controller
       admin_redirect('system_settings/income_categories');
     } else {
       $this->data['error']    = (validation_errors() ? validation_errors() : $this->session->flashdata('error'));
-      $this->data['userfile'] = ['name' => 'userfile',
+      $this->data['userfile'] = [
+        'name' => 'userfile',
         'id'                          => 'userfile',
         'type'                        => 'text',
         'value'                       => $this->form_validation->set_value('userfile'),
@@ -2039,7 +2052,8 @@ class system_settings extends MY_Controller
       admin_redirect('system_settings/categories');
     } else {
       $this->data['error']    = (validation_errors() ? validation_errors() : $this->session->flashdata('error'));
-      $this->data['userfile'] = ['name' => 'userfile',
+      $this->data['userfile'] = [
+        'name' => 'userfile',
         'id'                          => 'userfile',
         'type'                        => 'text',
         'value'                       => $this->form_validation->set_value('userfile'),
@@ -2048,7 +2062,8 @@ class system_settings extends MY_Controller
     }
   }
 
-  public function import_units () {
+  public function import_units()
+  {
     $arrResult = [];
     $command = $this->input->post('command');
 
@@ -2072,7 +2087,7 @@ class system_settings extends MY_Controller
           $config['max_filename']  = 25;
           $this->upload->initialize($config);
 
-          if ( ! $this->upload->do_upload('csv_file')) {
+          if (!$this->upload->do_upload('csv_file')) {
             $error = $this->upload->display_errors();
             $this->session->set_flashdata('error', $error);
             admin_redirect('system_settings/units');
@@ -2131,8 +2146,9 @@ class system_settings extends MY_Controller
       } // foreach
     }
 
-    if (($command == 'syncGoogleSheet' || $this->form_validation->run()) && ! empty($units)) {
-      $added = 0; $updated = 0;
+    if (($command == 'syncGoogleSheet' || $this->form_validation->run()) && !empty($units)) {
+      $added = 0;
+      $updated = 0;
       foreach ($units as $un) {
         $unit = $this->site->getUnitByCode($un['code']);
         if ($unit) { // If present, updated it
@@ -2162,7 +2178,8 @@ class system_settings extends MY_Controller
     }
   }
 
-  public function import_warehouses () {
+  public function import_warehouses()
+  {
     $this->form_validation->set_rules('csv_file', lang('upload_file'), 'xss_clean');
 
     if ($this->form_validation->run() == true) {
@@ -2176,7 +2193,7 @@ class system_settings extends MY_Controller
         $config['max_filename']  = 25;
         $this->upload->initialize($config);
 
-        if ( ! $this->upload->do_upload('csv_file')) {
+        if (!$this->upload->do_upload('csv_file')) {
           $error = $this->upload->display_errors();
           $this->session->set_flashdata('error', $error);
           admin_redirect('system_settings/warehouses');
@@ -2216,7 +2233,7 @@ class system_settings extends MY_Controller
           if ($csv['use'] != 1) continue;
           $price_group = $this->site->getPriceGroupByName($csv['price_group']);
 
-          if ( ! $price_group) {
+          if (!$price_group) {
             $this->session->set_flashdata('error', sprintf('Price Group [%s] is not found.', $csv['price_group']));
             admin_redirect('system_settings/warehouses');
           }
@@ -2246,8 +2263,9 @@ class system_settings extends MY_Controller
       admin_redirect('system_settings/warehouses');
     }
 
-    if ($this->form_validation->run() == true && ! empty($warehouses)) {
-      $added = 0; $updated = 0;
+    if ($this->form_validation->run() == true && !empty($warehouses)) {
+      $added = 0;
+      $updated = 0;
       foreach ($warehouses as $wh) {
         $warehouse = $this->site->getWarehouseByCode($wh['code']); // Find warehouse by code
         if ($warehouse) { // If present, updated it
@@ -2273,7 +2291,7 @@ class system_settings extends MY_Controller
     }
   }
 
-  public function index ()
+  public function index()
   {
     $this->form_validation->set_rules('site_name', lang('site_name'), 'trim|required');
     $this->form_validation->set_rules('dateformat', lang('dateformat'), 'trim|required');
@@ -2338,7 +2356,8 @@ class system_settings extends MY_Controller
       $tax1 = ($this->input->post('tax_rate') != 0) ? 1 : 0;
       $tax2 = ($this->input->post('tax_rate2') != 0) ? 1 : 0;
 
-      $data = ['site_name' => DEMO ? 'Stock Manager Advance' : $this->input->post('site_name'),
+      $data = [
+        'site_name' => DEMO ? 'Stock Manager Advance' : $this->input->post('site_name'),
         'rows_per_page'  => $this->input->post('rows_per_page'),
         'dateformat'     => $this->input->post('dateformat'),
         'timezone'       => DEMO ? 'Asia/Kuala_Lumpur' : $this->input->post('timezone'),
@@ -2486,14 +2505,15 @@ class system_settings extends MY_Controller
     admin_redirect('system_settings/updates');
   }
 
-  public function mutasibank () {
+  public function mutasibank()
+  {
     $this->form_validation->set_rules('active', $this->lang->line('activate'), 'trim');
 
     if ($this->form_validation->run() == true) {
       $api_keys = $this->input->post('api_keys');
       $keys = [];
       foreach ($api_keys as $key) {
-        if ( ! empty($key)) $keys[] = $key;
+        if (!empty($key)) $keys[] = $key;
       }
       $data = [
         'active'   => $this->input->post('active'),
@@ -2512,7 +2532,8 @@ class system_settings extends MY_Controller
       $bc = [
         ['link' => base_url(), 'page' => lang('home')],
         ['link' => admin_url('system_settings'), 'page' => lang('system_settings')],
-        ['link' => '#', 'page' => lang('mutasibank_settings')]];
+        ['link' => '#', 'page' => lang('mutasibank_settings')]
+      ];
       $meta = ['page_title' => lang('mutasibank'), 'bc' => $bc];
       $this->data = array_merge($this->data, $meta);
 
@@ -2532,7 +2553,8 @@ class system_settings extends MY_Controller
     $this->form_validation->set_rules('extra_charges_other', $this->lang->line('extra_charges_others'), 'trim');
 
     if ($this->form_validation->run() == true) {
-      $data = ['active'         => $this->input->post('active'),
+      $data = [
+        'active'         => $this->input->post('active'),
         'account_email'       => $this->input->post('account_email'),
         'fixed_charges'       => $this->input->post('fixed_charges'),
         'extra_charges_my'    => $this->input->post('extra_charges_my'),
@@ -2556,7 +2578,7 @@ class system_settings extends MY_Controller
     }
   }
 
-  public function permissions ($group_id = null)
+  public function permissions($group_id = null)
   {
     $this->form_validation->set_rules('group', lang('group'), 'is_natural_no_zero');
     if ($this->form_validation->run() == true) {
@@ -2686,6 +2708,11 @@ class system_settings extends MY_Controller
           'payments-index'            => $this->input->post('payments-index'),
           'products-categories'       => $this->input->post('products-categories'),
           'products-history'          => $this->input->post('products-history'),
+          'products-mutation_add'     => $this->input->post('products-mutation_add'),
+          'products-mutation_delete'  => $this->input->post('products-mutation_delete'),
+          'products-mutation_edit'    => $this->input->post('products-mutation_edit'),
+          'products-mutation_view'    => $this->input->post('products-mutation_view'),
+          'products-mutation_status'  => $this->input->post('products-mutation_status'),
           'products-quantity'         => $this->input->post('products-quantity'),
           'products-std_qty'          => $this->input->post('products-std_qty'),
           'products-so_quantity'      => $this->input->post('products-so_quantity'),
@@ -2717,8 +2744,8 @@ class system_settings extends MY_Controller
 
       $this->data['id']    = $group_id;
       $this->data['p']     = $this->settings_model->getGroupPermissions($group_id);
-      $pj                  = ( ! empty($permissions) ? (property_exists($permissions, 'permissions_json') ? $permissions->permissions_json : NULL) : NULL);
-      $this->data['pj']    = ( ! empty($pj) ? json_decode($pj) : NULL);
+      $pj                  = (!empty($permissions) ? (property_exists($permissions, 'permissions_json') ? $permissions->permissions_json : NULL) : NULL);
+      $this->data['pj']    = (!empty($pj) ? json_decode($pj) : NULL);
       $this->data['gp']    = $this->site->getGroupPermissions($group_id);
       unset($pj);
       $this->data['group'] = $this->settings_model->getGroupByID($group_id);
@@ -2747,7 +2774,8 @@ class system_settings extends MY_Controller
     $this->page_construct('settings/price_groups', $this->data);
   }
 
-  public function price_ranges() {
+  public function price_ranges()
+  {
     $this->data['error'] = validation_errors() ? validation_errors() : $this->session->flashdata('error');
 
     $bc   = [['link' => base_url(), 'page' => lang('home')], ['link' => admin_url('system_settings'), 'page' => lang('system_settings')], ['link' => '#', 'page' => lang('price_ranges')]];
@@ -2844,7 +2872,8 @@ class system_settings extends MY_Controller
       $this->session->set_flashdata('message', lang('price_updated'));
       admin_redirect('system_settings/group_product_prices/' . $group_id);
     } else {
-      $this->data['userfile'] = ['name' => 'userfile',
+      $this->data['userfile'] = [
+        'name' => 'userfile',
         'id'                          => 'userfile',
         'type'                        => 'text',
         'value'                       => $this->form_validation->set_value('userfile'),
@@ -2869,8 +2898,16 @@ class system_settings extends MY_Controller
     $price6      = $this->input->post('price6', true);
 
     if (!empty($product_id) && !empty($price)) {
-      if ($this->settings_model->setProductPriceForPriceGroup($product_id, $group_id,
-        $price, $price2, $price3, $price4, $price5, $price6)) {
+      if ($this->settings_model->setProductPriceForPriceGroup(
+        $product_id,
+        $group_id,
+        $price,
+        $price2,
+        $price3,
+        $price4,
+        $price5,
+        $price6
+      )) {
         sendJSON(['status' => 1]);
       }
     }

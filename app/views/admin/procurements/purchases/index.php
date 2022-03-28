@@ -313,7 +313,7 @@ if ($end_payment_date = $this->input->get('end_payment_date')) {
                   foreach ($warehouses as $wh) {
                     $whs[$wh->id] = $wh->name;
                   }
-                  echo form_multiselect('warehouse', $whs, ($warehouse ?? ''), 'class="form-control select" id="warehouse" data-placeholder="Select Warehouse" style="width:100%;"');
+                  echo form_multiselect('warehouse', $whs, ($warehouse ?? ''), 'class="form-control select2" id="warehouse" data-placeholder="Select Warehouse" style="width:100%;"');
                 }
                 ?>
               </div>
@@ -329,7 +329,7 @@ if ($end_payment_date = $this->input->get('end_payment_date')) {
                     $stat[$st] = lang($st);
                   }
                 }
-                echo form_multiselect('status', $stat, ($status ?? ''), 'class="form-control select" id="status" data-placeholder="Select Purchase Status" style="width:100%;"'); ?>
+                echo form_multiselect('status', $stat, ($status ?? ''), 'class="form-control select2" id="status" data-placeholder="Select Purchase Status" style="width:100%;"'); ?>
               </div>
             </div>
             <div class="col-sm-4">
@@ -342,7 +342,7 @@ if ($end_payment_date = $this->input->get('end_payment_date')) {
                     $stat[$status] = lang($status);
                   }
                 }
-                echo form_multiselect('payment_status[]', $stat, ($payment_status ?? ''), 'class="form-control select" id="payment_status" data-placeholder="Select Payment Status" style="width:100%;"'); ?>
+                echo form_multiselect('payment_status[]', $stat, ($payment_status ?? ''), 'class="form-control select2" id="payment_status" data-placeholder="Select Payment Status" style="width:100%;"'); ?>
               </div>
             </div>
           </div>

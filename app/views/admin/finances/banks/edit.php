@@ -26,7 +26,7 @@
           foreach ($billers as $biller) {
             $whc[$biller->id] = $biller->name;
           }
-          echo form_dropdown('biller_id', $whc, $bank->biller_id, 'class="form-control select" id="biller_id" required="required" style="width:100%;"'); ?>
+          echo form_dropdown('biller_id', $whc, $bank->biller_id, 'class="form-control select2" id="biller_id" required="required" style="width:100%;"'); ?>
         </div>
         <div class="form-group">
           <?= lang('type', 'type'); ?>

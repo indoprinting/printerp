@@ -27,7 +27,7 @@
             }
           }
           ?>
-          <?= form_dropdown('category', $ct, $income->category_id, 'class="form-control select tip" id="category" required="required"'); ?>
+          <?= form_dropdown('category', $ct, $income->category_id, 'class="form-control select2 tip" id="category" required="required"'); ?>
         </div>
       </div>
     </div>
@@ -42,7 +42,7 @@
               $wh[$biller->id] = $biller->name;
             }
           }
-          echo form_dropdown('biller', $wh, $income->biller_id, 'id="biller" class="form-control input-tip select" placeholder="Select biller" required="required"');
+          echo form_dropdown('biller', $wh, $income->biller_id, 'id="biller" class="form-control input-tip select2" placeholder="Select biller" required="required"');
           ?>
         </div>
       </div>
@@ -67,7 +67,7 @@
                 }
               }
               ?>
-              <?= form_dropdown('transfer_to', $bk, $income->bank_id, 'class="form-control select tip" id="transfer_to" placeholder="Select Transfer To" required="required"'); ?>
+              <?= form_dropdown('transfer_to', $bk, $income->bank_id, 'class="form-control select2 tip" id="transfer_to" placeholder="Select Transfer To" required="required"'); ?>
             </div>
             <div class="col-md-6">
               <?= lang('current_balance', 'balance_transfer_to'); ?>

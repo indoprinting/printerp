@@ -83,7 +83,7 @@
 					}
 				}
 				
-				echo form_dropdown('status', $opts, $payment->status, 'class="form-control select" id="status" required="required" style="width:100%;"'); ?>
+				echo form_dropdown('status', $opts, $payment->status, 'class="form-control select2" id="status" required="required" style="width:100%;"'); ?>
 			</div>
 
 			<div class="form-group">

@@ -238,4 +238,11 @@ class MY_Controller extends CI_Controller
 
     $this->load->view('admin/content', $data);
   }
+
+  protected function response(int $code, array $data)
+  {
+    http_response_code($code);
+    $data = array_merge(['status' => intval($code)], $data);
+    sendJSON($data);
+  }
 }

@@ -159,7 +159,7 @@
                     ) continue;
                     $bl[$biller->id] = $biller->name;
                   }
-                  echo form_dropdown('biller', $bl, $inv->biller_id, 'id="slbiller" data-placeholder="' . lang('select') . ' ' . lang('biller') . '" required="required" class="form-control input-tip select" style="width:100%;"'); ?>
+                  echo form_dropdown('biller', $bl, $inv->biller_id, 'id="slbiller" data-placeholder="' . lang('select') . ' ' . lang('biller') . '" required="required" class="form-control input-tip select2" style="width:100%;"'); ?>
                 </div>
               </div>
             <?php } else { ?>
@@ -180,7 +180,7 @@
                       $blr[$user->id] = $user->biller_id;
                     }
                   }
-                  echo form_dropdown('created_by', $usr, $inv->created_by, 'id="slpic" data-placeholder="' . lang('select') . ' ' . lang('pic_name') . '" required="required" class="form-control input-tip select" style="width:100%;"'); ?>
+                  echo form_dropdown('created_by', $usr, $inv->created_by, 'id="slpic" data-placeholder="' . lang('select') . ' ' . lang('pic_name') . '" required="required" class="form-control input-tip select2" style="width:100%;"'); ?>
                 </div>
               </div>
             <?php } else {
@@ -206,7 +206,7 @@
                     $usr[$user->id] = $user->fullname;
                   }
                 }
-                echo form_dropdown('cashier_by', $usr, ($saleJS->cashier_by ?? ''), 'id="cashier" data-placeholder="Select Cashier" required="required" class="form-control input-tip select" style="width:100%;"'); ?>
+                echo form_dropdown('cashier_by', $usr, ($saleJS->cashier_by ?? ''), 'id="cashier" data-placeholder="Select Cashier" required="required" class="form-control input-tip select2" style="width:100%;"'); ?>
               </div>
             </div>
             <div class="col-md-4">
@@ -241,7 +241,7 @@
                             $wh[$warehouse->id] = $warehouse->name;
                           }
 
-                          echo form_dropdown('warehouse', $wh, $inv->warehouse_id, 'id="slwarehouse" class="form-control input-tip select" data-placeholder="' . lang('select') . ' ' . lang('warehouse') . '" required="required" style="width:100%;" ');
+                          echo form_dropdown('warehouse', $wh, $inv->warehouse_id, 'id="slwarehouse" class="form-control input-tip select2" data-placeholder="' . lang('select') . ' ' . lang('warehouse') . '" required="required" style="width:100%;" ');
                           ?>
                           <div class="input-group-addon" style="padding-left: 10px; padding-right: 10px;">
                             <a href="#" id="unlock_warehouse">
@@ -258,7 +258,7 @@
                     <div class="form-group">
                       <?= lang('customer', 'slcustomer'); ?>
                       <div class="form-group">
-                        <?php echo form_dropdown('customer', '', $inv->customer_id, 'class="form-control input-tip select rcustomer" id="slcustomer" data-placeholder="Select Customer" required="required" style="width:100%;"'); ?>
+                        <?php echo form_dropdown('customer', '', $inv->customer_id, 'class="form-control input-tip select2 rcustomer" id="slcustomer" data-placeholder="Select Customer" required="required" style="width:100%;"'); ?>
                       </div>
                     </div>
                   </div>
@@ -335,7 +335,7 @@
                   $sst['waiting_production'] = lang('waiting_production');
                 }
 
-                echo form_dropdown('status', $sst, $inv->status, 'class="form-control input-tip" required="required" id="slsale_status"');
+                echo form_dropdown('status', $sst, $inv->status, 'class="form-control input-tip select2" required="required" id="slsale_status"');
                 ?>
               </div>
             </div>
@@ -492,7 +492,7 @@
                   $uts[$unit->id] = $unit->name;
                 }
               }
-              echo form_dropdown('munit', $uts, '', 'id="munit" class="form-control input-tip select" style="width:100%;"');
+              echo form_dropdown('munit', $uts, '', 'id="munit" class="form-control input-tip select2" style="width:100%;"');
               ?>
             </div>
           </div>

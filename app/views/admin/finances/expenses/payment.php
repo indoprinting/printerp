@@ -63,7 +63,7 @@
       $opts = ['pending' => lang('pending'), 'paid' => lang('paid')];
       $dsb = ($disabled ? ' disabled="true"' : '');
       ?>
-      <?= form_dropdown('status', $opts, $expense->payment_status, 'class="form-control" id="status" required="required" style="width:100%;"' . $dsb); ?>
+      <?= form_dropdown('status', $opts, $expense->payment_status, 'class="form-control select2" id="status" required="required" style="width:100%;"' . $dsb); ?>
     </div>
     <div class="form-group">
       <?= lang('note', 'note'); ?>

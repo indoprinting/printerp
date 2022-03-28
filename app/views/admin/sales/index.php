@@ -207,7 +207,6 @@ if ($group_by = $this->input->get('group_by')) {
         });
       }
     });
-
   });
 </script>
 
@@ -231,19 +230,24 @@ if ($group_by = $this->input->get('group_by')) {
               </a>
             </li>
             <li>
+              <a href="<?= admin_url('sales/discpay') ?>" id="discpay" data-toggle="modal" data-backdrop="false" data-target="#myModal">
+                <i class="fad fa-fw fa-dollar"></i> Diskon &amp; Pelunasan
+              </a>
+            </li>
+            <li>
               <a href="#" id="excel" data-action="export_excel">
-                <i class="fad fa-file-excel"></i> <?= lang('export_to_excel') ?>
+                <i class="fad fa-fw fa-file-excel"></i> <?= lang('export_to_excel') ?>
               </a>
             </li>
             <li>
               <a href="#" id="sync">
-                <i class="fad fa-sync"></i> <?= lang('sync_sales') ?>
+                <i class="fad fa-fw fa-sync"></i> <?= lang('sync_sales') ?>
               </a>
             </li>
             <li class="divider"></li>
             <li>
               <a href="#" class="bpo" title="<b><?= lang('delete_sales') ?></b>" data-content="<p><?= lang('r_u_sure') ?></p><button type='button' class='btn btn-danger' id='delete' data-action='delete'><?= lang('i_m_sure') ?></a> <button class='btn bpo-close'><?= lang('no') ?></button>" data-html="true" data-placement="left">
-                <i class="fad fa-trash"></i> <?= lang('delete_sales') ?>
+                <i class="fad fa-fw fa-trash"></i> <?= lang('delete_sales') ?>
               </a>
             </li>
           </ul>

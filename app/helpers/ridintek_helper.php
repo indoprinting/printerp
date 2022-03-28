@@ -678,6 +678,7 @@ function getAttachmentPaths($pathName = NULL)
     'mutations'          => "{$dir}finances/mutations/attachments/",
     'products'           => "{$dir}products/attachments/",
     'products_import'    => "{$dir}products/imports/",
+    'products_mutation'  => "{$dir}products/mutations/attachments/",
     'products_report'    => "{$dir}products/reports/",
     'purchases'          => "{$dir}procurements/purchases/",
     'purchases_payments' => "{$dir}procurements/purchases/payments/",
@@ -823,6 +824,7 @@ function getIncomeStatementReport($opt)
   }
 
   if ($warehouse_ids) $opt['warehouse_id'] = $warehouse_ids; // Assign warehouse_id.
+  unset($opt['biller_id']);
 
   $purchases    = $ci->site->getStockPurchases($opt);
   $stockOpnames = $ci->site->getStockOpnames($opt);
@@ -1850,7 +1852,7 @@ function qmsStatus($status)
   return NULL;
 }
 
-function renderStatus($status, $elm = 'td')
+function renderStatus(string $status, $elm = 'td')
 {
   if (empty($status)) return "<{$elm}></{$elm}>";
 

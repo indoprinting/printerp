@@ -18,6 +18,17 @@ class Debug extends MY_Controller
     echo gettype($obj);
   }
 
+  public function call_api()
+  {
+    $res = $this->app->getWarehouses(['active' => 1]);
+
+    if (!$res) {
+      die(getLastError());
+    }
+
+    d($res);
+  }
+
   public function dbconvert()
   {
     $payments = $this->site->getPayments();
@@ -662,28 +673,34 @@ class Debug extends MY_Controller
     rd_print($r);
   }
 
-  protected function sendWA($phone, $text, $opt = [])
+  protected function sendWA($phone, $text, $engine = 'whacenter')
   {
-    $curl = curl_init('https://app.whacenter.com/api/send');
+    $query = [];
+    $url   = '';
 
-    $query = [
-      'device_id' => '09ffa67bc5ba87658784d29af143957e',
-      'number' => $phone,
-      'message' => $text
-    ];
+    $ph = phoneCode($phone);
 
-    $postFields = http_build_query($query);
+    if ($engine == 'whacenter') {
+      $query['device_id'] = '05fb9e0b23d2ef3f0b21eef5ba3a1f89';
+      $query['message']   = $text;
+      $query['number']    = $ph;
+      $url                = 'https://app.whacenter.com/api/send';
+    } else if ($engine == 'watsap') {
+      $query['api-key']   = 'a66d60ee436b0861c28353611d089dc872629d09';
+      $query['id_device'] = 612;
+      $query['pesan']     = $text;
+      $query['no_hp']     = $ph;
+      $url                = 'https://www.panel.watsap.id/api/send-message';
+      $query = json_encode($query);
+    }
+
+    $curl = curl_init($url);
 
     curl_setopt_array($curl, [
       CURLOPT_CUSTOMREQUEST => 'POST',
       CURLOPT_RETURNTRANSFER => TRUE,
       CURLOPT_HEADER => FALSE,
-      CURLOPT_POSTFIELDS => $postFields
-      // CURLOPT_POSTFIELDS => [
-      //   'device_id' => '09ffa67bc5ba87658784d29af143957e',
-      //   'number' => '082311662064',
-      //   'message' => $text
-      // ]
+      CURLOPT_POSTFIELDS => $query
     ]);
 
     $res = curl_exec($curl);
@@ -700,10 +717,17 @@ class Debug extends MY_Controller
   {
     $date = date('Y-m-d H:i:s');
 
-    $text = "\u{1F602} {$date}";
+    $direct = ($this->input->get('direct') ?? 0);
+    $engine = ($this->input->get('engine') ?? 'whacenter');
+    $hp     = ($this->input->get('phone') ?? '082311662064');
 
-    $r = $this->site->addWAJob(['phone' => '082311662064', 'message' => $text, 'send_date' => date('Y-m-d H:i:s')]);
-    // $r = $this->sendWA('082311662064', $text);
+    $text = "Pesan ini dikirim oleh {$engine}";
+
+    if ($direct) {
+      $r = $this->sendWA($hp, $text, $engine);
+    } else {
+      $r = $this->site->addWAJob(['phone' => $hp, 'message' => $text, 'send_date' => date('Y-m-d H:i:s')]);
+    }
 
     echo $r;
   }

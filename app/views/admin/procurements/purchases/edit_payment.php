@@ -51,7 +51,7 @@
             <div class="col-sm-6">
               <div class="form-group">
                 <?= lang('paying_by', 'bank_id'); ?>
-                <select name="bank_id" id="bank_id" class="form-control select" required="required" style="width:100%;">
+                <select name="bank_id" id="bank_id" class="form-control select2" required="required" style="width:100%;">
                   <option value="">Select Paid By</option>
                 <?php
                   foreach ($banks as $bank) { ?>

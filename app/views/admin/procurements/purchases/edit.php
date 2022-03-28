@@ -203,7 +203,7 @@
                   $bl[$biller->id] = $biller->name;
                 }
 
-                echo form_dropdown('biller', $bl, $purchase->biller_id, 'class="form-control" id="biller" data-placeholder="Select Biller" style="width:100%;" required="required"');
+                echo form_dropdown('biller', $bl, $purchase->biller_id, 'class="form-control select2" id="biller" data-placeholder="Select Biller" style="width:100%;" required="required"');
                 ?>
               </div>
             </div>
@@ -219,7 +219,7 @@
                       $wh[$warehouse->id] = $warehouse->name;
                     }
                   }
-                  echo form_dropdown('warehouse', $wh, (isset($_POST['warehouse']) ? $_POST['warehouse'] : $Settings->default_warehouse), 'id="powarehouse" class="form-control input-tip select" data-placeholder="' . lang('select') . ' ' . lang('warehouse') . '" required="required" style="width:100%;"'); ?>
+                  echo form_dropdown('warehouse', $wh, (isset($_POST['warehouse']) ? $_POST['warehouse'] : $Settings->default_warehouse), 'id="powarehouse" class="form-control input-tip select2" data-placeholder="' . lang('select') . ' ' . lang('warehouse') . '" required="required" style="width:100%;"'); ?>
                 </div>
               </div>
             <?php } else {
@@ -239,7 +239,7 @@
                     <div class="form-group">
                       <?= lang('supplier', 'posupplier'); ?>
                       <div class="input-group">
-                        <select name="supplier" id="supplier" class="form-control select" style="width:100%;" data-placeholder="Select Supplier"></select>
+                        <select name="supplier" id="supplier" class="form-control select2" style="width:100%;" data-placeholder="Select Supplier"></select>
                         <div class="input-group-addon no-print" style="padding: 2px 5px; border-left: 0;">
                           <a href="#" id="view-supplier">
                             <i class="fad fa-user" id="addIcon"></i>
@@ -256,7 +256,7 @@
                   <div class="col-md-4">
                     <div class="form-group">
                       <?= lang('category', 'category') ?>
-                      <select name="category" id="category" class="form-control select" data-placeholder="Purchase Category" style="width:100%;">
+                      <select name="category" id="category" class="form-control select2" data-placeholder="Purchase Category" style="width:100%;">
                         <option value="0">General</option>
                         <?php foreach ($expenseCategories as $excat): ?>
                           <?php $selected = ($excat->id == $purchase->category_id ? ' selected' : ''); ?>
@@ -358,7 +358,7 @@
                     }
                   }
                 }
-                echo form_dropdown('status', $post, $purchase->status, 'id="postatus" class="form-control input-tip select" data-placeholder="Select Status" required="required" style="width:100%;"');
+                echo form_dropdown('status', $post, $purchase->status, 'id="postatus" class="form-control input-tip select2" data-placeholder="Select Status" required="required" style="width:100%;"');
                 ?>
               </div>
             </div>
@@ -503,7 +503,7 @@
               foreach ($categories as $category) {
                 $cat[$category->id] = $category->name;
               }
-              echo form_dropdown('category', $cat, '', 'class="form-control select" id="mcategory" placeholder="' . lang('select') . ' ' . lang('category') . '" style="width:100%"')
+              echo form_dropdown('category', $cat, '', 'class="form-control select2" id="mcategory" placeholder="' . lang('select') . ' ' . lang('category') . '" style="width:100%"')
               ?>
             </div>
             <div class="form-group">

@@ -235,7 +235,7 @@
                   $bl[$biller->id] = $biller->name;
                 }
               }
-              echo form_dropdown('biller', $bl, ($this->session->userdata('biller_id') ?? $Settings->default_biller), 'id="slbiller" data-placeholder="' . lang('select') . ' ' . lang('biller') . '" required="required" class="form-control input-tip select" style="width:100%;"'); ?>
+              echo form_dropdown('biller', $bl, ($this->session->userdata('biller_id') ?? $Settings->default_biller), 'id="slbiller" data-placeholder="' . lang('select') . ' ' . lang('biller') . '" required="required" class="form-control input-tip select2" style="width:100%;"'); ?>
             </div>
           </div>
           <?php } else { ?>
@@ -259,7 +259,7 @@
                   $blr[$user->id] = $user->biller_id;
                 }
               }
-              echo form_dropdown('created_by', $usr, $this->session->userdata('user_id'), 'id="slpic" data-placeholder="' . lang('select') . ' ' . lang('pic_name') . '" required="required" class="form-control input-tip select" style="width:100%;"'); ?>
+              echo form_dropdown('created_by', $usr, $this->session->userdata('user_id'), 'id="slpic" data-placeholder="' . lang('select') . ' ' . lang('pic_name') . '" required="required" class="form-control input-tip select2" style="width:100%;"'); ?>
             </div>
           </div>
           <?php } else {
@@ -285,7 +285,7 @@
                   $usr[$user->id] = $user->fullname;
                 }
               }
-              echo form_dropdown('cashier_by', $usr, $this->session->userdata('user_id'), 'id="cashier" data-placeholder="Select Cashier" required="required" class="form-control input-tip select" style="width:100%;"'); ?>
+              echo form_dropdown('cashier_by', $usr, $this->session->userdata('user_id'), 'id="cashier" data-placeholder="Select Cashier" required="required" class="form-control input-tip select2" style="width:100%;"'); ?>
             </div>
           </div>
           <div class="col-md-4">
@@ -304,7 +304,7 @@
                   <div class="form-group">
                     <?= lang('customer', 'slcustomer'); ?>
                     <div class="input-group">
-                      <?= form_dropdown('customer', [], '', 'id="slcustomer" class="form-control select" data-placeholder="Select Customer" style="width:100%;"'); ?>
+                      <?= form_dropdown('customer', [], '', 'id="slcustomer" class="form-control select2" data-placeholder="Select Customer" style="width:100%;"'); ?>
                       <div class="input-group-addon no-print" style="padding: 2px 8px; border-left: 0;">
                         <a href="#" id="edit-email-customer" title="Edit Email Customer">
                           <i class="fa fa-fw fa-edit" id="addIcon" style="font-size: 1.2em;"></i>
@@ -342,7 +342,7 @@
                         $wh[$warehouse->id] = $warehouse->name;
                       }
                     }
-                    echo form_dropdown('warehouse', $wh, $this->session->userdata('warehouse_id'), 'id="slwarehouse" class="form-control input-tip select" data-placeholder="' . lang('select') . ' ' . lang('warehouse') . '" required="required" style="width:100%;" '); ?>
+                    echo form_dropdown('warehouse', $wh, $this->session->userdata('warehouse_id'), 'id="slwarehouse" class="form-control input-tip select2" data-placeholder="' . lang('select') . ' ' . lang('warehouse') . '" required="required" style="width:100%;" '); ?>
                   </div>
                 </div>
               </div>
@@ -411,7 +411,7 @@
                   <div class="form-group">
                     <?= lang('status', 'slsale_status'); ?>
                     <?php $sst = ['need_payment' => lang('need_payment'), 'waiting_production' => lang('waiting_production')];
-                    echo form_dropdown('status', $sst, '', 'class="form-control input-tip" required="required" id="slsale_status"'); ?>
+                    echo form_dropdown('status', $sst, '', 'class="form-control input-tip select2" required="required" id="slsale_status"'); ?>
                   </div>
                 </div>
                 <div class="col-sm-4">
@@ -425,7 +425,7 @@
                   <div class="form-group">
                     <?= lang('payment_status', 'slpayment_status'); ?>
                     <?php $pst = ['pending' => lang('pending')];
-                      echo form_dropdown('payment_status', $pst, '', 'class="form-control input-tip" required="required" id="slpayment_status"'); ?>
+                      echo form_dropdown('payment_status', $pst, '', 'class="form-control input-tip select2" required="required" id="slpayment_status"'); ?>
                   </div>
                 </div>
                 <?php } else {
@@ -434,7 +434,7 @@
                 <!-- <div class="col-sm-4">
                   <div class="form-group">
                     <label for="production_pic">Production PIC</label>
-                    <?= form_dropdown('production_pic', '', '', 'class="form-control user" data-placeholder="Select Production PIC" style="width:100%;"'); ?>
+                    <?= form_dropdown('production_pic', '', '', 'class="form-control user select2" data-placeholder="Select Production PIC" style="width:100%;"'); ?>
                   </div>
                 </div>
                 <div class="col-sm-4">
@@ -590,7 +590,7 @@
                   $uts[$unit->id] = $unit->name;
                 }
               }
-              echo form_dropdown('munit', $uts, '', 'id="munit" class="form-control input-tip select" style="width:100%;"');
+              echo form_dropdown('munit', $uts, '', 'id="munit" class="form-control input-tip select2" style="width:100%;"');
               ?>
             </div>
           </div>

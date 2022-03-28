@@ -187,7 +187,7 @@
                     $wh[$warehouse->id] = $warehouse->name;
                   }
                 }
-                echo form_dropdown('warehouse', $wh, (isset($_POST['warehouse']) ? $_POST['warehouse'] : $Settings->default_warehouse), 'id="powarehouse" class="form-control input-tip select" data-placeholder="' . lang('select') . ' ' . lang('warehouse') . '" required="required" style="width:100%;"'); ?>
+                echo form_dropdown('warehouse', $wh, (isset($_POST['warehouse']) ? $_POST['warehouse'] : $Settings->default_warehouse), 'id="powarehouse" class="form-control input-tip select2" data-placeholder="' . lang('select') . ' ' . lang('warehouse') . '" required="required" style="width:100%;"'); ?>
               </div>
             </div>
             <?php } else {
@@ -322,7 +322,7 @@
                     }
                   }
                 }
-                echo form_dropdown('status', $post, $purchase->status, 'id="postatus" class="form-control input-tip select" data-placeholder="Select Status" required="required" style="width:100%;"');
+                echo form_dropdown('status', $post, $purchase->status, 'id="postatus" class="form-control input-tip select2" data-placeholder="Select Status" required="required" style="width:100%;"');
                 ?>
               </div>
             </div>
@@ -477,7 +477,7 @@
               foreach ($categories as $category) {
                 $cat[$category->id] = $category->name;
               }
-              echo form_dropdown('category', $cat, '', 'class="form-control select" id="mcategory" placeholder="' . lang('select') . ' ' . lang('category') . '" style="width:100%"')
+              echo form_dropdown('category', $cat, '', 'class="form-control select2" id="mcategory" placeholder="' . lang('select') . ' ' . lang('category') . '" style="width:100%"')
               ?>
             </div>
             <div class="form-group">

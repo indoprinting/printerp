@@ -44,7 +44,7 @@
         <div class="col-md-6">
           <div class="form-group">
             <?= lang('paying_by', 'paid_by'); ?>
-            <select name="paid_by" id="paid_by" class="form-control paid_by select" required="required" style="width:100%;">
+            <select name="paid_by" id="paid_by" class="form-control paid_by select2" required="required" style="width:100%;">
               <?= $this->sma->paid_opts(['Transfer']); ?>
             </select>
           </div>
@@ -74,7 +74,7 @@
                   }
                 }
                 ?>
-                <?= form_dropdown('from_bank_id', $bk, '', 'class="form-control tip from_bank select" id="from_bank_id" data-placeholder="Select Account From" required="required" style="width:100%;"'); ?>
+                <?= form_dropdown('from_bank_id', $bk, '', 'class="form-control tip from_bank select2" id="from_bank_id" data-placeholder="Select Account From" required="required" style="width:100%;"'); ?>
               </div>
               <div class="col-md-6">
                 <?= lang('current_balance', 'balance_from'); ?>
@@ -97,7 +97,7 @@
                   }
                 }
                 ?>
-                <?= form_dropdown('to_bank_id', $bk, '', 'class="form-control select tip to_bank to_cash" id="to_cash" data-placeholder="Select Account To" required="required" style="width:100%;"'); ?>
+                <?= form_dropdown('to_bank_id', $bk, '', 'class="form-control tip to_bank to_cash select2" id="to_cash" data-placeholder="Select Account To" required="required" style="width:100%;"'); ?>
               </div>
               <div class="col-md-6" id="paid_transfer">
               <?= lang('account', 'account') . ' ' . lang('to', 'to_transfer'); ?>
@@ -112,7 +112,7 @@
                   }
                 }
                 ?>
-                <?= form_dropdown('to_bank_id', $bk, '', 'class="form-control select tip to_bank to_transfer" id="to_transfer" data-placeholder="Select Account To" required="required" style="width:100%;"'); ?>
+                <?= form_dropdown('to_bank_id', $bk, '', 'class="form-control tip to_bank to_transfer select2" id="to_transfer" data-placeholder="Select Account To" required="required" style="width:100%;"'); ?>
               </div>
               <div class="col-md-6">
                 <?= lang('current_balance', 'balance_to'); ?>
@@ -156,10 +156,7 @@
 </div>
 <?php echo form_close(); ?>
 <script type="text/javascript" src="<?= $assets ?>js/custom.js"></script>
-<script type="text/javascript" charset="UTF-8">
-  $.fn.datetimepicker.dates['sma'] = <?=$dp_lang?>;
-</script>
-<script async src="<?= $assets ?>js/modal.js?v=<?= $res_hash ?>"></script>
+<script src="<?= $assets ?>js/modal.js?v=<?= $res_hash ?>"></script>
 <script type="text/javascript" charset="UTF-8">
   $(document).ready(function () {
     let to_old_value = 0, from_old_value = 0;

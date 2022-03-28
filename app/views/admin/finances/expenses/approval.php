@@ -57,7 +57,7 @@
       $opts = ['need_approval' => lang('need_approval'), 'approved' => lang('approved')];
       $dsb = ($disabled ? ' disabled="true"' : '');
       ?>
-      <?= form_dropdown('status', $opts, $expense->status, 'class="form-control" id="status" required="required" style="width:100%;"' . $dsb); ?>
+      <?= form_dropdown('status', $opts, $expense->status, 'class="form-control select2" id="status" required="required" style="width:100%;"' . $dsb); ?>
     </div>
     <div class="form-group">
       <?= lang('note', 'note'); ?>

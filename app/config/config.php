@@ -18,8 +18,12 @@ defined('BASEPATH') or exit('No direct script access allowed');
 | environments.
 |
 */
-$config['base_url'] = 'http://vps.localhost/erp/';
-// $config['base_url'] = 'https://printerp.indoprinting.co.id/';
+$base = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on' ? 'https' : 'http');
+$base .= '://' . $_SERVER['HTTP_HOST'];
+$base .= str_replace(basename($_SERVER['SCRIPT_NAME']),"",$_SERVER['SCRIPT_NAME']);
+$config['base_url'] = $base;
+unset($base);
+
 /*
 |--------------------------------------------------------------------------
 | Index File

@@ -26,7 +26,7 @@
               $wh[$biller->id] = $biller->name;
             }
           }
-          echo form_dropdown('biller', $wh, (isset($_POST['biller']) ? $_POST['biller'] : $this->Settings->default_biller), 'id="biller" class="form-control input-tip select" style="width:100%;" required="required"');
+          echo form_dropdown('biller', $wh, (isset($_POST['biller']) ? $_POST['biller'] : $this->Settings->default_biller), 'id="biller" class="form-control input-tip select2" style="width:100%;" required="required"');
           ?>
         </div>
       </div>
@@ -43,7 +43,7 @@
             }
           }
           ?>
-          <?= form_dropdown('category', $ct, set_value('category'), 'class="form-control select tip" id="category" required="required" style="width:100%;"'); ?>
+          <?= form_dropdown('category', $ct, set_value('category'), 'class="form-control select2 tip" id="category" required="required" style="width:100%;"'); ?>
         </div>
       </div>
       <div class="col-md-6">
@@ -81,7 +81,7 @@
             }
           }
           ?>
-          <?= form_dropdown('paid_by', $bk, '', 'class="form-control select tip" id="paid_by" required="required" style="width:100%;"'); ?>
+          <?= form_dropdown('paid_by', $bk, '', 'class="form-control select2 tip" id="paid_by" required="required" style="width:100%;"'); ?>
         </div>
         <div class="col-md-6">
           <?= lang('current_balance', 'balance_paid_by'); ?>

@@ -2245,7 +2245,7 @@ if (site.settings.auto_detect_barcode == 1) {
   });
 }
 $('.sortable_table tbody').sortable({
-  containerSelector: 'tr',
+  containerSelector: 'tr'
 });
 $(window).bind('resize', widthFunctions);
 $(window).on('load', widthFunctions);

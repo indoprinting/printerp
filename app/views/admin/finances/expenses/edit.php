@@ -25,7 +25,7 @@
         $ct[$category->id] = $category->name;
       }
       ?>
-      <?= form_dropdown('category', $ct, $expense->category_id, 'class="form-control tip" id="category"'); ?>
+      <?= form_dropdown('category', $ct, $expense->category_id, 'class="form-control tip select2" id="category"'); ?>
     </div>
     <div class="form-group">
       <?= lang('biller', 'biller'); ?>
@@ -36,7 +36,7 @@
           $wh[$biller->id] = $biller->name;
         }
       }
-      echo form_dropdown('biller', $wh, $expense->biller_id, 'id="biller" class="form-control input-tip select" style="width:100%;" ');
+      echo form_dropdown('biller', $wh, $expense->biller_id, 'id="biller" class="form-control input-tip select2" style="width:100%;" ');
       ?>
     </div>
     <div class="form-group">
@@ -48,7 +48,7 @@
           $pb[$bank->id] = $bank->name;
         }
       }
-      echo form_dropdown('paid_by', $pb, $expense->bank_id, 'id="paid_by" class="form-control input-tip select" placeholder="Select paid by" style="width:100%;" ');
+      echo form_dropdown('paid_by', $pb, $expense->bank_id, 'id="paid_by" class="form-control input-tip select2" placeholder="Select paid by" style="width:100%;" ');
       ?>
     </div>
     <div class="form-group">
@@ -63,7 +63,7 @@
     </div>
     <div class="form-group">
       <?= lang('supplier', 'supplier'); ?>
-      <select class="form-control select" id="supplier" name="supplier" data-placeholder="Select Supplier"></select>
+      <select class="form-control" id="supplier" name="supplier" data-placeholder="Select Supplier"></select>
     </div>
     <div class="form-group">
       <?= lang('attachment', 'attachment') ?>

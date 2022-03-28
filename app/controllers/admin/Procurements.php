@@ -322,8 +322,8 @@ class Procurements extends MY_Controller
           $total_markon_price = (getMarkonPrice($product->cost, $product->markon) * $item_quantity);
 
           if ($from_warehouse_qty < $item_quantity) {
-            $this->session->set_flashdata('error', 'Stock on warehouse is more than requested.');
-            admin_redirect('procurements/internal_uses/edit/' . $internal_use->id);
+            // $this->session->set_flashdata('error', 'Stock on warehouse is more than requested.');
+            // admin_redirect('procurements/internal_uses/edit/' . $internal_use->id);
           }
 
           $product_data = [
@@ -413,7 +413,8 @@ class Procurements extends MY_Controller
 
         $whp_to               = $this->site->getWarehouseProduct($item->product_id, $internal_use->to_warehouse_id);
         $whp_from             = $this->site->getWarehouseProduct($item->product_id, $internal_use->from_warehouse_id);
-        $row->source_qty      = $whp_from->quantity + $item->quantity;
+        // $row->source_qty      = $whp_from->quantity + $item->quantity;
+        $row->source_qty      = $item->quantity;
         $row->destination_qty = $whp_to->quantity;
         $row->safety_stock    = $whp_to->safety_stock;
         $row->markon_price    = $row->markon_price;
@@ -719,7 +720,7 @@ class Procurements extends MY_Controller
 
         $hash = generateUUID();
         $to_whp = $this->site->getWarehouseProduct($row->id, $to_warehouse_id);
-        
+
         if (!$to_whp) continue;
 
         $destination_stock = $to_whp->quantity;
@@ -1454,9 +1455,9 @@ class Procurements extends MY_Controller
         $item_code           = $_POST['product'][$r];
         $item_cost           = $_POST['cost'][$r];
         $item_purchased_qty  = $_POST['purchased_qty'][$r];
-        $item_received_qty_1 = ($_POST['received_qty_1'][$r] ?? 0);
-        $item_received_qty_2 = ($_POST['received_qty_2'][$r] ?? 0);
-        $item_received_qty_3 = ($_POST['received_qty_3'][$r] ?? 0);
+        $item_received_qty_1 = filterDecimal($_POST['received_qty_1'][$r] ?? 0);
+        $item_received_qty_2 = filterDecimal($_POST['received_qty_2'][$r] ?? 0);
+        $item_received_qty_3 = filterDecimal($_POST['received_qty_3'][$r] ?? 0);
         $received_date_1     = $_POST['received_date_1'][$r];
         $received_date_2     = $_POST['received_date_2'][$r];
         $received_date_3     = $_POST['received_date_3'][$r];
@@ -3512,39 +3513,37 @@ class Procurements extends MY_Controller
   private function transfers_suggestions()
   { // Procurements > Transfers > Add Item (Manual)
     $term               = $this->input->get('term', true);
-    $from_warehouse_id  = $this->input->get('from_warehouse_id', true);
-    $to_warehouse_id    = $this->input->get('to_warehouse_id', true);
+    $fromWarehouseId  = $this->input->get('from_warehouse_id', true);
+    $toWarehouseId    = $this->input->get('to_warehouse_id', true);
 
     if (strlen($term) < 1 || !$term) {
       die("<script type='text/javascript'>setTimeout(function(){ window.top.location.href = '" . admin_url('welcome') . "'; }, 10);</script>");
     }
 
     $sr = $term;
-    $rows = $this->site->getProductNames($sr, $from_warehouse_id, 15);
+    $rows = $this->site->getProductNames($sr, $fromWarehouseId, 15);
+
     if ($rows) {
       $po_items = [];
       $r = 0;
+
       foreach ($rows as $row) {
         $hash = sha1($row->id + mt_rand(1, 1000));
-        // $destination_stock = $this->site->getStockQuantity($row->id, $to_warehouse_id);
-        // $source_stock      = $this->site->getStockQuantity($row->id, $from_warehouse_id);
-        // $this->site->syncProductQty($row->id, $from_warehouse_id);
-        // $this->site->syncProductQty($row->id, $to_warehouse_id);
-        $from_whp = $this->site->getWarehouseProduct($row->id, $from_warehouse_id);
-        $to_whp   = $this->site->getWarehouseProduct($row->id, $to_warehouse_id);
-        $destination_stock = $to_whp->quantity;
-        $source_stock = $from_whp->quantity;
-        $safe_stock = getOrderStock($destination_stock, $row->min_order_qty, $to_whp->safety_stock);
+        $whpFrom = $this->site->getWarehouseProduct($row->id, $fromWarehouseId);
+        $whpTo   = $this->site->getWarehouseProduct($row->id, $toWarehouseId);
+        $destinationStock = $whpTo->quantity;
+        $sourceStock = $whpFrom->quantity;
+        $safeStock = getOrderStock($destinationStock, $row->min_order_qty, $whpTo->safety_stock);
 
-        if ($source_stock <= 0) continue; // If source stock doesn't have stock, then ignore it.
-        if ($safe_stock > $source_stock) $safe_stock = $source_stock; // If safe stock more then source stock.
+        if ($sourceStock <= 0) continue; // If source stock doesn't have stock, then ignore it.
+        if ($safeStock > $sourceStock) $safeStock = $sourceStock; // If safe stock more then source stock.
 
         $row->markon_price     = $row->markon_price;
-        $row->source_qty       = $source_stock; // Lucretia stock
-        $row->destination_qty  = $destination_stock; // Destination outlet stock.
+        $row->source_qty       = $sourceStock; // Warehouse From Stock.
+        $row->destination_qty  = $destinationStock; // Destination outlet stock.
         $row->min_order_qty    = $row->min_order_qty; // Min. order quantity.
-        $row->safety_stock     = $to_whp->safety_stock; // Destination outlet safety stock.
-        $row->quantity         = $safe_stock;
+        $row->safety_stock     = $whpTo->safety_stock; // Destination outlet safety stock.
+        $row->quantity         = $safeStock;
         $row->spec             = '';
         $row->base_unit        = $row->unit;
         $row->unit             = (!empty($row->purchase_unit) ? $row->purchase_unit : $row->unit);
@@ -3553,7 +3552,7 @@ class Procurements extends MY_Controller
         if ($row->base_unit != $row->unit) {
           foreach ($units as $unit) { // For quantity alert stock. OK.
             if ($row->unit == $unit->id) {
-              $row->quantity = round(baseToUnitQty($safe_stock, $unit));
+              $row->quantity = round(baseToUnitQty($safeStock, $unit));
             }
           }
         }

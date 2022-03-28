@@ -9,7 +9,7 @@
   <meta http-equiv="cache-control" content="no-cache">
   <base href="<?= site_url(); ?>" />
   <link href="<?= site_url(); ?>manifest.json" rel="manifest">
-  <?php if ($isLocal) : // If local, then use indonesian flag. 
+  <?php if ($isLocal) : // If local, then use indonesian flag.
   ?>
     <link rel="icon" href="<?= site_url(); ?>assets/pwa/images/favicon.ico" />
   <?php else : ?>
@@ -19,6 +19,7 @@
   <title>Loading...</title>
   <link href="<?= $assets ?>plugins/fontawesome6/css/all.min.css" rel="stylesheet">
   <link href="<?= $assets ?>plugins/jquery-contextmenu-2.9.2/jquery.contextMenu.min.css" rel="stylesheet">
+  <link href="<?= $assets ?>plugins/toastr/toastr.min.css" rel="stylesheet">
   <link href="<?= $assets ?>styles/bootstrapValidator.css" rel="stylesheet">
   <link href="<?= $assets ?>styles/helpers/old-bootstrap.min.css" rel="stylesheet">
   <link href="<?= $assets ?>styles/helpers/jquery-ui.css" rel="stylesheet">
@@ -623,6 +624,16 @@
                                 <span class="text"> <?= lang('product_categories'); ?></span>
                               </a>
                             </li>
+                          <?php endif; ?>
+                          <?php if ($Owner || $Admin || $GP['products-mutation_view']) : ?>
+                            <li id="products_mutations">
+                              <a href="<?= admin_url('products/mutations') ?>">
+                                <i class="fad fa-arrow-right-arrow-left" style="color: #FF8040"></i>
+                                <span class="text"> <?= lang('product_mutations'); ?></span>
+                              </a>
+                            </li>
+                          <?php endif; ?>
+                          <?php if ($Owner || $Admin || $GP['products-add']) : ?>
                             <li id="products_import">
                               <a class="submenu" href="<?= admin_url('products/import'); ?>">
                                 <i class="fad fa-upload" style="color: #00FFFF"></i>
@@ -997,7 +1008,7 @@
                 <div class="row">
                   <div class="col-sm-12 col-md-12">
                     <ul class="breadcrumb">
-                      <li><?= $Settings->site_name ?></li>
+                      <li><?= ($isLocal ? 'localhost' : $Settings->site_name) ?></li>
                       <?php
                       foreach ($bc as $b) :
                         if ($b['link'] === '#') {
@@ -1131,6 +1142,7 @@
   <script src="<?= $assets; ?>js/jquery.dataTables.dtFilter.min.js"></script>
   <?php if (
     ($m == 'products' && $v == 'stock_opname') ||
+    ($m == 'products' && $v == 'mutations') ||
     ($m == 'finances' && $v == 'reconciliations') ||
     ($m == 'developers') ||
     ($m == 'machines') ||
@@ -1141,13 +1153,12 @@
   ) { ?>
     <!-- NEW DATATABLES -->
     <script type="text/javascript" src="<?= $assets; ?>plugins/datatables/datatables.min.js"></script>
-    <!-- <script type="text/javascript" src="<?= $assets; ?>plugins/DataTables-1.10.22/js/jquery.dataTables.min.js"></script> -->
   <?php }
   ?>
   <script src="<?= $assets; ?>js/select2.full.min.js"></script>
-  <!-- <script src="<?= $assets; ?>plugins/bootstrap-validate-1.0.11/dist/bootstrap-validate.js"></script> -->
   <script src="<?= $assets; ?>plugins/bootstrap-validate-2.2.0/dist/bootstrap-validate.js"></script>
   <script src="<?= $assets; ?>plugins/jquery-contextmenu-2.9.2/jquery.contextMenu.min.js"></script>
+  <script src="<?= $assets; ?>plugins/toastr/toastr.min.js"></script>
   <script src="<?= $assets; ?>js/jquery-ui.js"></script>
   <script src="<?= $assets; ?>js/bootstrapValidator.js"></script>
   <script src="<?= $assets; ?>js/redactor.js"></script>
@@ -1180,8 +1191,9 @@
       $('.mm_<?= $m ?> a .chevron').removeClass("closed").addClass("opened");
     });
   </script>
-  <script src="<?= base_url('assets/js/common.js?' . $res_hash); ?>"></script>
-  <script src="<?= base_url('assets/js/notificator.js?' . $res_hash); ?>"></script>
+  <script src="<?= base_url('assets/js/common.js?v=' . $res_hash); ?>"></script>
+  <script src="<?= base_url('assets/js/product_mutation.js?v=' . $res_hash); ?>"></script>
+  <script src="<?= base_url('assets/js/notificator.js?v=' . $res_hash); ?>"></script>
 </body>
 
 </html>

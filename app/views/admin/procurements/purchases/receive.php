@@ -214,7 +214,7 @@
                 foreach ($warehouses as $warehouse) {
                   $wh[$warehouse->id] = $warehouse->name;
                 }
-                echo form_dropdown('warehouse', $wh, (isset($_POST['warehouse']) ? $_POST['warehouse'] : $purchase->warehouse_id), 'id="powarehouse" class="form-control input-tip select" data-placeholder="' . $this->lang->line('select') . ' ' . $this->lang->line('warehouse') . '" required="required" style="width:100%;" ');
+                echo form_dropdown('warehouse', $wh, (isset($_POST['warehouse']) ? $_POST['warehouse'] : $purchase->warehouse_id), 'id="powarehouse" class="form-control input-tip select2" data-placeholder="' . $this->lang->line('select') . ' ' . $this->lang->line('warehouse') . '" required="required" style="width:100%;" ');
                 ?>
               </div>
             </div>
@@ -223,7 +223,7 @@
                 <?= lang('status', 'postatus'); ?>
                 <?php
                 $post = ['received' => lang('received'), 'partial' => lang('partial'), 'pending' => lang('pending'), 'ordered' => lang('ordered')];
-                echo form_dropdown('status', $post, (isset($_POST['status']) ? $_POST['status'] : $purchase->status), 'id="postatus" class="form-control input-tip select" data-placeholder="' . $this->lang->line('select') . ' ' . $this->lang->line('status') . '" required="required" style="width:100%;" ');
+                echo form_dropdown('status', $post, (isset($_POST['status']) ? $_POST['status'] : $purchase->status), 'id="postatus" class="form-control input-tip select2" data-placeholder="' . $this->lang->line('select') . ' ' . $this->lang->line('status') . '" required="required" style="width:100%;" ');
                 ?>
               </div>
             </div>
@@ -341,7 +341,7 @@
                         foreach ($tax_rates as $tax) {
                           $tr[$tax->id] = $tax->name;
                         }
-                        echo form_dropdown('order_tax', $tr, '', 'id="potax2" class="form-control input-tip select" style="width:100%;"'); ?>
+                        echo form_dropdown('order_tax', $tr, '', 'id="potax2" class="form-control input-tip select2" style="width:100%;"'); ?>
                     </div>
                   </div>
                 <?php
@@ -553,7 +553,7 @@
               foreach ($categories as $category) {
                 $cat[$category->id] = $category->name;
               }
-              echo form_dropdown('category', $cat, '', 'class="form-control select" id="mcategory" placeholder="' . lang('select') . ' ' . lang('category') . '" style="width:100%"')
+              echo form_dropdown('category', $cat, '', 'class="form-control select2" id="mcategory" placeholder="' . lang('select') . ' ' . lang('category') . '" style="width:100%"')
               ?>
             </div>
             <div class="form-group">
@@ -580,13 +580,13 @@
                 foreach ($tax_rates as $tax) {
                   $tr[$tax->id] = $tax->name;
                 }
-                echo form_dropdown('mtax', $tr, '', 'id="mtax" class="form-control input-tip select" style="width:100%;"'); ?>
+                echo form_dropdown('mtax', $tr, '', 'id="mtax" class="form-control input-tip select2" style="width:100%;"'); ?>
               </div>
               <div class="form-group all">
                 <?= lang('tax_method', 'mtax_method') ?>
                 <?php
                 $tm = ['0' => lang('inclusive'), '1' => lang('exclusive')];
-                echo form_dropdown('tax_method', $tm, '', 'class="form-control select" id="mtax_method" placeholder="' . lang('select') . ' ' . lang('tax_method') . '" style="width:100%"')
+                echo form_dropdown('tax_method', $tm, '', 'class="form-control select2" id="mtax_method" placeholder="' . lang('select') . ' ' . lang('tax_method') . '" style="width:100%"')
                 ?>
               </div>
             <?php

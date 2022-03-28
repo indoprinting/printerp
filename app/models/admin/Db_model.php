@@ -41,28 +41,40 @@ class Db_model extends CI_Model
 
   public function getChartData()
   {
+    $debugMode = FALSE;
     $rows = [];
 
-    for ($a = 12; $a >= 0; $a--)
+    for ($a = 3; $a >= 0; $a--)
     {
       $dateMonth = date('Y-m', strtotime("-{$a} month"));
-      $this->db
+      $row = NULL;
+
+      if (!$debugMode) {
+        $this->db
+        // ->select("SUM(grand_total) AS total, '0' AS total_paid, '0' AS total_balance")
         ->select("SUM(grand_total) AS total, SUM(paid) AS total_paid, SUM(balance) AS total_balance")
         ->from('sales')
         ->where("date LIKE '{$dateMonth}%'");
 
-      // d($this->db->get_compiled_select()); die();
+        // d($this->db->get_compiled_select()); die();
 
-      $q = $this->db->get();
+        $q = $this->db->get();
 
-      if ($this->db->affected_rows()) {
-        $row = $q->row();
-
+        if ($this->db->affected_rows()) {
+          $row = $q->row();
+        }
+      }
+      
+      if ($row || $debugMode) {
+        $total = ($debugMode ? 0 : $row->total);
+        $total_paid = ($debugMode ? 0 : $row->total_paid);
+        $total_balance = ($debugMode ? 0 : $row->total_balance);
+  
         $rows[] = (object)[
           'bulan' => $dateMonth,
-          'grand_total' => $row->total,
-          'total_paid' => $row->total_paid,
-          'total_balance' => $row->total_balance
+          'grand_total' => $total,
+          'total_paid' => $total_paid,
+          'total_balance' => $total_balance
         ];
       }
     }
@@ -74,7 +86,7 @@ class Db_model extends CI_Model
 
   public function getChartData_old()
   {
-    if ($this->isLocal) { // If localhost.
+    // if ($this->isLocal) { // If localhost.
       $myQuery = "SELECT Penjualan.bulan,
       '0' AS grand_total,
       '0' AS total_paid,
@@ -89,22 +101,22 @@ class Db_model extends CI_Model
         GROUP BY date_format(date, '%Y-%m')
       ) AS Penjualan
       ORDER BY Penjualan.bulan ASC";
-    } else {
-      $myQuery = "SELECT Penjualan.bulan,
-      COALESCE(Penjualan.grand_total, 0) AS grand_total,
-      COALESCE(Penjualan.total_paid, 0) AS total_paid,
-      COALESCE(Penjualan.total_balance, 0) AS total_balance
-      FROM (
-        SELECT date_format(date, '%Y-%m') AS bulan,
-        SUM(grand_total) AS grand_total,
-        SUM(paid) AS total_paid,
-        SUM(balance) AS total_balance
-        FROM sales
-        WHERE date >= date_sub( now(), INTERVAL 12 MONTH )
-        GROUP BY date_format(date, '%Y-%m')
-      ) AS Penjualan
-      ORDER BY Penjualan.bulan ASC";
-    }
+    // } else {
+    //   $myQuery = "SELECT Penjualan.bulan,
+    //   COALESCE(Penjualan.grand_total, 0) AS grand_total,
+    //   COALESCE(Penjualan.total_paid, 0) AS total_paid,
+    //   COALESCE(Penjualan.total_balance, 0) AS total_balance
+    //   FROM (
+    //     SELECT date_format(date, '%Y-%m') AS bulan,
+    //     SUM(grand_total) AS grand_total,
+    //     SUM(paid) AS total_paid,
+    //     SUM(balance) AS total_balance
+    //     FROM sales
+    //     WHERE date >= date_sub( now(), INTERVAL 12 MONTH )
+    //     GROUP BY date_format(date, '%Y-%m')
+    //   ) AS Penjualan
+    //   ORDER BY Penjualan.bulan ASC";
+    // }
 
     $q = $this->db->query($myQuery);
 

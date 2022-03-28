@@ -1,4 +1,7 @@
 <?php
+
+use App\Libraries\DataTables;
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
 class Products extends MY_Controller
@@ -2570,40 +2573,292 @@ class Products extends MY_Controller
     $this->load->view($this->theme . 'products/modal_view', $this->data);
   }
 
-  public function pdf($id = null, $view = null)
+  public function mutations()
   {
-    $this->sma->checkPermissions('index');
+    checkPermission('products-mutation_view');
 
-    $pr_details = $this->site->getProductByID($id);
-    if (!$id || !$pr_details) {
-      $this->session->set_flashdata('error', lang('prduct_not_found'));
-      redirect($_SERVER['HTTP_REFERER']);
-    }
-    $this->data['barcode'] = "<img src='" . admin_url('products/gen_barcode/' . $pr_details->code . '/' . $pr_details->barcode_symbology . '/40/0') . "' alt='" . $pr_details->code . "' class='pull-left' />";
-    if ($pr_details->type == 'combo') {
-      $this->data['combo_items'] = $this->site->getProductComboItems($id);
-    }
-    $this->data['product']          = $pr_details;
-    $this->data['unit']             = $this->site->getUnitByID($pr_details->unit);
-    $this->data['brand']            = $this->site->getBrandByID($pr_details->brand);
-    $this->data['images']           = $this->products_model->getProductPhotos($id);
-    $this->data['category']         = $this->site->getProductCategoryByID($pr_details->category_id);
-    $this->data['subcategory']      = $pr_details->subcategory_id ? $this->site->getProductCategoryByID($pr_details->subcategory_id) : null;
-    $this->data['popup_attributes'] = $this->popup_attributes;
-    $this->data['warehouses']       = $this->site->getAllWarehousesWithPQ($id);
-    $this->data['options']          = $this->products_model->getProductOptionsWithWH($id);
-    $this->data['variants']         = $this->products_model->getProductOptions($id);
+    if ($argv = func_get_args()) {
+      $method = __FUNCTION__ . '_' . $argv[0];
 
-    $name = $pr_details->code . '_' . str_replace('/', '_', $pr_details->name) . '.pdf';
-    if ($view) {
-      $this->load->view($this->theme . 'products/pdf', $this->data);
-    } else {
-      $html = $this->load->view($this->theme . 'products/pdf', $this->data, true);
-      if (!$this->Settings->barcode_img) {
-        $html = preg_replace("'\<\?xml(.*)\?\>'", '', $html);
+      if (method_exists($this, $method)) {
+        array_shift($argv);
+        return call_user_func_array([$this, $method], $argv);
       }
-      $this->sma->generate_pdf($html, $name);
     }
+
+    $meta = [
+      'page_title' => lang('products_mutation'),
+      'bc' => [
+        ['link' => base_url(), 'page' => lang('home')],
+        ['link' => admin_url('products'), 'page' => lang('products')],
+        ['link' => '#', 'page' => lang('mutations')]
+      ]
+    ];
+    $this->data = array_merge($this->data, $meta);
+
+    $this->page_construct('products/mutations/index', $this->data);
+  }
+
+  protected function mutations_add()
+  {
+    checkPermission('products-mutation_add');
+
+    if ($this->requestMethod == 'POST') {
+      $createdAt       = $this->input->post('created_at');
+      $createdBy       = $this->input->post('created_by');
+      $fromWarehouseId = $this->input->post('from_warehouse');
+      $toWarehouseId   = $this->input->post('to_warehouse');
+      $note            = $this->input->post('note');
+      $products        = $this->input->post('product');
+
+      $items = [];
+      $productSize = count($products['id']);
+
+      for ($a = 0; $a < $productSize; $a++) {
+        $items[] = [
+          'product_id' => $products['id'][$a],
+          'quantity'   => $products['quantity'][$a],
+          'status'     => 'pending'
+        ];
+      }
+
+      $pmData = [
+        'created_at'        => $createdAt,
+        'created_by'        => $createdBy,
+        'from_warehouse_id' => $fromWarehouseId,
+        'to_warehouse_id'   => $toWarehouseId,
+        'status'            => 'pending',
+        'note'              => $note
+      ];
+
+      $upload = new FileUpload();
+
+      if ($upload->has('attachment')) {
+        $name = $upload->getRandomName();
+        $upload->move(FCPATH . 'files/products/mutations/attachments', $name);
+        $pmData['attachment'] = $name;
+      }
+
+      if ($this->site->addProductMutation($pmData, $items)) {
+        $this->response(201, ['message' => 'Product Mutation berhasil dibuat.']);
+      }
+      $this->response(400, ['message' => 'Gagal membuat Product Mutation.']);
+    }
+
+    $this->load->view($this->theme . 'products/mutations/add', $this->data);
+  }
+
+  protected function mutations_delete($pmId = NULL)
+  {
+    checkPermission('products-mutation_delete');
+
+    if ($vals = $this->input->post('val')) {
+      $deleted = 0;
+
+      foreach ($vals as $pmId) {
+        if ($this->site->deleteProductMutations(['id' => $pmId])) {
+          $deleted++;
+        }
+      }
+
+      if ($deleted) $this->response(200, ['message' => "{$deleted} Product Mutation berhasil dihapus."]);
+      $this->response(400, ['message' => 'Gagal menghapus Product Mutation.']);
+    }
+
+    if ($pmId) {
+      if ($deleted = $this->site->deleteProductMutations(['id' => $pmId])) {
+        $this->response(200, ['message' => "{$deleted} Product Mutation berhasil dihapus."]);
+      }
+      $this->response(400, ['message' => 'Gagal menghapus Product Mutation.']);
+    }
+
+    $this->response(400, ['message' => 'Tidak ada Product Mutation yang terpilih.']);
+  }
+
+  protected function mutations_edit($pmId = NULL)
+  {
+    $pm = $this->site->getProductMutation(['id' => $pmId]);
+    $mode = ($this->input->get('mode') ?? 'edit');
+
+    if ($mode == 'edit') {
+      checkPermission('products-mutation_edit');
+    } else if ($mode == 'status') {
+      checkPermission('products-mutation_status');
+    }
+
+    if ($this->requestMethod == 'POST') {
+      $createdAt       = ($this->isAdmin ? $this->input->post('created_at') : $pm->created_at);
+      $createdBy       = $this->input->post('created_by');
+      $fromWarehouseId = $this->input->post('from_warehouse');
+      $toWarehouseId   = $this->input->post('to_warehouse');
+      $note            = $this->input->post('note');
+      $products        = $this->input->post('product');
+      $status          = $this->input->post('status');
+
+      if (empty($status)) {
+        $this->response(400, ['message' => 'Status tidak boleh kosong.']);
+      }
+
+      $items = [];
+      $productSize = count($products['id']);
+
+      for ($a = 0; $a < $productSize; $a++) {
+        $receivedQty = (floatval($products['received_qty'][$a]) + floatval($products['quantity'][$a]));
+
+        $items[] = [
+          'product_id'   => floatval($products['id'][$a]),
+          'quantity'     => floatval($products['total_qty'][$a]), // Total qty
+          'received_qty' => $receivedQty,
+          'status'       => $status
+        ];
+      }
+
+      $pmData = [
+        'created_at'        => $createdAt,
+        'created_by'        => $createdBy,
+        'from_warehouse_id' => $fromWarehouseId,
+        'to_warehouse_id'   => $toWarehouseId,
+        'status'            => $status,
+        'note'              => $note
+      ];
+
+      $upload = new FileUpload();
+
+      if ($upload->has('attachment')) {
+        $name = $upload->getRandomName();
+        $upload->move(FCPATH . 'files/products/mutations/attachments', $name);
+        $pmData['attachment'] = $name;
+      }
+
+      if ($this->site->updateProductMutation($pmId, $pmData, $items)) {
+        $this->response(200, ['message' => 'Product Mutation has been updated.']);
+      }
+      $this->response(400, ['message' => 'Failed to update Product Mutation.']);
+    }
+
+    $pmitems = $this->site->getProductMutationItems(['pm_id' => $pmId]);
+    $items = [];
+
+    foreach ($pmitems as $pmitem) {
+      $product = $this->site->getProductById($pmitem->product_id);
+
+      $items[] = [
+        'id'           => $pmitem->product_id,
+        'code'         => $pmitem->product_code,
+        'name'         => $product->name,
+        'quantity'     => $pmitem->quantity,
+        'received_qty' => $pmitem->received_qty,
+      ];
+    }
+
+    $this->data['mode'] = $mode;
+    $this->data['pm'] = $pm;
+    $this->data['pmitems'] = $items;
+
+    $this->load->view($this->theme . 'products/mutations/edit', $this->data);
+  }
+
+  protected function mutations_getMutations()
+  {
+    $startDate  = $this->input->get('start_date');
+    $endDate    = $this->input->get('end_date');
+    $warehouses = $this->input->get('warehouse');
+
+    $this->load->library('datatable');
+
+    $this->datatable
+      ->select("product_mutation.id AS id, product_mutation.id AS pid, product_mutation.attachment,
+        product_mutation.items, product_mutation.status AS status,
+        from_warehouse.name AS from_wh_name, to_warehouse.name AS to_wh_name,
+        product_mutation.created_at, creator.fullname AS creator_name,
+        product_mutation.updated_at, updater.fullname AS updater_name")
+      ->from('product_mutation')
+      ->join('warehouses from_warehouse', 'from_warehouse.id = product_mutation.from_warehouse_id', 'left')
+      ->join('warehouses to_warehouse', 'to_warehouse.id = product_mutation.to_warehouse_id', 'left')
+      ->join('users creator', 'creator.id = product_mutation.created_by', 'left')
+      ->join('users updater', 'updater.id = product_mutation.updated_by', 'left');
+
+    if ($startDate) {
+      $this->datatable->where("created_at >= '{$startDate} 00:00:00'");
+    }
+
+    if ($endDate) {
+      $this->datatable->where("created_at <= '{$endDate} 23:59:59'");
+    }
+
+    if ($warehouses) {
+      $this->datatable->where_in('product_mutation.from_warehouse_id', $warehouses);
+    }
+
+    $this->datatable->editColumn('pid', function($data) {
+        return "
+        <div class=\"text-center\">
+          <a href=\"{$this->theme}products/mutations/delete/{$data['id']}\"
+            class=\"tip \"
+            data-action=\"confirm\" style=\"color:red;\" title=\"Delete Product Mutation\">
+              <i class=\"fad fa-fw fa-trash\"></i>
+          </a>
+          <a href=\"{$this->theme}products/mutations/edit/{$data['id']}\"
+            class=\"tip\"
+            data-toggle=\"modal\" data-backdrop=\"false\" data-target=\"#myModal\"
+            data-modal-class=\"modal-lg\" title=\"Edit Product Mutation\">
+              <i class=\"fad fa-fw fa-edit\"></i>
+          </a>
+          <a href=\"{$this->theme}products/mutations/view/{$data['id']}\"
+            class=\"tip\"
+            data-toggle=\"modal\" data-backdrop=\"false\" data-target=\"#myModal\"
+            data-modal-class=\"modal-lg\"
+            title=\"View Details\">
+              <i class=\"fad fa-fw fa-chart-bar\"></i>
+          </a>
+        </div>";
+      })
+      ->editColumn('status', function($data) {
+        switch ($data['status']) {
+          case 'pending':           $type = 'warning'; break;
+          case 'sent':              $type = 'success'; break;
+          case 'received_partial':  $type = 'info'; break;
+          case 'received':          $type = 'primary'; break;
+          default:                  $type = 'warning';
+        }
+
+        $status = ucwords(str_replace('_', ' ', $data['status']));
+
+        return "
+        <div class=\"text-center\">
+          <a href=\"" . admin_url('products/mutations/edit/' . $data['id'] . '?mode=status') . "\"
+            class=\"label label-{$type} status\"
+            data-toggle=\"modal\" data-target=\"#myModal\" data-modal-class=\"modal-lg\">{$status}
+          </a>
+        </div>
+        ";
+      });
+
+    $this->datatable->generate();
+  }
+
+  public function mutations_view($pmId = NULL)
+  {
+    $pmitems = $this->site->getProductMutationItems(['pm_id' => $pmId]);
+    $items = [];
+
+    foreach ($pmitems as $pmitem) {
+      $product = $this->site->getProductById($pmitem->product_id);
+
+      $items[] = (object)[
+        'product_id'   => $pmitem->product_id,
+        'product_code' => $pmitem->product_code,
+        'product_name' => $product->name,
+        'quantity'     => $pmitem->quantity,
+        'received_qty' => $pmitem->received_qty,
+        'status'       => $pmitem->status
+      ];
+    }
+
+    $this->data['pm']      = $this->site->getProductMutation(['id' => $pmId]);
+    $this->data['pmitems'] = $items;
+
+    $this->load->view($this->theme . 'products/mutations/view', $this->data);
   }
 
   public function product_actions($wh = null)
@@ -3432,6 +3687,7 @@ class Products extends MY_Controller
   public function suggestions()
   {
     $term = $this->input->get('term', true);
+
     if (strlen($term) < 1 || !$term) {
       die("<script type='text/javascript'>setTimeout(function(){ window.top.location.href = '" . admin_url('welcome') . "'; }, 10);</script>");
     }
@@ -3445,6 +3701,31 @@ class Products extends MY_Controller
     } else {
       sendJSON([['id' => 0, 'label' => lang('no_match_found'), 'value' => $term]]);
     }
+  }
+
+  public function select2()
+  {
+    $term        = $this->input->get('term');
+    $type        = $this->input->get('type') ?? 'standard';
+    $limit       = $this->input->get('limit') ?? 10;
+    $warehouseId = $this->input->get('warehouse');
+
+    if ($this->input->get('id')) {
+      $term = [];
+      $term['id'] = $this->input->get('id', TRUE);
+    }
+
+    $opt = [
+      'limit' => $limit,
+      'type' => $type
+    ];
+
+    if ($warehouseId) {
+      $opt['warehouse_id'] = $warehouseId;
+    }
+
+    $items = $this->site->getProductSelect2($term, $opt);
+    sendJSON(['results' => $items]);
   }
 
   public function suggestion_select()

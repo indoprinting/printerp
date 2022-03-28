@@ -162,7 +162,7 @@ if ($filter = $this->input->get('f')) {
                   'pic'       => 'PIC',
                   'warehouse' => 'Warehouse'
                 ];
-                echo form_dropdown('group_by', $group, ($filter['group_by'] ?? ''), 'class="form-control select" id="group_by" data-placeholder="Select Group By" style="width:100%;"'); ?>
+                echo form_dropdown('group_by', $group, ($filter['group_by'] ?? ''), 'class="form-control select2" id="group_by" data-placeholder="Select Group By" style="width:100%;"'); ?>
               </div>
             </div>
             <div class="col-sm-4">
@@ -174,7 +174,7 @@ if ($filter = $this->input->get('f')) {
                 foreach ($warehouses as $wh) {
                   $whs[$wh->id] = $wh->name;
                 }
-                echo form_multiselect('warehouses', $whs, ($filter['warehouses'] ?? ''), 'class="form-control select" id="warehouses" data-placeholder="Select Category" style="width:100%;"'); ?>
+                echo form_multiselect('warehouses', $whs, ($filter['warehouses'] ?? ''), 'class="form-control select2" id="warehouses" data-placeholder="Select Category" style="width:100%;"'); ?>
               </div>
             </div>
           </div>
