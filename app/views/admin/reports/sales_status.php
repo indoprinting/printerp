@@ -211,7 +211,7 @@ if ($end_date) {
                     'sale'      => 'Sale'
                   ];
                 ?>
-                <?= form_dropdown('group_by', $gb, ($_POST['group_by'] ?? 'sale'), 'class="form-control select" style="width:100%;"'); ?>
+                <?= form_dropdown('group_by', $gb, ($_POST['group_by'] ?? 'sale'), 'class="select2" style="width:100%;"'); ?>
               </div>
             </div>
             <div class="col-sm-4">
@@ -229,7 +229,7 @@ if ($end_date) {
                 foreach ($product_categories as $product_category) {
                   $pc[$product_category->id] = $product_category->code;
                 }
-                echo form_multiselect('categories[]', $pc, (isset($_POST['categories']) ? $_POST['categories'] : ''), 'class="form-control select" id="categories" data-placeholder="Select Product Category" style="width:100%;"');
+                echo form_multiselect('categories[]', $pc, (isset($_POST['categories']) ? $_POST['categories'] : ''), 'class="select2" id="categories" data-placeholder="Select Product Category" style="width:100%;"');
                 ?>
               </div>
             </div>
@@ -249,14 +249,14 @@ if ($end_date) {
                 foreach ($users as $user) {
                   $us[$user->id] = $user->first_name . ' ' . $user->last_name;
                 }
-                echo form_multiselect('users[]', $us, (isset($_POST['users']) ? $_POST['users'] : ''), 'class="form-control select" id="users" placeholder="Select Created By" style="width:100%;"');
+                echo form_multiselect('users[]', $us, (isset($_POST['users']) ? $_POST['users'] : ''), 'class="select2" id="users" placeholder="Select Created By" style="width:100%;"');
                 ?>
               </div>
             </div>
             <div class="col-sm-4">
               <div class="form-group">
                 <label class="control-label" for="customer"><?= lang('customer'); ?></label>
-                <?php echo form_dropdown('customer', '', (isset($_POST['customer']) ? $_POST['customer'] : ''), 'class="form-control select" id="customer" data-placeholder="Select Customer" style="width:100%;"'); ?>
+                <?php echo form_dropdown('customer', '', (isset($_POST['customer']) ? $_POST['customer'] : ''), 'class="select2" id="customer" data-placeholder="Select Customer" style="width:100%;"'); ?>
               </div>
             </div>
           </div>
@@ -269,7 +269,7 @@ if ($end_date) {
                 foreach ($billers as $biller) {
                   $bl[$biller->id] = $biller->name;
                 }
-                echo form_dropdown('biller', $bl, (isset($_POST['biller']) ? $_POST['biller'] : ''), 'class="form-control select" id="biller" data-placeholder="Select Biller" style="width:100%;"');
+                echo form_dropdown('biller', $bl, (isset($_POST['biller']) ? $_POST['biller'] : ''), 'class="select2" id="biller" data-placeholder="Select Biller" style="width:100%;"');
                 ?>
               </div>
             </div>
@@ -281,22 +281,22 @@ if ($end_date) {
                 foreach ($warehouses as $warehouse) {
                   $wh[$warehouse->id] = $warehouse->name;
                 }
-                echo form_dropdown('warehouse', $wh, (isset($_POST['warehouse']) ? $_POST['warehouse'] : ''), 'class="form-control select" id="warehouse" data-placeholder="Select Warehouse" style="width:100%;"');
+                echo form_dropdown('warehouse', $wh, ($_POST['warehouse'] ?? ''), 'class="select2" id="warehouse" data-placeholder="Select Warehouse" style="width:100%;"');
                 ?>
               </div>
             </div>
           </div>
           <div class="row">
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <?= lang('start_date', 'start_date'); ?>
-                <?php echo form_input('start_date', (isset($_POST['start_date']) ? $_POST['start_date'] : ''), 'class="form-control date" id="start_date"'); ?>
+                <input type="date" id="start_date" name="start_date" class="form-control" value="<?= $_POST['start_date'] ?? '' ?>">
               </div>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <?= lang('end_date', 'end_date'); ?>
-                <?php echo form_input('end_date', (isset($_POST['end_date']) ? $_POST['end_date'] : ''), 'class="form-control date" id="end_date"'); ?>
+                <input type="date" id="end_date" name="end_date" class="form-control" value="<?= $_POST['end_date'] ?? '' ?>">
               </div>
             </div>
           </div>

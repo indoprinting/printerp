@@ -147,14 +147,19 @@ $(document).on('click', '[data-action="confirm"]', function (e) {
   e.preventDefault();
   e.stopPropagation();
 
+  let labels  = this.dataset.labels ?? null;
   let message = this.dataset.message ?? 'Are you sure?';
   let title   = this.dataset.title ?? 'Confirmation';
 
   addConfirm({
+    labels: JSON.parse(labels),
     message: message,
     onok: () => {
       console.log(this.href);
       $.ajax({
+        error: (xhr) => {
+          addAlert(xhr.responseJSON.message, 'danger');
+        },
         success: (data) => {
           if (isObject(data)) {
             if (data.status == 200 || data.success || (typeof data.error != 'undefined' && !data.error)) {
@@ -198,6 +203,12 @@ var Notify = {
   }
 }
 
+$(document).on('blur', '.separator', function() {
+  $(this).val(formatSeparator(this.value));
+});
+$(document).on('focus', '.separator', function() {
+  $(this).val(filterDecimal(this.value));
+});
 /**
  * Currency class
  * Change format in edit and format back to currency after lost focus.
@@ -269,16 +280,25 @@ function acceptableChar(code) {
 }
 
 function addConfirm(opt) {
-  let msg = (opt.message ?? 'Are you sure?');
+  let message = (opt.message ?? 'Are you sure?');
   let title = (opt.title ?? 'Confirm');
+  let oncancel = (opt.oncancel ?? null);
+  let onclose = (opt.onclose ?? null);
   let onok = (opt.onok ?? null);
+  let labels = (opt.labels ?? null); // {ok: 'Ya', cancel: 'Batal'}
 
-  alertify.dialog('confirm').set({
-    message: msg,
-    onok: onok,
+  let options = {
+    message: message,
     title: title,
     transition: 'zoom'
-  }).show();
+  };
+
+  if (oncancel) options.oncancel = oncancel;
+  if (onclose)  options.onclose  = onclose;
+  if (onok)     options.onok     = onok;
+  if (labels)   options.labels   = labels;
+
+  alertify.confirm().set(options).showModal();
 }
 
 function attachment(x) {
@@ -366,6 +386,19 @@ function filterQueryString(query) {
 }
 
 /**
+ * Convert number string into float number.
+ * @param {string} str Number string to convert.
+ */
+function filterDecimal(str) {
+  if (str == null) str = 0;
+  if (str.toString().length == 0) str = 0;
+  if (typeof str == 'string') str = str.replaceAll(/([^0-9\.\-])/g, '');
+  if (isNaN(parseFloat(str))) str = 0;
+
+  return parseFloat(str);
+}
+
+/**
  * Formatting number to currency.
  * @param {string|number} str Amount to format.
  * @return {string} Return currency format string.
@@ -381,6 +414,10 @@ function formatCurrency(str) { // Added 2020-05-15 09:50 +7
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(round);
 }
 
+function formatNumber(str) {
+  return `<div class="text-right">${formatQuantity(str)}</div>`;
+}
+
 /**
  * Formatting number to quantity string.
  * @param {string|number} str Quantity to format
@@ -393,9 +430,19 @@ function formatCurrency(str) { // Added 2020-05-15 09:50 +7
 function formatQuantity(str) {
   if (str == null) return 0;
   if (str.toString().length == 0) return 0;
+  if (typeof str == 'string') str = str.replaceAll(/([^0-9\.\-])/g, '');
   let round = parseFloat(str);
 
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 6 }).format(round);
+}
+
+function formatSeparator(str) {
+  if (str == null) str = 0;
+  if (str.toString().length == 0) str = 0;
+  if (typeof str == 'string') str = str.replaceAll(/([^0-9\.\-])/g, '');
+  if (isNaN(parseFloat(str))) str = 0;
+
+  return parseFloat(str).toLocaleString('en-US');
 }
 
 /**
@@ -578,10 +625,27 @@ function initiCheck() {
   });
 }
 
+function initControls() {
+  initDateTimePicker();
+  initiCheck();
+  initSelect2();
+}
+
+function initDateTimePicker()
+{
+
+}
+
 function initSelect2() {
-  $('select.select, select.select2')
+  $('select.select2')
     .not('.skip')
-    .select2({ minimumResultsForSearch: 7, theme: 'classic' });
+    .select2({ theme: 'classic' });
+
+  $('select.select2-tags')
+    .not('.skip')
+    .select2({ tags: true, theme: 'classic' });
+
+  $('select[name$="_length"]').not('.skip').select2({ theme: 'classic' }); // Datatable.
 
   $('#customer, #rcustomer, #slcustomer, .rcustomer, select.ssr-customer').select2({
     minimumInputLength: 1,
@@ -1028,6 +1092,10 @@ function renderActive(active) {
   return `<div class="text-center"><span class="label label-${label}">${ucwords(status)}</span></div>`;
 }
 
+function renderNumber(qty) {
+
+}
+
 /**
  * Rendering status as label. See ridintek_helper.php:renderStatus().
  * @param {string} status Status name
@@ -1039,8 +1107,8 @@ function renderStatus(status) {
   let label = 'default';
   let st = status.toLowerCase();
   let danger = [
-    'bad', 'decrease', 'due', 'due_partial', 'expired', 'need_approval', 'need_payment', 'off', 'over_due',
-    'over_received', 'returned', 'skipped'
+    'bad', 'decrease', 'due', 'due_partial', 'expired', 'failed', 'need_approval', 'need_payment',
+    'off', 'over_due', 'over_received', 'returned', 'skipped'
   ];
   let info = [
     'completed_partial', 'confirmed', 'installed_partial', 'ordered', 'partial',
@@ -1048,7 +1116,7 @@ function renderStatus(status) {
   ];
   let primary = ['delivered', 'excellent', 'finished', 'received'];
   let success = ['approved', 'completed', 'increase', 'good', 'installed', 'paid', 'sent',
-    'served', 'verified'
+    'served', 'success', 'verified'
   ];
   let warning = [
     'called', 'cancelled', 'checked', 'draft', 'packing', 'pending', 'slow', 'trouble',

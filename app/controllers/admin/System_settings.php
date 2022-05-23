@@ -2439,9 +2439,10 @@ class system_settings extends MY_Controller
         'pdf_lib'              => $this->input->post('pdf_lib'),
         'state'                => $this->input->post('state'),
         'settings_json'        => json_encode([
-          'min_dp'               => filterDecimal($this->input->post('min_dp') ?? 0),
-          'min_dp_percent'       => filterDecimal($this->input->post('min_dp_percent') ?? 0),
-          'safety_stock_period' => filterDecimal($this->input->post('safety_stock_period') ?? 0)
+          'min_dp'              => filterDecimal($this->input->post('min_dp') ?? 0),
+          'min_dp_percent'      => filterDecimal($this->input->post('min_dp_percent') ?? 0),
+          'safety_stock_period' => filterDecimal($this->input->post('safety_stock_period') ?? 0),
+          'qms_expired_time'    => filterDecimal($this->input->post('qms_expired_time') ?? 0)
         ])
       ];
       if ($this->input->post('smtp_pass')) {
@@ -2460,7 +2461,7 @@ class system_settings extends MY_Controller
       $this->session->set_flashdata('message', lang('setting_updated'));
       admin_redirect('system_settings');
     } else {
-      $settings                      = $this->settings_model->getSettings();
+      $settings                      = $this->site->getSettings();
       $this->data['error']           = validation_errors() ? validation_errors() : $this->session->flashdata('error');
       $this->data['billers']         = $this->site->getAllBillers();
       $this->data['settings']        = $settings;
@@ -2470,7 +2471,7 @@ class system_settings extends MY_Controller
       $this->data['tax_rates']       = $this->settings_model->getAllTaxRates();
       $this->data['customer_groups'] = $this->settings_model->getAllCustomerGroups();
       $this->data['price_groups']    = $this->settings_model->getAllPriceGroups();
-      $this->data['warehouses']      = $this->settings_model->getAllWarehouses();
+      $this->data['warehouses']      = $this->site->getWarehouses();
       $bc = [['link' => base_url(), 'page' => lang('home')], ['link' => '#', 'page' => lang('system_settings')]];
       $meta = ['page_title' => lang('system_settings'), 'bc' => $bc];
       $this->data = array_merge($this->data, $meta);

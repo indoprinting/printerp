@@ -74,7 +74,7 @@
                         <div class="controls">
                           <?php
                           $ge[''] = ['male' => lang('male'), 'female' => lang('female')];
-                          echo form_dropdown('gender', $ge, (isset($_POST['gender']) ? $_POST['gender'] : $user->gender), 'class="tip form-control select" id="gender" required="required" style="width:100%;"');
+                          echo form_dropdown('gender', $ge, (isset($_POST['gender']) ? $_POST['gender'] : $user->gender), 'class="tip form-control select2" id="gender" required="required" style="width:100%;"');
                           ?>
                         </div>
                       </div>
@@ -135,7 +135,7 @@
                                     <?= lang('status', 'status'); ?>
                                     <?php
                                     $opt = [1 => lang('active'), 0 => lang('inactive')];
-                                    echo form_dropdown('status', $opt, (isset($_POST['status']) ? $_POST['status'] : $user->active), 'id="status" required="required" class="form-control input-tip select" style="width:100%;"'); ?>
+                                    echo form_dropdown('status', $opt, (isset($_POST['status']) ? $_POST['status'] : $user->active), 'id="status" required="required" class="form-control input-tip select2" style="width:100%;"'); ?>
                                   </div>
                                   <div class="form-group">
                                     <?= lang('group', 'group'); ?>
@@ -146,7 +146,7 @@
                                         $gp[$group['id']] = $group['name'];
                                       }
                                     }
-                                    echo form_dropdown('group', $gp, (isset($_POST['group']) ? $_POST['group'] : $user->group_id), 'id="group" data-placeholder="' . $this->lang->line('select') . ' ' . $this->lang->line('group') . '" required="required" class="form-control input-tip select" style="width:100%;"'); ?>
+                                    echo form_dropdown('group', $gp, (isset($_POST['group']) ? $_POST['group'] : $user->group_id), 'id="group" data-placeholder="' . $this->lang->line('select') . ' ' . $this->lang->line('group') . '" required="required" class="form-control input-tip select2" style="width:100%;"'); ?>
                                   </div>
                                   <div class="clearfix"></div>
                                   <div class="no">
@@ -157,7 +157,7 @@
                                       foreach ($billers as $biller) {
                                         $bl[$biller->id] = $biller->name;
                                       }
-                                      echo form_dropdown('biller', $bl, $user->biller_id, 'id="biller" class="form-control select" style="width:100%;"'); ?>
+                                      echo form_dropdown('biller', $bl, $user->biller_id, 'id="biller" class="form-control select2" style="width:100%;"'); ?>
                                     </div>
 
                                     <div class="form-group">
@@ -167,23 +167,23 @@
                                       foreach ($warehouses as $warehouse) {
                                         $wh[$warehouse->id] = $warehouse->name;
                                       }
-                                      echo form_dropdown('warehouse', $wh, $user->warehouse_id, 'id="warehouse" class="form-control select" style="width:100%;"'); ?>
+                                      echo form_dropdown('warehouse', $wh, $user->warehouse_id, 'id="warehouse" class="form-control select2" style="width:100%;"'); ?>
                                     </div>
                                     <div class="form-group">
                                       <?= lang('view_right', 'view_right'); ?>
                                       <?php
                                       $vropts = [1 => lang('all_records'), 0 => lang('own_records')];
-                                      echo form_dropdown('view_right', $vropts, (isset($_POST['view_right']) ? $_POST['view_right'] : $user->view_right), 'id="view_right" class="form-control select" style="width:100%;"'); ?>
+                                      echo form_dropdown('view_right', $vropts, (isset($_POST['view_right']) ? $_POST['view_right'] : $user->view_right), 'id="view_right" class="form-control select2" style="width:100%;"'); ?>
                                     </div>
                                     <div class="form-group">
                                       <?= lang('edit_right', 'edit_right'); ?>
                                       <?php
                                       $opts = [1 => lang('yes'), 0 => lang('no')];
-                                      echo form_dropdown('edit_right', $opts, (isset($_POST['edit_right']) ? $_POST['edit_right'] : $user->edit_right), 'id="edit_right" class="form-control select" style="width:100%;"'); ?>
+                                      echo form_dropdown('edit_right', $opts, (isset($_POST['edit_right']) ? $_POST['edit_right'] : $user->edit_right), 'id="edit_right" class="form-control select2" style="width:100%;"'); ?>
                                     </div>
                                     <div class="form-group">
                                       <?= lang('allow_discount', 'allow_discount'); ?>
-                                      <?= form_dropdown('allow_discount', $opts, (isset($_POST['allow_discount']) ? $_POST['allow_discount'] : $user->allow_discount), 'id="allow_discount" class="form-control select" style="width:100%;"'); ?>
+                                      <?= form_dropdown('allow_discount', $opts, (isset($_POST['allow_discount']) ? $_POST['allow_discount'] : $user->allow_discount), 'id="allow_discount" class="form-control select2" style="width:100%;"'); ?>
                                     </div>
                                     <div class="form-group">
                                       <?= lang('add_sale', 'add_sale'); ?>
@@ -194,7 +194,7 @@
                                         '0' => 'No'
                                       ];
                                       ?>
-                                      <?= form_dropdown('add_sale', $add_sale_opts, $this->site->getUserPermission('sales-add', $user->id), 'class="form-control select" id="add_sale"'); ?>
+                                      <?= form_dropdown('add_sale', $add_sale_opts, $this->site->getUserPermission('sales-add', $user->id), 'class="form-control select2" id="add_sale"'); ?>
                                     </div>
                                     <div class="form-group">
                                       <?= lang('stock_opname_sequence_cycle', 'so_cycle'); ?>
@@ -217,7 +217,7 @@
                                         }
                                       }
 
-                                      echo form_multiselect('biller_access[]', $bls, ($userJS->biller_access ?? []), 'class="form-control select" id="biller_access"'); ?>
+                                      echo form_multiselect('biller_access[]', $bls, ($userJS->biller_access ?? []), 'class="form-control select2" id="biller_access"'); ?>
                                     </div>
                                     <div class="form-group">
                                       <label for="user_permissions">User Permissions</label>
@@ -233,6 +233,7 @@
                                       }
                                       // Custom individual privilege
                                       $perms = [
+                                        'development'         => 'Development',
                                         'products-history'    => 'Products.History',
                                         'sales-add'           => 'Sales.Add',
                                         'sales-delete'        => 'Sales.Delete',
@@ -241,7 +242,7 @@
                                         'sales-index'         => 'Sales.Index',
                                         'sales-no_attachment' => 'Sales.NoAttachment'
                                       ];
-                                      echo form_multiselect('user_permissions[]', $perms, ($permissions ?? []), 'class="form-control select" id="user_permissions"'); ?>
+                                      echo form_multiselect('user_permissions[]', $perms, ($permissions ?? []), 'class="form-control select2" id="user_permissions"'); ?>
                                     </div>
                                   </div>
                                 </div>

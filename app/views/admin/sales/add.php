@@ -235,7 +235,7 @@
                   $bl[$biller->id] = $biller->name;
                 }
               }
-              echo form_dropdown('biller', $bl, ($this->session->userdata('biller_id') ?? $Settings->default_biller), 'id="slbiller" data-placeholder="' . lang('select') . ' ' . lang('biller') . '" required="required" class="form-control input-tip select2" style="width:100%;"'); ?>
+              echo form_dropdown('biller', $bl, ($this->session->userdata('biller_id') ?? $Settings->default_biller), 'id="slbiller" data-placeholder="' . lang('select') . ' ' . lang('biller') . '" required="required" class="select2" style="width:100%;"'); ?>
             </div>
           </div>
           <?php } else { ?>
@@ -259,7 +259,7 @@
                   $blr[$user->id] = $user->biller_id;
                 }
               }
-              echo form_dropdown('created_by', $usr, $this->session->userdata('user_id'), 'id="slpic" data-placeholder="' . lang('select') . ' ' . lang('pic_name') . '" required="required" class="form-control input-tip select2" style="width:100%;"'); ?>
+              echo form_dropdown('created_by', $usr, $this->session->userdata('user_id'), 'id="slpic" data-placeholder="' . lang('select') . ' ' . lang('pic_name') . '" required="required" class="select2" style="width:100%;"'); ?>
             </div>
           </div>
           <?php } else {
@@ -285,13 +285,20 @@
                   $usr[$user->id] = $user->fullname;
                 }
               }
-              echo form_dropdown('cashier_by', $usr, $this->session->userdata('user_id'), 'id="cashier" data-placeholder="Select Cashier" required="required" class="form-control input-tip select2" style="width:100%;"'); ?>
+              echo form_dropdown('cashier_by', $usr, $this->session->userdata('user_id'), 'id="cashier" data-placeholder="Select Cashier" required="required" class="select2" style="width:100%;"'); ?>
             </div>
           </div>
           <div class="col-md-4">
             <div class="form-group">
-              <label>
-                <input id="use_standard" type="checkbox" value="1"> Include <em>standard</em> item
+              <input id="use_standard" type="checkbox" value="1">
+              <label for="use_standard">
+                 Include <em>standard</em> item
+              </label>
+            </div>
+            <div class="form-group">
+              <input id="approved" name="approved" type="checkbox" value="1">
+              <label for="approved">
+                 Approved Sale
               </label>
             </div>
           </div>
@@ -304,7 +311,7 @@
                   <div class="form-group">
                     <?= lang('customer', 'slcustomer'); ?>
                     <div class="input-group">
-                      <?= form_dropdown('customer', [], '', 'id="slcustomer" class="form-control select2" data-placeholder="Select Customer" style="width:100%;"'); ?>
+                      <?= form_dropdown('customer', [], '', 'id="slcustomer" class="select2" data-placeholder="Select Customer" style="width:100%;"'); ?>
                       <div class="input-group-addon no-print" style="padding: 2px 8px; border-left: 0;">
                         <a href="#" id="edit-email-customer" title="Edit Email Customer">
                           <i class="fa fa-fw fa-edit" id="addIcon" style="font-size: 1.2em;"></i>
@@ -342,7 +349,7 @@
                         $wh[$warehouse->id] = $warehouse->name;
                       }
                     }
-                    echo form_dropdown('warehouse', $wh, $this->session->userdata('warehouse_id'), 'id="slwarehouse" class="form-control input-tip select2" data-placeholder="' . lang('select') . ' ' . lang('warehouse') . '" required="required" style="width:100%;" '); ?>
+                    echo form_dropdown('warehouse', $wh, $this->session->userdata('warehouse_id'), 'id="slwarehouse" class="select2" data-placeholder="' . lang('select') . ' ' . lang('warehouse') . '" required="required" style="width:100%;" '); ?>
                   </div>
                 </div>
               </div>
@@ -373,7 +380,7 @@
                 <div class="controls table-controls">
                   <!-- MAIN TABLE -->
                   <div class="table-responsive">
-                    <table id="slTable" class="table items table-striped table-bordered table-condensed table-hover sortable_table">
+                    <table id="slTable" class="table items table-striped table-bordered table-condensed table-hover">
                       <thead>
                       <tr>
                         <th class="col-md-2"><?= lang('product') . ' ' . lang('name') . ' (' . lang('code') . ')'; ?></th>
@@ -411,7 +418,7 @@
                   <div class="form-group">
                     <?= lang('status', 'slsale_status'); ?>
                     <?php $sst = ['need_payment' => lang('need_payment'), 'waiting_production' => lang('waiting_production')];
-                    echo form_dropdown('status', $sst, '', 'class="form-control input-tip select2" required="required" id="slsale_status"'); ?>
+                    echo form_dropdown('status', $sst, '', 'class="select2" required="required" id="slsale_status" style="width:100%"'); ?>
                   </div>
                 </div>
                 <div class="col-sm-4">
@@ -425,7 +432,7 @@
                   <div class="form-group">
                     <?= lang('payment_status', 'slpayment_status'); ?>
                     <?php $pst = ['pending' => lang('pending')];
-                      echo form_dropdown('payment_status', $pst, '', 'class="form-control input-tip select2" required="required" id="slpayment_status"'); ?>
+                      echo form_dropdown('payment_status', $pst, '', 'class="select2" required="required" id="slpayment_status" style="width:100%"'); ?>
                   </div>
                 </div>
                 <?php } else {
@@ -434,7 +441,7 @@
                 <!-- <div class="col-sm-4">
                   <div class="form-group">
                     <label for="production_pic">Production PIC</label>
-                    <?= form_dropdown('production_pic', '', '', 'class="form-control user select2" data-placeholder="Select Production PIC" style="width:100%;"'); ?>
+                    <?= form_dropdown('production_pic', '', '', 'class="user select2" data-placeholder="Select Production PIC" style="width:100%;"'); ?>
                   </div>
                 </div>
                 <div class="col-sm-4">
@@ -495,7 +502,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true"><i
-              class="fa fa-2x">&times;</i></span><span class="sr-only"><?=lang('close');?></span></button>
+              class="fad fa-times"></i></span><span class="sr-only"><?=lang('close');?></span></button>
         <h4 class="modal-title" id="prModalLabel"></h4>
       </div>
       <div class="modal-body" id="pr_popover_content">
@@ -552,7 +559,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true"><i
-              class="fa fa-2x">&times;</i></span><span class="sr-only"><?=lang('close');?></span></button>
+              class="fad fa-times"></i></span><span class="sr-only"><?=lang('close');?></span></button>
         <h4 class="modal-title" id="mModalLabel"><?= lang('add_product_manually') ?></h4>
       </div>
       <div class="modal-body" id="pr_popover_content">
@@ -590,7 +597,7 @@
                   $uts[$unit->id] = $unit->name;
                 }
               }
-              echo form_dropdown('munit', $uts, '', 'id="munit" class="form-control input-tip select2" style="width:100%;"');
+              echo form_dropdown('munit', $uts, '', 'id="munit" class="select2" style="width:100%;"');
               ?>
             </div>
           </div>
@@ -621,9 +628,34 @@
     let billers = JSON.parse('<?= json_encode($blr); ?>');
     var warehouse_id = <?= ($this->session->userdata('warehouse_id') ?? $Settings->default_warehouse); ?>;
 
+    $('#approved').change(function(e) {
+      if (e.target.checked) {
+        addConfirm({
+          title: 'Persetujuan / Consent',
+          labels: {ok: 'Setuju', cancel: 'Batal'},
+          message: 'Mencentang <b>Approved Sale</b> berarti bertanggung jawab ' +
+            'jika item sudah di complete oleh operator tidak dapat dikembalikan lagi ' +
+            'ke <b>Waiting Production</b>.',
+          oncancel: () => {
+            $('#approved').iCheck('uncheck');
+          }
+        })
+      }
+    });
+
     $('#draft_sale').click(function () {
       $('input[name="draft_type"]').val(1);
       $('#form_add_sale')[0].submit();
+    });
+
+    $('#slcustomer').change(function() {
+      if (noResetItems) {
+        noResetItems = false;
+        return true;
+      }
+      slitems = {};
+      localStorage.setItem('slitems', JSON.stringify(slitems));
+      loadItems();
     });
 
     $('#slwarehouse').change(function() {

@@ -86,7 +86,7 @@
           }
         }
         ?>
-        <?= form_dropdown('status', $stat, $slitem->status, 'class="form-control select2" id="status" required="required" style="width:100%;"'); ?>
+        <?= form_dropdown('status', $stat, $slitem->status, 'class="select2" id="status" required="required" style="width:100%;"'); ?>
       </div>
 
       <div class="form-group">

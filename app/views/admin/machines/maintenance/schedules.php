@@ -145,16 +145,16 @@ if ($endDate = $this->input->get('end_date')) {
             </div>
           </div>
           <div class="row">
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label for="startDate"><i class="fad fa-clock"></i> Start Date</label>
-                <input class="form-control date" id="startDate" name="start_date" type="text">
+                <input class="form-control" id="startDate" name="start_date" type="date">
               </div>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label for="endDate"><i class="fad fa-clock"></i> End Date</label>
-                <input class="form-control date" id="endDate" name="end_date" type="text">
+                <input class="form-control" id="endDate" name="end_date" type="date">
               </div>
             </div>
           </div>

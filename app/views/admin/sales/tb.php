@@ -117,16 +117,16 @@ if ($endDate = $this->input->get('end_date')) {
       <div class="col-lg-12">
         <div id="form_filter" class="closed well well-sm" style="display: none">
           <div class="row">
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('start_date'); ?></label>
-                <input type="text" class="form-control date" id="start_date" name="start_date" value="<?= ($startDate ?? '') ?>" />
+                <input type="date" class="form-control" id="start_date" name="start_date" value="<?= ($startDate ?? '') ?>" />
               </div>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('end_date'); ?></label>
-                <input type="text" class="form-control date" id="end_date" name="end_date" value="<?= ($endDate ?? '') ?>" />
+                <input type="date" class="form-control" id="end_date" name="end_date" value="<?= ($endDate ?? '') ?>" />
               </div>
             </div>
           </div>

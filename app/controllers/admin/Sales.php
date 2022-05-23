@@ -149,6 +149,7 @@ class Sales extends MY_Controller
 
     if ($this->form_validation->run() == true) {
       // $no_attachment    = $this->input->post('noattach');
+      $approved         = ($this->input->post('approved') == 1 ? 1 : 0);
       $saleOptions      = $this->input->post('sale_options');
       $draft_type       = $this->input->post('draft_type');
       $no_po            = $this->input->post('no_po');
@@ -249,7 +250,7 @@ class Sales extends MY_Controller
         $this->form_validation->set_rules('product', lang('order_items'), 'required');
       }
 
-      $sale_data = [
+      $saleData = [
         'date'           => $date,
         'customer_id'    => $customer_id,
         'biller_id'      => $biller_id,
@@ -261,7 +262,8 @@ class Sales extends MY_Controller
         'payment_term'   => $payment_term,
         'created_by'     => $created_by,
         'cashier_by'     => $cashier_by,
-        'source'         => 'PrintERP'
+        'source'         => 'PrintERP',
+        'approved'       => $approved
       ];
 
       $uploader = new FileUpload();
@@ -277,7 +279,7 @@ class Sales extends MY_Controller
         $attachment = $uploader->getRandomName();
 
         if ($uploader->move($this->upload_sales_path, $attachment)) {
-          $sale_data['attachment'] = $attachment;
+          $saleData['attachment'] = $attachment;
         }
       } else if (!getPermission('sales-no_attachment')) {
         if ($customerGroup->name == 'TOP') { // Prevent CS create sale without attachment for Customer TOP.
@@ -292,8 +294,7 @@ class Sales extends MY_Controller
     }
 
     if ($this->form_validation->run() == true) {
-      //if ($this->Owner) rd_print('$sale_data:', $sale_data, '$sale_items:', $sale_items); die();
-      if ($sale_id = $this->site->addSale($sale_data, $sale_items)) {
+      if ($sale_id = $this->site->addSale($saleData, $sale_items)) {
         $sale = $this->site->getSaleByID($sale_id);
 
         $paymentDueDate = date('Y-m-d H:i:s', strtotime('+1 days')); // 1 day expired.
@@ -313,7 +314,10 @@ class Sales extends MY_Controller
               'payment_due_date' => $paymentDueDate,
               'payment_status' => 'waiting_transfer'
             ]);
+
+            $hMutex = mutexCreate('syncSales', TRUE);
             $this->site->syncSales(['sale_id' => $sale_id]);
+            mutexRelease($hMutex);
           }
         }
         if (!empty($customer->email)) { // If customer has email, then send invoice mail.
@@ -402,7 +406,9 @@ class Sales extends MY_Controller
       $sale_id = $this->input->get('sale_id');
     }
 
+    $hMutex = mutexCreate('syncSales', TRUE);
     $this->site->syncSales(['sale_id' => $sale_id]);
+    mutexRelease($hMutex);
 
     $sale = $this->site->getSaleByID($sale_id);
     if ($sale->payment_status == 'paid' && $sale->grand_total == $sale->paid) {
@@ -503,7 +509,10 @@ class Sales extends MY_Controller
           $this->site->updateSale($pv_data['sale_id'], [
             'payment_status' => 'waiting_transfer'
           ]);
+
+          $hMutex = mutexCreate('syncSales', TRUE);
           $this->site->syncSales(['sale_id' => $pv_data['sale_id']]);
+          mutexRelease($hMutex);
 
           if ($skip_payment_validation) {
             $vpv_data = (object)[
@@ -565,6 +574,16 @@ class Sales extends MY_Controller
     }
   }
 
+  public function approve($saleId = NULL)
+  {
+    if ($saleId) {
+      if ($this->site->updateSale($saleId, ['approved' => 1])) {
+        $this->response(200, ['message' => 'Nota berhasil di approve.']);
+      }
+    }
+    $this->response(400, ['message' => 'Gagal menyetujui (approve) nota.']);
+  }
+
   public function delete($id = null)
   {
     $this->sma->checkUserPermissions('sales-delete');
@@ -624,8 +643,9 @@ class Sales extends MY_Controller
       $sale = $this->site->getSaleByPaymentID($paymentId);
 
       if ($this->site->deletePayment($paymentId) && $sale) {
-
+        $hMutex = mutexCreate('syncSales', TRUE);
         $this->site->syncSales(['sale_id' => $sale->id]);
+        mutexRelease($hMutex);
         sendJSON(['error' => 0, 'msg' => 'Payment has been deleted successfully.']);
       }
 
@@ -701,7 +721,9 @@ class Sales extends MY_Controller
               'created_by' => $this->session->userdata('user_id'),
               'type'       => 'received'
             ]);
+            $hMutex = mutexCreate('syncSales', TRUE);
             $this->site->syncSales(['sale_id' => $sale->id]);
+            mutexRelease($hMutex);
             $success++;
           } else {
             $failed++;
@@ -752,6 +774,7 @@ class Sales extends MY_Controller
     $this->form_validation->set_rules('payment_status', lang('payment_status'), 'required');
 
     if ($this->form_validation->run() == true) {
+      $approved         = ($this->input->post('approved') == 1 ? 1 : 0);
       $draft_type       = ($this->input->post('draft_type') == 1 ? TRUE : FALSE);
       $reference        = $this->input->post('reference');
       $no_po            = $this->input->post('no_po');
@@ -864,7 +887,7 @@ class Sales extends MY_Controller
         $this->form_validation->set_rules('product', lang('order_items'), 'required');
       }
 
-      $sale_data = [
+      $saleData = [
         'date'           => ($date ?? $sale->date),
         'created_by'     => $created_by,
         'customer_id'    => $customer_id,
@@ -877,16 +900,17 @@ class Sales extends MY_Controller
         'payment_status' => $payment_status,
         'updated_by'     => $this->session->userdata('user_id'),
         'updated_at'     => date('Y-m-d H:i:s'),
+        'approved'       => $approved
       ];
 
       if ($this->Owner && !empty($reference)) {
-        $sale_data['reference'] = $reference;
+        $saleData['reference'] = $reference;
       }
 
-      if ($dates) $sale_data['est_complete_date'] = getLongestDateTime($dates);
+      if ($dates) $saleData['est_complete_date'] = getLongestDateTime($dates);
 
       if ($this->Owner) {
-        // d($sale_data);
+        // d($saleData);
         // d($sale_items);
         // die();
       }
@@ -907,7 +931,7 @@ class Sales extends MY_Controller
         }
 
         $photo = $this->upload->file_name;
-        $sale_data['attachment'] = $photo;
+        $saleData['attachment'] = $photo;
       } elseif (!$this->Owner && !$this->Admin) {
         // Prevent CS create sale without attachment for Customer TOP.
         if ($customer_group_name == 'top' && !$sale->attachment) {
@@ -916,8 +940,10 @@ class Sales extends MY_Controller
         }
       }
 
-      if ($this->site->updateSale($id, $sale_data, $sale_items)) {
+      if ($this->site->updateSale($id, $saleData, $sale_items)) {
+        $hMutex = mutexCreate('syncSales', TRUE);
         $this->site->syncSales(['sale_id' => $id]);
+        mutexRelease($hMutex);
 
         $this->session->set_userdata('remove_slls', 1);
         if ($draft_type) {
@@ -1132,7 +1158,9 @@ class Sales extends MY_Controller
           $this->site->updateSale($data['sale_id'], [
             'payment_status' => 'waiting_transfer'
           ]);
+          $hMutex = mutexCreate('syncSales', TRUE);
           $this->site->syncSales(['sale_id' => $data['sale_id']]);
+          mutexRelease($hMutex);
           sendJSON(['error' => 0, 'msg' => lang('payment_validation_added')]);
         } else {
           sendJSON(['error' => 1, 'msg' => lang('payment_validation_add_fail')]);
@@ -1159,7 +1187,9 @@ class Sales extends MY_Controller
 
     if ($this->form_validation->run() == true) {
       if ($this->site->updatePayment($payment_id, $data_payment)) { // Sales Add Payment.
+        $hMutex = mutexCreate('syncSales', TRUE);
         $this->site->syncSales(['sale_id' => $sale->id]);
+        mutexRelease($hMutex);
         sendJSON(['error' => 0, 'msg' => lang('payment_edited')]);
       } else {
         sendJSON(['error' => 1, 'msg' => 'Failed to update payment']);
@@ -1297,7 +1327,7 @@ class Sales extends MY_Controller
       $user = $this->site->getUserByID($this->session->userdata('user_id'));
       $userJS = getJSON($user->json_data);
 
-      if (isset($userJS->biller_access)) {
+      if (isset($userJS->biller_access)) { // Add new access to specified billers.
         foreach ($userJS->biller_access as $bill) {
           $billers[] = $bill;
         }
@@ -1326,12 +1356,24 @@ class Sales extends MY_Controller
       <a href="' . admin_url('sales/delete/$1') . '" data-action="confirm" data-message="Hapus nota?">
         <i class="fad fa-fw fa-trash"></i> ' . lang('delete_sale') . '
       </a>';
+    $approve_link      = '
+      <a href="' . admin_url('sales/approve/$1') . '" data-action="confirm"
+        data-labels=\'{"ok":"Setuju","cancel":"Batal"}\'
+        data-message="Memilih <b>Approved Sale</b> berarti bertanggung jawab ' .
+        'jika item sudah di complete oleh operator tidak dapat dikembalikan lagi ' .
+        'ke <b>Waiting Production</b>." data-title="Persetujuan / Consent">' .
+        '<i class="fad fa-fw fa-check"></i> ' . lang('approved_sale') . '
+      </a>';
 
     $action = '<div class="text-center"><div class="btn-group text-left">'
       . '<button type="button" class="btn btn-default btn-xs btn-primary dropdown-toggle" data-toggle="dropdown">'
       . lang('actions') . ' <span class="caret"></span></button>
     <ul class="dropdown-menu dropdown-menu-right" role="menu">
       <li>' . $add_payment_link . '</li>';
+
+    if ($this->isAdmin || $this->GP['sales-add']) {
+      $action .= '<li>' . $approve_link . '</li>';
+    }
 
     if ($this->Owner || $this->Admin || $this->GP['validations-cancel']) {
       $action .= '<li>' . $cancel_link . '</li>';
@@ -1394,6 +1436,8 @@ class Sales extends MY_Controller
         SUM(sales.grand_total) AS grand_total, SUM(sales.paid) AS paid, SUM(sales.balance) AS balance,
         '-' AS payment_status, '-' AS attachment, '-' AS pv_id";
       }
+
+      $hMutex = mutexCreate('Sales_getSales', TRUE);
 
       $this->load->library('datatables');
       $this->datatables
@@ -1476,6 +1520,9 @@ class Sales extends MY_Controller
       }
 
       $this->datatables->add_column('Actions', $action, "id, pv_id");
+
+      mutexRelease($hMutex);
+
       echo $this->datatables->generate();
     } else if ($xls) { // Export Excel
       $this->db
@@ -1957,7 +2004,9 @@ class Sales extends MY_Controller
       $this->sma->view_rights($inv->created_by, true);
     }
 
+    $hMutex = mutexCreate('syncSales', TRUE);
     $this->site->syncSales(['sale_id' => $sale_id]);
+    mutexRelease($hMutex);
 
     $this->data['payments']    = $this->site->getPaymentsBySaleID($sale_id);
     $this->data['customer']    = $this->site->getCustomerByID($inv->customer_id);
@@ -2070,7 +2119,7 @@ class Sales extends MY_Controller
     if ($sale_id) {
       $sale = $this->site->getSaleByID($sale_id);
 
-      if ($sale && ($sale->status == 'completed' ||
+      if ($this->Owner || $sale && ($sale->status == 'completed' ||
         $sale->status == 'delivered' ||
         $sale->status == 'completed_partial'
       )) {
@@ -2090,7 +2139,9 @@ class Sales extends MY_Controller
             $this->site->deleteStockQuantity(['saleitem_id' => $saleItem->id]);
           }
 
+          $hMutex = mutexCreate('syncSales', TRUE);
           $this->site->syncSales(['sale_id' => $sale_id]);
+          mutexRelease($hMutex);
 
           sendJSON(['error' => 0, 'msg' => "Sale '{$sale->reference}' has been reverted successfully."]);
         }
@@ -2279,7 +2330,9 @@ class Sales extends MY_Controller
       $sale = $this->site->getSaleByID($sale_id);
 
       logDebug("Syncing {$sale->reference}");
+      $hMutex = mutexCreate('syncSales', TRUE);
       $this->site->syncSales(['sale_id' => $sale->id]);
+      mutexRelease($hMutex);
 
       logDebug('[Sales::syncSales END]');
 
@@ -2287,10 +2340,14 @@ class Sales extends MY_Controller
     } else {
       $sales = $this->site->getSales(['start_date' => $startDate, 'end_date' => $endDate]);
 
+      $hMutex = mutexCreate('syncSales', TRUE);
+
       foreach ($sales as $sale) {
         logDebug("Syncing {$sale->reference}");
         $this->site->syncSales(['sale_id' => $sale->id]);
       }
+
+      mutexRelease($hMutex);
 
       logDebug('[Sales::syncSales END]');
 
@@ -2388,7 +2445,9 @@ class Sales extends MY_Controller
   {
     $this->form_validation->set_rules('status', lang('status'), 'required');
 
+    $hMutex = mutexCreate('syncSales', TRUE);
     $this->site->syncSales(['sale_id' => $id]); // New added to sync sales.
+    mutexRelease($hMutex);
 
     if ($this->requestMethod == 'POST') {
       $status = $this->input->post('status');

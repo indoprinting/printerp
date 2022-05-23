@@ -42,7 +42,7 @@
         foreach ($categories as $pcat) {
           $cat[$pcat->code] = $pcat->name;
         }
-        echo form_dropdown('parent', $cat, (isset($_POST['parent']) ? $_POST['parent'] : $category->parent_code), 'class="form-control select" id="parent" style="width:100%"')
+        echo form_dropdown('parent', $cat, (isset($_POST['parent']) ? $_POST['parent'] : $category->parent_code), 'class="select2" id="parent" style="width:100%"')
         ?>
       </div>
 

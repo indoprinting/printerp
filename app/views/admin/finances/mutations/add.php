@@ -29,7 +29,7 @@
           } else {
             $bl[$biller->id] = $biller->name;
           }
-          echo form_dropdown('biller', $bl, ($biller_id ?? $this->Settings->default_biller), 'id="biller" class="form-control input-tip select" placeholder="Select Biller" style="width:100%;"');
+          echo form_dropdown('biller', $bl, ($biller_id ?? $this->Settings->default_biller), 'id="biller" class="form-control input-tip select2" placeholder="Select Biller" style="width:100%;"');
           ?>
         </div>
         <?php } else { ?>

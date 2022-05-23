@@ -83,28 +83,28 @@ $end_date = $this->input->get('end_date');
               <div class="form-group">
                 <?= lang('biller', 'biller'); ?>
                 <?php
-                $billers = $this->site->getAllBillers();
+                $billers = $this->site->getBillers(['order' => ['name', 'ASC']]);
                 $bills = [];
 
                 foreach ($billers as $bill) {
                   $bills[$bill->id] = $bill->name;
                 }
 
-                echo form_multiselect('biller', $bills, $bils, 'class="form-control" id="biller" style="width:100%;"');
+                echo form_multiselect('biller', $bills, $bils, 'class="select2" id="biller" style="width:100%;"');
                 ?>
               </div>
             </div>
-            <div class="col-sm-4">
+            <div class="col-sm-2">
               <div class="form-group">
                 <?= lang('start_date', 'start_date'); ?>
-                <?php echo form_input('start_date', $start_date, 'class="form-control date" id="start_date"'); ?>
+                <input type="date" id="start_date" name="start_date" class="form-control" value="<?= $start_date ?>">
               </div>
             </div>
 
-            <div class="col-sm-4">
+            <div class="col-sm-2">
               <div class="form-group">
                 <?= lang('end_date', 'end_date'); ?>
-                <?php echo form_input('end_date', $end_date, 'class="form-control date" id="end_date"'); ?>
+                <input type="date" id="end_date" name="end_date" class="form-control" value="<?= $end_date ?>">
               </div>
             </div>
           </div>

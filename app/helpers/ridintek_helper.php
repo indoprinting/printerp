@@ -6,8 +6,11 @@ use PHPMailer\PHPMailer\SMTP;
 use PHPMailer\PHPMailer\Exception;
 use Dompdf\Dompdf;
 
-// BECAUSE I NEVER TRUST USER INPUT.
-
+/**
+ * Add new event because I NEVER TRUST USER INPUT
+ * @param string $message Message
+ * @param string $type info|warning|danger|error
+ */
 function addEvent($message, string $type = 'info')
 {
   $ci = &get_instance();
@@ -158,8 +161,9 @@ function baseToUnitQty($qty_received, $unit)
 }
 
 /**
- * Convert Biller to Warehouse. See warehouseToBiller.
+ * Convert Biller ID to Warehouse ID. See warehouseToBiller.
  * @param int|array $billerId Biller ID. It can be biller id or array of biller id.
+ * @return int Return Warehouse ID.
  */
 function billerToWarehouse($billerId)
 {
@@ -169,10 +173,10 @@ function billerToWarehouse($billerId)
     $data = [];
 
     foreach ($billerId as $biller_id) {
-      $biller = $ci->site->getBillerByID($biller_id);
+      $biller = $ci->site->getBiller(['id' => $biller_id]);
 
       if ($biller) {
-        $warehouse = $ci->site->getWarehouseByName($biller->name);
+        $warehouse = $ci->site->getWarehouse(['code' => $biller->code]);
 
         if ($warehouse) {
           $data[] = $warehouse->id;
@@ -182,10 +186,10 @@ function billerToWarehouse($billerId)
 
     return $data;
   } else {
-    $biller = $ci->site->getBillerByID($billerId);
+    $biller = $ci->site->getBiller(['id' => $billerId]);
 
     if ($biller) {
-      $warehouse = $ci->site->getWarehouseByName($biller->name);
+      $warehouse = $ci->site->getWarehouse(['code' => $biller->code]);
 
       if ($warehouse) {
         return $warehouse->id;
@@ -232,6 +236,14 @@ function checkPermission($perms)
   }
 
   return TRUE;
+}
+
+/**
+ * Get current url.
+ */
+function currentUrl()
+{
+  return current_url();
 }
 
 function dd($data)
@@ -373,6 +385,24 @@ function dispatchW2PSale($saleId = NULL)
 }
 
 /**
+ * Convert PHP datetime into javascript datetime-local format.
+ * @param string $dtPHP PHP datetime format.
+ */
+function dtJS($dtPHP)
+{
+  return str_replace(' ', 'T', $dtPHP);
+}
+
+/**
+ * Convert javascript datetime-local into PHP datetime format.
+ * @param string $dtJS Javascript datetime format.
+ */
+function dtPHP($dtJS)
+{
+  return str_replace('T', ' ', $dtJS);
+}
+
+/**
  * Complete sale item.
  * @param int $product_id Product ID.
  * @param array $data [ created_by ]
@@ -408,6 +438,14 @@ function csrf_hash()
 {
   $ci = &get_instance();
   return $ci->security->get_csrf_hash();
+}
+
+/**
+ * Alias of csrf_token_name().
+ */
+function csrf_token()
+{
+  return csrf_token_name();
 }
 
 /**
@@ -648,7 +686,7 @@ function getActiveStockDays(array $data)
  */
 function getAdjustedQty($current_qty, $adjustment_qty): array
 {
-  $data = [];
+  $data = ['quantity' => 0, 'type' => 'received'];
   $adj_qty = filterDecimal($adjustment_qty);
   $cur_qty = filterDecimal($current_qty);
 
@@ -680,6 +718,7 @@ function getAttachmentPaths($pathName = NULL)
     'products_import'    => "{$dir}products/imports/",
     'products_mutation'  => "{$dir}products/mutations/attachments/",
     'products_report'    => "{$dir}products/reports/",
+    'products_transfer'  => "{$dir}products/transfers/attachments/",
     'purchases'          => "{$dir}procurements/purchases/",
     'purchases_payments' => "{$dir}procurements/purchases/payments/",
     'sales'              => "{$dir}sales/attachments/",
@@ -714,7 +753,7 @@ function getCurrentMonthPeriod($period = [])
 
 /**
  * Get last 30 days period.
- * 
+ *
  * This function created due F\*CKED ST\*PID `Felix Angga Asiskin` DIDN'T UNDERSTAND ABOUT FILTERING.
  */
 function getLastMonthPeriod($period = [])
@@ -793,7 +832,7 @@ function getExcerpt($text, $length = 20)
 
 /**
  * Get income statement report.
- * @param array $opt [ biller_id, start_date, end_date ]
+ * @param array $opt [ biller_id[], start_date, end_date ]
  * @return array Return income statement data.
  */
 function getIncomeStatementReport($opt)
@@ -809,8 +848,9 @@ function getIncomeStatementReport($opt)
   $expenseGroup = $ci->site->getExpenseCategories(['order' => ['name', 'ASC']]);
   $incomes      = $ci->site->getIncomes($opt);
   $incomeGroup  = $ci->site->getIncomeCategories();
+  $internalUses = $ci->site->getStockInternalUses($opt);
   $sales        = $ci->site->getSales($opt);
-
+  // d($opt); die();
   $warehouse_ids = billerToWarehouse($opt['biller_id']); // Convert biller to warehouse.
 
   $billerLucretai = $ci->site->getBillerByName('Lucretia Enterprise');
@@ -823,15 +863,16 @@ function getIncomeStatementReport($opt)
     }
   }
 
-  if ($warehouse_ids) $opt['warehouse_id'] = $warehouse_ids; // Assign warehouse_id.
+  $opt['warehouse_id'] = $warehouse_ids; // Assign warehouse_id.
   unset($opt['biller_id']);
 
   $purchases    = $ci->site->getStockPurchases($opt);
   $stockOpnames = $ci->site->getStockOpnames($opt);
 
   $opt['from_warehouse_id'] = $warehouse_ids;
+  unset($opt['warehouse_id']);
 
-  $internalUses = $ci->site->getStockInternalUses($opt);
+  // $internalUses = $ci->site->getStockInternalUses($opt);
   $transfers    = $ci->site->getStockTransfers($opt);
 
   $capInvAmount = 0;
@@ -956,7 +997,7 @@ function getIncomeStatementReport($opt)
   // SALES
   foreach ($sales as $sale) {
     // If no payment and customer reguler, skip it.
-    if ($sale->paid <= 0 && !isSpecialCustomer($sale->customer_id)) continue;
+    // if ($sale->paid <= 0 && !isSpecialCustomer($sale->customer_id)) continue;
 
     $saleItems = $ci->site->getSaleItems(['sale_id' => $sale->id]);
 
@@ -1283,6 +1324,165 @@ function getPurchaseQty($qty, $qty_alert, $unit)
 }
 
 /**
+ * Get product stock value data.
+ * @param array $clause [ product_id, warehouse_id, category_id, product_name,
+ *  is_asset:FALSE, start_date, end_date ]
+ * @return array [[ product_code, product_name, unit, beginning, increase, decrease, balance, cost, value ]]
+ */
+function getProductStockValue($clause = [])
+{
+  $ci = &get_instance();
+
+  $categoryId  = ($clause['category_id'] ?? NULL);
+  $productName = ($clause['product_name'] ?? NULL);
+  $warehouseId = ($clause['warehouse_id'] ?? NULL);
+  $startDate   = ($clause['start_date'] ?? NULL);
+  $endDate     = ($clause['end_date'] ?? NULL);
+
+  $beginClause = '';
+  $currentClause = '';
+
+  $isAsset = ($clause['is_asset'] ?? FALSE);
+  $lucretaiMode = FALSE;
+
+  if ($startDate) {
+    $endDate = ($endDate ?? date('Y-m-d'));
+
+    $beginClause   .= "AND date < '{$startDate} 00:00:00'";
+    $currentClause .= "AND date BETWEEN '{$startDate} 00:00:00' AND '{$endDate} 23:59:59'";
+  } else {
+    $endDate = ($endDate ?? date('Y-m-d'));
+    $beginClause .= "AND date < '{$endDate} 00:00:00'";
+  }
+
+  if ($warehouseId) {
+    if (gettype($warehouseId) == 'array') {
+      foreach ($warehouseId as $whId) {
+        $warehouse = $ci->site->getWarehouseByID($whId);
+
+        if ($warehouse->code == 'LUC') $lucretaiMode = TRUE;
+      }
+
+      $wh = implode(',', $warehouseId);
+      $beginClause   .= " AND warehouse_id IN ({$wh})";
+      $currentClause .= " AND warehouse_id IN ({$wh})";
+      unset($wh);
+    } else {
+      $warehouse = $ci->site->getWarehouseByID($warehouseId);
+
+      if ($warehouse && $warehouse->code == 'LUC') $lucretaiMode = TRUE;
+
+      $beginClause   .= " AND warehouse_id = {$warehouseId}";
+      $currentClause .= " AND warehouse_id = {$warehouseId}";
+
+      unset($warehouse);
+    }
+  }
+
+  if ($categoryId) {
+    $beginClause   .= " AND category_id = {$categoryId}";
+    $currentClause .= " AND category_id = {$categoryId}";
+  }
+
+  $query = "products.id AS product_id,
+    products.code AS product_code,
+    products.name AS product_name,
+    units.code AS product_unit,
+    categories.name AS category_name, products.type AS product_type, products.iuse_type AS iuse_type,";
+
+  //* QUERY BEGINNING
+  if ($startDate) {
+    $query .= "(COALESCE(stock_begin_recv.total, 0) - COALESCE(stock_begin_sent.total, 0)) AS beginning,";
+  } else {
+    $query .= "'0' AS beginning,";
+  }
+
+  //* QUERY INCREASE
+  $query .= "COALESCE(stock_recv.total, 0) AS increase,";
+
+  //* QUERY DECREASE
+  $query .= "COALESCE(stock_sent.total, 0) AS decrease,";
+
+  //* QUERY BALANCE
+  if ($startDate) {
+    $query .= "(COALESCE(stock_begin_recv.total, 0) - COALESCE(stock_begin_sent.total, 0) + COALESCE(stock_recv.total, 0) - COALESCE(stock_sent.total, 0)) AS balance,";
+  } else {
+    $query .= "(COALESCE(stock_recv.total, 0) - COALESCE(stock_sent.total, 0)) AS balance,";
+  }
+
+  //* QUERY AVG COST / MARK-ON PRICE
+  if ($lucretaiMode) { // If Lucretai mode.
+    $query .= "products.cost AS cost,";
+    // $query .= "products.avg_cost AS new_cost,";
+  } else {
+    $query .= "products.markon_price AS cost,"; // All outlet except Lucretai.
+  }
+
+  //* QUERY STOCK VALUE
+  $cost = ($lucretaiMode ? 'products.cost' : 'products.markon_price');
+
+  if ($startDate) {
+    $query .= "{$cost} * (COALESCE(stock_begin_recv.total, 0) - COALESCE(stock_begin_sent.total, 0) + COALESCE(stock_recv.total, 0) - COALESCE(stock_sent.total, 0)) AS value";
+  } else {
+    $query .= "{$cost} * (COALESCE(stock_recv.total, 0) - COALESCE(stock_sent.total, 0)) AS value";
+  }
+
+  /* EXECUTE QUERIES */
+  $ci->db->select($query)->from('products');
+
+  // JOIN BEGINNING
+  if ($startDate) {
+    $ci->db
+      ->join("(SELECT product_id, SUM(quantity) AS total FROM stocks WHERE status LIKE 'received' {$beginClause} GROUP BY product_id) stock_begin_recv", 'stock_begin_recv.product_id = products.id', 'left')
+      ->join("(SELECT product_id, SUM(quantity) AS total FROM stocks WHERE status LIKE 'sent' {$beginClause} GROUP BY product_id) stock_begin_sent", 'stock_begin_sent.product_id = products.id', 'left');
+  }
+
+  // JOIN INCREASE OR BALANCE
+  $ci->db
+    ->join("(SELECT product_id, SUM(quantity) AS total FROM stocks WHERE status LIKE 'received' {$currentClause} GROUP BY product_id) stock_recv", 'stock_recv.product_id = products.id', 'left');
+
+  // JOIN DECREASE OR BALANCE
+  $ci->db
+    ->join("(SELECT product_id, SUM(quantity) AS total FROM stocks WHERE status LIKE 'sent' {$currentClause} GROUP BY product_id) stock_sent", 'stock_sent.product_id = products.id', 'left');
+
+  // JOIN UNIT
+  $ci->db
+    ->join('units', 'units.id=products.unit', 'left');
+
+  // JOIN CATEGORY
+  $ci->db
+    ->join('categories', 'categories.id = products.category_id', 'left');
+
+  if ($productName) {
+    $ci->db
+      ->group_start()
+      ->like('products.code', $productName, 'both')
+      ->or_like('products.name', $productName, 'both')
+      ->group_end();
+  }
+
+  if ($categoryId) {
+    $ci->db->where('products.category_id', $categoryId);
+  }
+
+  $ci->db
+    ->where_in('products.type', ['standard']); // Only standard allowed.
+
+  if ($isAsset) {
+    $ci->db->where_in('products.category_id', [2, 14, 16, 17, 18]); // Only Assets and Sub-Assets.
+  } else {
+    $ci->db->where_not_in('products.category_id', [2, 14, 16, 17, 18]); // No Assets and Sub-Assets.
+  }
+
+  $q = $ci->db->get();
+
+  if ($q && $q->num_rows()) {
+    return $q->result();
+  }
+
+  return [];
+}
+/**
  * Get safety stock.
  * @param int $daily_qty Daily quantity.
  * @param int $required_days Required days.
@@ -1393,19 +1593,40 @@ function getQueueDateTime($dateTime)
 {
   $dt = new DateTime($dateTime);
   $hour   = $dt->format('H');
-  $minute = $dt->format('i');
+  $day    = $dt->format('D');
+  $holiday = FALSE;
+  $h = 0;
 
-  if ($hour >= 23 && $minute <= 59) { // Off time.
-    $h = (24 - $hour + 8);
-  } elseif ($hour >= 0 && $hour < 7 && $minute <= 59) { // Next day.
-    $h = (7 - $hour);
-  } else {
-    $h = 0;
+  if (strcasecmp($day, 'Sun') === 0 || strcasecmp($day, 'Sat') === 0) {
+    $holiday = TRUE;
   }
+
+  if ($hour >= 23 || $hour < 7) {
+    $h = ($holiday ? 9 : 7);
+  }
+
+  // if ($hour >= 23 && $minute <= 59) { // Off time.
+  //   $h = (24 - $hour + 8);
+  // } elseif ($hour >= 0 && $hour < 7 && $minute <= 59) { // Next day.
+  //   $h = (7 - $hour);
+  // } else {
+  //   $h = 0;
+  // }
 
   if ($h) $dt->add(new DateInterval("PT{$h}H")); // Period Time $h Hour
 
   return $dt->format('Y-m-d H:i:s');
+}
+
+/**
+ * Get working date and time for employee and customer. (PROGRESS)
+ * @param int $billerid Biller ID
+ * @param string $dateTime Date Time
+ */
+function getWorkingDateTime2($billerId, $dateTime)
+{
+  $ci = &get_instance();
+  $holidays = $ci->site->getHolidays(['biller_id' => $billerId]);
 }
 
 /**
@@ -1561,8 +1782,17 @@ function htmlEncode($html)
  */
 function htmlRemove($html)
 {
-  $decoded = html_entity_decode(rd_trim($html), ENT_HTML5 | ENT_QUOTES | ENT_XHTML, 'UTF-8');
+  $decoded = html_entity_decode(trim($html), ENT_HTML5 | ENT_QUOTES | ENT_XHTML, 'UTF-8');
   return preg_replace('/\<(.*?)\>/', '', $decoded);
+}
+
+/**
+ * Test to see if a request was made from the command line.
+ */
+function isCLI()
+{
+  is_cli();
+  return (PHP_SAPI === 'cli' OR defined('STDIN'));
 }
 
 /**
@@ -1672,6 +1902,27 @@ function isSpecialCustomer($customerId)
   return FALSE;
 }
 
+function isTodayHoliday($checkDate = NULL)
+{
+  $ci = &get_instance();
+
+  $holidays = $ci->holidays;
+  $current  = ($checkDate ? strtotime($checkDate) : time());
+
+  foreach ($holidays as $day) {
+    if (gettype($day) == 'array') {
+      $from = strtotime($day[0] . ' 00:00:00');
+      $to = strtotime($day[1] . ' 23:59:59');
+
+      if ($current >= $from && $current <= $to) return TRUE;
+    } else if (date('Y-m-d', $current) == date('Y-m-d', strtotime($day))) {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
 function isW2PUser($user_id)
 {
   $ci = &get_instance();
@@ -1756,8 +2007,9 @@ function loginPage()
 /**
  * Create mutual exclusion.
  * @param string $name Mutex name.
+ * @param bool $wait Waiting for mutex to finish.
  */
-function mutexCreate($name)
+function mutexCreate($name = NULL, $wait = FALSE)
 {
   if (empty($name)) {
     $name = 'default';
@@ -1765,7 +2017,13 @@ function mutexCreate($name)
 
   $hMutex = fopen(FCPATH . 'mutex/' . $name, 'w');
 
-  if ($hMutex && flock($hMutex, LOCK_EX)) {
+  $param = LOCK_EX; // Lock exclusive
+
+  if (!$wait) {
+    $param |= LOCK_NB;
+  }
+
+  if ($hMutex && flock($hMutex, $param)) {
     return $hMutex;
   }
   return FALSE;
@@ -1790,6 +2048,30 @@ function mutexRelease($hMutex)
     }
   }
   return FALSE;
+}
+
+/**
+ * Optical Character Recognition. Get readable text from image.
+ * @param string $image Image to read as text.
+ * @return array|false Return array of string data or false if error.
+ */
+function ocr($image)
+{
+  if (PHP_OS == 'Linux') {
+    $exe = '/usr/local/tesseract-5.0/bin/tesseract';
+  } else if (PHP_OS == 'WINNT') {
+    $exe = '"C:/Program Files/Tesseract-OCR/tesseract.exe"';
+  }
+
+  if (is_file($image)) {
+    exec("$exe $image stdout", $output);
+  } else {
+    setLastError('Image file is not found.');
+    return FALSE;
+  }
+
+
+  return $output;
 }
 
 /**
@@ -2080,8 +2362,9 @@ function toSN(string $code, string $reference)
 }
 
 /**
- * Convert Warehouse to Biller. See billerToWarehouse.
+ * Convert Warehouse ID to Biller ID See billerToWarehouse.
  * @param int|array $warehouseId Warehouse ID. It can be warehouse id or array of warehouse id.
+ * @return int Return Biller ID.
  */
 function warehouseToBiller($warehouseId)
 {
@@ -2094,7 +2377,7 @@ function warehouseToBiller($warehouseId)
       $warehouse = $ci->site->getWarehouseByID($warehouse_id);
 
       if ($warehouse) {
-        $biller = $ci->site->getBillerByName($warehouse->name);
+        $biller = $ci->site->getBiller(['code' => $warehouse->code]);
 
         if ($biller) {
           $data[] = $biller->id;
@@ -2107,7 +2390,7 @@ function warehouseToBiller($warehouseId)
     $warehouse = $ci->site->getWarehouseByID($warehouseId);
 
     if ($warehouse) {
-      $biller = $ci->site->getBillerByName($warehouse->name);
+      $biller = $ci->site->getBiller(['code' => $warehouse->code]);
 
       if ($biller) {
         return $biller->id;
@@ -2130,18 +2413,20 @@ function XTime($time)
   return "=TIME({$t[0]},{$t[1]},{$t[2]})";
 }
 
-// **************************************************************
-
-if (!function_exists('rd_currency')) {
-  /**
-   * Convert to currency
-   * @deprecated Deprecated 2021-01-14
-   */
-  function rd_currency($num, $decimals = 0)
-  {
-    return number_format(filterDecimal($num), $decimals);
-  }
+/**
+	 * Generic File Loader Helper
+	 *
+	 * @param	string $path File path
+	 * @param	bool $return Whether to return the file output
+	 * @return object|string
+	 */
+function view(string $view, $vars = [], $return = FALSE)
+{
+  $ci = &get_instance();
+  return $ci->load->view($view, $vars, $return);
 }
+
+// **************************************************************
 
 if (!function_exists('rd_debug')) {
   function rd_debug()
@@ -2171,210 +2456,6 @@ if (!function_exists('rd_error')) {
   }
 }
 
-if (!function_exists('rd_excerpt')) {
-  /**
-   * Excerpt text
-   * @param string $text Text to excerpt.
-   * @param int $length Length text to excerpt.
-   * @deprecated Deprecated 2021-03-23
-   */
-  function rd_excerpt($text, $length = 20)
-  {
-    return substr($text, 0, $length - 3) . '...';
-  }
-}
-
-if (!function_exists('rd_format_currency')) {
-  /**
-   * Format decimal number to countable rounded number.
-   * @param string $num Number to format
-   * Ex. 20839.29 => 20840
-   * @deprecated Deprecated 2021-01-14
-   */
-  function rd_format_currency($num, $decimals = 0)
-  {
-    return floatval(number_format(filterDecimal($num), $decimals, '.', ''));
-  }
-}
-
-if (!function_exists('rd_get_adjusted_qty')) {
-  /**
-   * Get adjusted quantity
-   * @deprecated Deprecated 2021-01-14
-   */
-  function rd_get_adjusted_qty($current_qty, $adjustment_qty)
-  {
-    $data = [];
-
-    if ($adjustment_qty > $current_qty) {
-      $data['quantity'] = $adjustment_qty - $current_qty;
-      $data['type']     = 'received';
-    } else if ($adjustment_qty < $current_qty) {
-      $data['quantity'] = $current_qty - $adjustment_qty;
-      $data['type']     = 'sent';
-    }
-    return $data;
-  }
-}
-
-if (!function_exists('rd_get_markon')) {
-  /**
-   * Get markon percent
-   * @deprecated Deprecated 2021-01-14
-   */
-  function rd_get_markon($cost, $markon_price = 0)
-  {
-    return ceil(1 - ($cost / $markon_price)) * 100;
-  }
-}
-
-if (!function_exists('rd_get_month_name')) {
-  /**
-   * Get month name.
-   * @deprecated Deprecated 2021-01-14
-   */
-  function rd_get_month_name($month_index)
-  {
-    switch ($month_index) {
-      case 1:
-        return 'januari';
-      case 2:
-        return 'februari';
-      case 3:
-        return 'maret';
-      case 4:
-        return 'april';
-      case 5:
-        return 'mei';
-      case 6:
-        return 'juni';
-      case 7:
-        return 'juli';
-      case 8:
-        return 'agustus';
-      case 9:
-        return 'september';
-      case 10:
-        return 'oktober';
-      case 11:
-        return 'november';
-      case 12:
-        return 'desember';
-    }
-    return NULL;
-  }
-}
-
-if (!function_exists('rd_get_safe_stock')) {
-  /**
-   * Calculate safety stock from current stock and min. order.
-   * @param float $current_stock Current stock.
-   * @param float $min_order_qty Minimal order quantity.
-   * @param float $safety_stock  Safe stock of current stock.
-   * @deprecated Deprecated 2021-01-14
-   */
-  function rd_get_safe_stock($current_stock, $min_order_qty, $safety_stock)
-  {
-    if ($current_stock < $safety_stock) { // Safe stock (destination_stock < safety_stock)
-      $safe_stock = ceil($safety_stock - $current_stock); // 400 - (-10) = 410 < 224 = false
-      if ($safe_stock <= $min_order_qty) {
-        $safe_stock = $min_order_qty;
-      } else if ($safe_stock > $min_order_qty && $min_order_qty > 0) {
-        $safe_stock = (ceil($safe_stock / $min_order_qty) * $min_order_qty); // (410 / 224) * 224
-      } else {
-        $safe_stock = 1.0; // If min_order_qty == 0
-      }
-    } else {
-      $safe_stock = (!empty($min_order_qty) ? $min_order_qty : 1.0); // Default to 1 if min_order_qty not set.
-    }
-    return $safe_stock;
-  }
-}
-
-if (!function_exists('rd_get_markon_price')) {
-  /**
-   * Get Mark-on price
-   * @deprecated Deprecated 2021-01-14
-   */
-  function rd_get_markon_price($cost, $markon = 0)
-  {
-    return ceil($cost / (1 - ($markon / 100)));
-  }
-}
-
-if (!function_exists('rd_html_encode')) {
-  /**
-   * Encode HTML string.
-   * @deprecated Deprecated 2021-01-14
-   */
-  function rd_html_encode($html)
-  {
-    $stripped = strip_tags($html, '<span><div><a><br><p><b><i><u><img><blockquote><small><ul><ol><li><hr><pre>
-      <code><strong><em><table><tr><td><th><tbody><thead><tfoot><h3><h4><h5><h6>');
-    return htmlentities(rd_trim($stripped), ENT_HTML5 | ENT_QUOTES | ENT_XHTML, 'UTF-8');
-  }
-}
-
-if (!function_exists('rd_html_decode')) {
-  /**
-   * Decode HTML string.
-   * @deprecated Deprecated 2021-01-14
-   */
-  function rd_html_decode($html)
-  {
-    return html_entity_decode(rd_trim($html), ENT_HTML5 | ENT_QUOTES | ENT_XHTML, 'UTF-8');
-  }
-}
-
-if (!function_exists('rd_html_remove')) {
-  /**
-   * Remove HTML string.
-   * @deprecated Deprecated 2021-01-14
-   */
-  function rd_html_remove($html)
-  {
-    $decoded = html_entity_decode(rd_trim($html), ENT_HTML5 | ENT_QUOTES | ENT_XHTML, 'UTF-8');
-    return preg_replace('/\<(.*?)\>/', '', $decoded);
-  }
-}
-
-if (!function_exists('rd_mutex_create')) {
-  /**
-   * @deprecated 2021-02-28 22:40
-   */
-  function rd_mutex_create($mutexName)
-  {
-    if (empty($mutexName)) {
-      throw new \Exception('Mutex Name is not defined.');
-    }
-    $hMutex = fopen(FCPATH . 'mutex/' . $mutexName, 'w');
-    if ($hMutex && flock($hMutex, LOCK_EX)) {
-      return $hMutex;
-    }
-    return FALSE;
-  }
-}
-
-if (!function_exists('rd_mutex_release')) {
-  /**
-   * @deprecated 2021-02-28 22:40
-   */
-  function rd_mutex_release($hMutex)
-  {
-    if ($hMutex) {
-      $meta_data = stream_get_meta_data($hMutex); // Get absolute file name from resource/stream.
-      $filename = $meta_data['uri'];
-      flock($hMutex, LOCK_UN);
-      fclose($hMutex);
-      if (file_exists($filename)) {
-        @unlink($filename);
-        return TRUE;
-      }
-    }
-    return FALSE;
-  }
-}
-
 if (!function_exists('rd_print')) {
   function rd_print($data)
   {
@@ -2386,28 +2467,6 @@ if (!function_exists('rd_print')) {
       echo ($str);
       echo ('</pre>');
     }
-  }
-}
-
-/**
- * Format rekening
- * @deprecated Deprecated 2021-01-21
- */
-if (!function_exists('rd_rekening')) {
-  function rd_rekening($rek)
-  {
-    return (substr($rek, 0, 1) == "'" ? $rek : "'" . $rek);
-  }
-}
-
-/**
- * Round currency
- * @deprecated Deprecated 2021-01-21
- */
-if (!function_exists('rd_round_currency')) {
-  function rd_round_currency($currency)
-  {
-    return round($currency / 100) * 100;
   }
 }
 

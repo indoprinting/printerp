@@ -9,6 +9,5 @@ self.addEventListener('install', function(event) {
  * Executed when installed app make request.
  */
 self.addEventListener('fetch', function(event) {
-  console.log('Service worker making request.');
   return event.request;
 });

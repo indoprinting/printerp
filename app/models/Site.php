@@ -302,7 +302,7 @@ class Site extends MY_Model
     if (!$customer && $this->db->affected_rows()) {
       $cid = $this->db->insert_id();
 
-      addEvent("Created User [{$cid}]: {$data['name']}, {$data['phone']}", 'info');
+      addEvent("Created User [{$cid}: {$data['name']}, {$data['phone']}]", 'info');
       return $cid;
     }
     return FALSE;
@@ -416,6 +416,16 @@ class Site extends MY_Model
     return FALSE;
   }
 
+  public function addHoliday($data)
+  {
+    $this->db->insert('holiday', $data);
+
+    if ($this->db->affected_rows()) {
+      return $this->db->insert_id();
+    }
+    return FALSE;
+  }
+
   /**
    * THE ONLY FUNCTION TO ADD INCOME.
    * @param object $data [ date, amount, note, created_by, attachment, category_id, biller_id, bank_id ]
@@ -460,6 +470,20 @@ class Site extends MY_Model
     return FALSE;
   }
 
+  /**
+   * Add new job.
+   * @param array $data [ controller, method, param ]
+   */
+  public function addJob($data)
+  {
+    $this->db->insert('jobs', $data);
+
+    if ($this->db->affected_rows()) {
+      return $this->db->insert_id();
+    }
+    return FALSE;
+  }
+
   public function addMaintenanceLog($data)
   {
     $data = setCreatedBy($data);
@@ -477,44 +501,46 @@ class Site extends MY_Model
    */
   public function addPayment($data = [])
   { // Add New: For global payments.
-    $ci = $this;
-    $ret = $this->ridintek->mutex('payment')->on('lock', function ($mutex) use ($ci, $data) {
-      if (isset($data['expense_id'])) {
-        $ref = $this->getExpenseByID($data['expense_id'])->reference;
-      } else if (isset($data['income_id'])) {
-        $ref = $this->getIncomeByID($data['income_id'])->reference;
-      } else if (isset($data['sale_id'])) {
-        $ref = $this->getSaleByID($data['sale_id'])->reference;
-      } else if (isset($data['purchase_id'])) {
-        $ref = $this->getStockPurchaseByID($data['purchase_id'])->reference;
-      } else if (isset($data['transfer_id'])) {
-        $ref = $this->getStockTransferByID($data['transfer_id'])->reference;
-      } else if (isset($data['mutation_id'])) {
-        $ref = $this->getBankMutationByID($data['mutation_id'])->reference;
+    $hMutex = mutexCreate('Site_addPayment', TRUE);
+
+    if (isset($data['expense_id'])) {
+      $inv = $this->getExpenseByID($data['expense_id']);
+    } else if (isset($data['income_id'])) {
+      $inv = $this->getIncomeByID($data['income_id']);
+    } else if (isset($data['sale_id'])) {
+      $inv = $this->getSaleByID($data['sale_id']);
+    } else if (isset($data['purchase_id'])) {
+      $inv = $this->getStockPurchaseByID($data['purchase_id']);
+    } else if (isset($data['transfer_id'])) {
+      $inv = $this->getStockTransferByID($data['transfer_id']);
+      $inv->biller_id = warehouseToBiller($inv->to_warehouse_id);
+    } else if (isset($data['mutation_id'])) {
+      $inv = $this->getBankMutationByID($data['mutation_id']);
+    }
+
+    if (empty($data['bank_id'])) return FALSE;
+
+    $data['date']       = ($data['date'] ?? date('Y-m-d H:i:s'));
+    $data['reference']  = $inv->reference;
+    $data['created_by'] = ($data['created_by'] ?? $this->session->userdata('user_id'));
+    $data['biller_id']  = ($inv->biller_id ?? NULL);
+
+    $this->db->insert('payments', $data); // Insert Payment.
+    $insertId = $this->db->insert_id();
+
+    mutexRelease($hMutex);
+
+    if ($this->db->trans_status() !== FALSE) {
+      if ($data['type'] == 'received') {
+        $this->increaseBankAmount($data['bank_id'], $data['amount']);
+      } else if ($data['type'] == 'sent') {
+        $this->decreaseBankAmount($data['bank_id'], $data['amount']);
       }
 
-      if (empty($data['bank_id'])) return FALSE;
+      return $insertId;
+    }
 
-      $data['date']       = ($data['date'] ?? date('Y-m-d H:i:s'));
-      $data['reference']  = $ref;
-      $data['created_by'] = ($data['created_by'] ?? $ci->session->userdata('user_id'));
-
-      $ci->db->trans_start();
-      $ci->db->insert('payments', $data); // Insert Payment.
-      $insert_id = $ci->db->insert_id();
-      $ci->db->trans_complete();
-
-      if ($ci->db->trans_status() !== FALSE) {
-        if ($data['type'] == 'received') {
-          $this->increaseBankAmount($data['bank_id'], $data['amount']);
-        } else if ($data['type'] == 'sent') {
-          $this->decreaseBankAmount($data['bank_id'], $data['amount']);
-        }
-        return $insert_id;
-      }
-      return FALSE;
-    })->create()->close();
-    return $ret;
+    return FALSE;
   }
 
   /**
@@ -955,6 +981,57 @@ class Site extends MY_Model
   }
 
   /**
+   * Add new stock purchase (NEW)
+   * @param array $data []
+   * @param array $items [ product_id, cost, purchased_qty, quantity ]
+   */
+  public function addPurchase($data, $items = [])
+  {
+    $supplier = $this->getSupplierByID($data['supplier_id']);
+
+    $data['reference']     = $this->getReference('purchase');
+    $data['supplier_name'] = $supplier->name;
+
+    if ($items) {
+      $grandTotal = 0;
+
+      foreach ($items as $item) {
+        $grandTotal += ($item['cost'] * $item['purchased_qty']);
+      }
+
+      $data['grand_total'] = $grandTotal;
+    }
+
+    $data = setCreatedBy($data);
+
+    $this->db->insert('purchases', $data);
+
+    if ($this->db->affected_rows()) {
+      $purchaseId = $this->db->insert_id();
+
+      if ($this->getReference('purchase') == $data['reference']) {
+        $this->updateReference('purchase');
+      }
+
+      foreach ($items as $item) {
+        $this->addStockQuantity([
+          'date'          => $data['date'],
+          'purchase_id'   => $purchaseId,
+          'product_id'    => $item['product_id'],
+          'cost'          => $item['cost'],
+          'purchased_qty' => $item['purchased_qty'],
+          'quantity'      => $item['quantity'],
+          'warehouse_id'  => $data['warehouse_id'],
+          'status'        => $data['status'],
+          'spec'          => ($item['spec'] ?? '')
+        ]);
+      }
+      return $purchaseId;
+    }
+    return FALSE;
+  }
+
+  /**
    * THE ONLY FUNCTION TO ADD SALE.
    * @param array $data [ date, *customer_id, *biller_id, *warehouse_id, no_po, note,
    *  discount, shipping, status, payment_status, payment_term, created_by,
@@ -1035,6 +1112,7 @@ class Site extends MY_Model
       'payment_method' => ($data['payment_method'] ?? NULL),
       'use_tb'         => $use_tb,
       'json_data'      => json_encode([
+        'approved'          => ($data['approved'] ?? 0),
         'cashier_by'        => ($data['cashier_by'] ?? ''),
         'source'            => ($data['source'] ?? ''),
         'est_complete_date' => ($data['est_complete_date'] ?? ''),
@@ -1325,37 +1403,37 @@ class Site extends MY_Model
 
       $warehouse = $this->getWarehouseByID($salesTB[0]->to_warehouse_id);
       if (!$warehouse) {
-        $this->rdlog->error('Destination warehouse is not found.');
+        // $this->rdlog->error('Destination warehouse is not found.');
         return FALSE;
       }
 
       $billerIn = $this->getBillerByName($warehouse->name);
       if (!$billerIn) {
-        $this->rdlog->error('Destination biller is not found.');
+        // $this->rdlog->error('Destination biller is not found.');
         return FALSE;
       }
 
       $billerOut = $this->getBillerByID($salesTB[0]->from_biller_id);
       if (!$billerOut) {
-        $this->rdlog->error('Source biller is not found.');
+        // $this->rdlog->error('Source biller is not found.');
         return FALSE;
       }
 
       $banksIn  = $this->getBanks(['biller_id' => $billerIn->id, 'number' => '465461984']);
       if (!$banksIn) {
-        $this->rdlog->error('Destination bank is not found.');
+        // $this->rdlog->error('Destination bank is not found.');
         return FALSE;
       }
 
       $banksOut = $this->getBanks(['biller_id' => $billerOut->id, 'number' => '465461984']);
       if (!$banksOut) {
-        $this->rdlog->error('Source bank is not found.');
+        // $this->rdlog->error('Source bank is not found.');
         return FALSE;
       }
 
       $sysUser = $this->getUserByUsername('system');
       if (!$sysUser) {
-        $this->rdlog->error('System user is not found.');
+        // $this->rdlog->error('System user is not found.');
         return FALSE;
       }
 
@@ -1397,6 +1475,21 @@ class Site extends MY_Model
           }
         }
       }
+    }
+    return FALSE;
+  }
+
+  /**
+   * Add new schedule.
+   * @param array $data [ *biller_id, *valid_date, hour_sun, hour_mon, hour_tue, hour_wed, hour_thu,
+   *  hour_fri, hour_sat ]
+   */
+  public function addSchedule($data)
+  {
+    $this->db->insert('schedule', $data);
+
+    if ($this->db->affected_rows()) {
+      return $this->db->insert_id();
     }
     return FALSE;
   }
@@ -1821,7 +1914,7 @@ class Site extends MY_Model
    * @param array $data
    * [date, *(adjustment_id, internal_use_id, purchase_id, sale_id, transfer_id), saleitem_id,
    * *product_id, cost, price, *quantity, adjustment_qty, spec, *status(sent/received),
-   * *warehouse_id, created_by, updated_by]
+   * *warehouse_id, created_at, created_by, updated_by]
    */
   public function addStockQuantity($data)
   {
@@ -1836,6 +1929,7 @@ class Site extends MY_Model
       $stock_data = [];
 
       $stock_data['date']       = ($data['date'] ?? date('Y-m-d H:i:s'));
+      $stock_data['created_at'] = $stock_data['date'];
       $stock_data['created_by'] = getUserCreator($data['created_by'] ?? NULL);
 
       if (!empty($data['adjustment_id']))   $stock_data['adjustment_id']   = $data['adjustment_id'];
@@ -1958,6 +2052,68 @@ class Site extends MY_Model
       }
 
       addEvent("Created Transfer [{$transfer->id}: {$transfer->reference}]");
+
+      return $transferId;
+    }
+
+    return FALSE;
+  }
+
+  /**
+   * Add new stock transfer. (NEW).
+   * @param array $data [ *from_warehouse_id, *to_warehouse_id, note, attachment ]
+   * @param array $items [[ *product_id, *price, *quantity, spec ]]
+   */
+  public function addTransfer($data, $items)
+  {
+    $data['reference'] = $this->getReference('transfer');
+
+    if ($whFrom = $this->getWarehouseByID($data['from_warehouse_id'])) {
+      $data['from_warehouse_code'] = $whFrom->code;
+    }
+
+    if ($whTo = $this->getWarehouseByID($data['to_warehouse_id'])) {
+      $data['to_warehouse_code'] = $whTo->code;
+    }
+
+    $data['payment_status'] = 'pending'; // Default
+    $data['status'] = 'packing'; // Default
+
+    $data = setCreatedBy($data);
+
+    if ($items && is_array($items)) {
+      $grandTotal = 0;
+
+      foreach ($items as $item) {
+        $grandTotal += ($item['price'] * $item['quantity']);
+      }
+
+      $data['grand_total'] = $grandTotal;
+    }
+
+    $this->db->insert('transfers', $data);
+
+    if ($this->db->affected_rows()) {
+      $transferId = $this->db->insert_id();
+
+      if ($this->getReference('transfer') == $data['reference']) {
+        $this->updateReference('transfer');
+      }
+
+      foreach ($items as $item) {
+        $this->addStockQuantity([
+          'date'         => $data['date'],
+          'transfer_id'  => $transferId,
+          'product_id'   => $item['product_id'],
+          'price'        => $item['price'], // MUST be Mark-On Price.
+          'quantity'     => $item['quantity'],
+          'spec'         => $item['spec'],
+          'status'       => $data['status'],
+          'warehouse_id' => $data['from_warehouse_id']
+        ]);
+      }
+
+      addEvent("Created Transfer [{$transferId}: {$data['reference']}]");
 
       return $transferId;
     }
@@ -2235,15 +2391,25 @@ class Site extends MY_Model
 
   /**
    * Send WA by job service.
-   * @param array $data [ sale_id, api_key, *phone, *message, *send_date ]
+   * @param array $data [ sale_id, api_key, *phone, *message, send_date ]
    */
   public function addWAJob($data)
   {
+    if (empty($data['phone'])) {
+      setLastError('Phone cannot be empty');
+      return NULL;
+    }
+
+    if (empty($data['message'])) {
+      setLastError('Message cannot be empty.');
+      return NULL;
+    }
+
     if (!empty($data['send_date'])) {
       if (date('Y-m-d H:i:s', strtotime($data['send_date'])) == '0000-00-00 00:00:00') {
-        $this->rdlog->error("addWAJob: send_date: {$data['send_date']}");
+        // $this->rdlog->error("addWAJob: send_date: {$data['send_date']}");
       } else {
-        $this->rdlog->info("addWAJob: send_date: {$data['send_date']}");
+        // $this->rdlog->info("addWAJob: send_date: {$data['send_date']}");
       }
     } else {
       $data['send_date'] = date('Y-m-d H:i:s');
@@ -2953,6 +3119,16 @@ class Site extends MY_Model
     return FALSE;
   }
 
+  public function deleteHoliday($clause)
+  {
+    $this->db->delete('holiday', $clause);
+
+    if ($this->db->affected_rows()) {
+      return TRUE;
+    }
+    return FALSE;
+  }
+
   public function deleteGeolocations($clause)
   {
     $clauses = [];
@@ -2986,6 +3162,20 @@ class Site extends MY_Model
   }
 
   /**
+   * Delete job.
+   * @param array $clause [ controller, method, param, result, status ]
+   */
+  public function deleteJobs($clause = [])
+  {
+    $this->db->delete('jobs', $clause);
+
+    if ($this->db->affected_rows()) {
+      return TRUE;
+    }
+    return FALSE;
+  }
+
+  /**
    * Delete old need payment sales. Default 90 days ago. (3 months)
    *
    * @param int $daysAgo Days ago to delete sales.
@@ -2994,7 +3184,7 @@ class Site extends MY_Model
   {
     $sales = [];
 
-    $date = date('Y-m-d', strtotime("-{$daysAgo} month"));
+    $date = date('Y-m-d', strtotime("-{$daysAgo} days"));
 
     $this->db
       ->like('status', 'need_payment', 'none')
@@ -3236,6 +3426,16 @@ class Site extends MY_Model
   {
     if ($this->db->delete('sales_tb', ['id' => $saleTBId])) {
       addEvent("Deleted Sale TB [{$saleTBId}]", 'warning');
+      return TRUE;
+    }
+    return FALSE;
+  }
+
+  public function deleteSchedule($clause)
+  {
+    $this->db->delete('schedule', $clause);
+
+    if ($this->db->affected_rows()) {
       return TRUE;
     }
     return FALSE;
@@ -3596,7 +3796,7 @@ class Site extends MY_Model
     $q = $this->db->get('banks');
     if ($q->num_rows() > 0) {
       foreach ($q->result() as $row) {
-        $row->balance = $row->amount;
+        $row->balance = $row->amount; // Remove soon.
         $data[] = $row;
       }
       return $data;
@@ -3608,27 +3808,27 @@ class Site extends MY_Model
   {
     $q = $this->db->get_where('units', ['base_unit' => null]);
     if ($q->num_rows() > 0) {
-      foreach (($q->result()) as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
 
+  /**
+   * @deprecated Use getBillers() instead.
+   */
   public function getAllBillers()
   {
     $this->db->order_by('name', 'ASC');
     $q = $this->db->get('billers');
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
 
+  /**
+   * @deprecated Use getCategories() instead.
+   */
   public function getAllCategories()
   {
     $this->db->where('parent_code', null)->or_like('parent_code', '', 'none')->order_by('name', 'ASC');
@@ -3636,10 +3836,7 @@ class Site extends MY_Model
     $q = $this->db->get('categories');
 
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -3648,10 +3845,7 @@ class Site extends MY_Model
   {
     $q = $this->db->get('currencies');
     if ($q->num_rows() > 0) {
-      foreach (($q->result()) as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -3660,10 +3854,7 @@ class Site extends MY_Model
   {
     $q = $this->db->get('customer_groups');
     if ($q->num_rows() > 0) {
-      foreach (($q->result()) as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -3672,10 +3863,7 @@ class Site extends MY_Model
   {
     $q = $this->db->get('expense_categories');
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -3684,10 +3872,7 @@ class Site extends MY_Model
   {
     $q = $this->db->get('expenses');
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -3696,32 +3881,28 @@ class Site extends MY_Model
   {
     $q = $this->db->get('incomes');
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
 
   public function getAllMachines() // NEW
   {
-    // Machine Category Code MUST BE "MACH"
+    // Machine Category Code MUST BE "MACH" or "COMP"
     $this->db
       ->select("products.id AS id, products.code AS code, products.name AS name,
         warehouses.id AS warehouse_id")
       ->join('categories', 'categories.id = products.subcategory_id', 'left')
       ->join('warehouses', 'warehouses.name LIKE products.warehouses', 'left')
       ->like('categories.code', 'MACH', 'none')
+      ->or_like('categories.code', 'COMP', 'none')
+      ->where_in('categories.code', ['BUILD', 'COMP', 'ELC', 'MACH'])
       ->order_by('code', 'ASC');
 
     $q = $this->db->get('products');
 
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -3734,10 +3915,7 @@ class Site extends MY_Model
     $q = $this->db->get('machines');
 
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -3746,10 +3924,7 @@ class Site extends MY_Model
   {
     $q = $this->db->get('price_groups');
     if ($q->num_rows() > 0) {
-      foreach (($q->result()) as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -3758,10 +3933,7 @@ class Site extends MY_Model
   {
     $q = $this->db->get('price_ranges');
     if ($q->num_rows() > 0) {
-      foreach (($q->result()) as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -3774,10 +3946,7 @@ class Site extends MY_Model
     $q = $this->db->get('categories');
 
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -3790,10 +3959,7 @@ class Site extends MY_Model
     $this->db->group_end();
     $q = $this->db->get('units');
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -3803,10 +3969,7 @@ class Site extends MY_Model
     $q = $this->db->get('payroll_categories');
 
     if ($q && $q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -3818,10 +3981,7 @@ class Site extends MY_Model
     }
     $q = $this->db->get('sales');
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -3831,10 +3991,7 @@ class Site extends MY_Model
     $this->db->order_by('date', 'ASC');
     $q = $this->db->get('purchases');
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -3843,10 +4000,7 @@ class Site extends MY_Model
   {
     $q = $this->db->get('stocks');
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -3855,10 +4009,7 @@ class Site extends MY_Model
   {
     $q = $this->db->get('suppliers');
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -3868,10 +4019,7 @@ class Site extends MY_Model
     $this->db->order_by('fullname', 'ASC');
     $q = $this->db->get('users');
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -3882,10 +4030,7 @@ class Site extends MY_Model
 
     $q = $this->db->get('warehouses');
     if ($q->num_rows() > 0) {
-      foreach (($q->result()) as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -3906,10 +4051,7 @@ class Site extends MY_Model
 
     $q = $this->db->get('warehouses');
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -3948,9 +4090,9 @@ class Site extends MY_Model
 
   /**
    * THE ONLY FUNCTION TO GET BANKS.
-   * @param array $clause [ active, bic, biller_id, code, holder, name, number, type(sent/received) ]
+   * @param array $clause [ active, bic, biller_id, code, holder, name, number, type(Cash/EDC/INV/Transfer) ]
    */
-  public function getBanks($clause)
+  public function getBanks($clause = [])
   {
     if (!empty($clause['bic'])) {
       $this->db->like('bic', $clause['bic'], 'none');
@@ -3973,16 +4115,25 @@ class Site extends MY_Model
     }
 
     if (!empty($clause['type'])) {
-      $this->db->like('type', $clause['type'], 'none');
+      if (is_array($clause['type'])) {
+        $this->db->where_in('type', $clause['type']);
+      } else {
+        $this->db->like('type', $clause['type'], 'none');
+      }
       unset($clause['type']);
     }
 
-    $q = $this->db->get_where('banks', $clause);
-    if ($q && $q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
+    if (isset($clause['biller_id'])) {
+      if (gettype($clause['biller_id']) == 'array') {
+        $this->db->where_in('biller_id', $clause['biller_id']);
+        unset($clause['biller_id']);
       }
-      return $data;
+    }
+
+    $q = $this->db->get_where('banks', $clause);
+
+    if ($q && $q->num_rows() > 0) {
+      return $q->result();
     }
     return [];
   }
@@ -3991,10 +4142,7 @@ class Site extends MY_Model
   {
     $q = $this->db->get_where('banks', ['number' => $accountNo]);
     if ($q && $q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -4021,19 +4169,13 @@ class Site extends MY_Model
   {
     $q = $this->db->get_where('payments', ['mutation_id' => $mutation_id]);
     if ($q->num_rows() > 0) {
-      $data = [];
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
 
   public function getBankMutations($clause = [])
   {
-    $data = [];
-
     if (!empty($clause['order']) && gettype($clause['order']) == 'array') {
       $this->db->order_by($clause['order'][0], $clause['order'][1]);
       unset($clause['order']);
@@ -4050,11 +4192,9 @@ class Site extends MY_Model
     $q = $this->db->get_where('bank_mutations', $clause);
 
     if ($q && $q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
+      return $q->result();
     }
-    return $data;
+    return [];
   }
 
   /**
@@ -4082,11 +4222,7 @@ class Site extends MY_Model
     }
     $q = $this->db->get('banks');
     if ($q->num_rows() > 0) {
-      $data = [];
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -4125,6 +4261,42 @@ class Site extends MY_Model
     return NULL;
   }
 
+  public function getBiller($clause = [])
+  {
+    if ($row = $this->getBillers($clause)) {
+      return $row[0];
+    }
+    return NULL;
+  }
+
+  public function getBillers($clause = [])
+  {
+    if (!empty($clause['code'])) {
+      $this->db->like('code', $clause['code'], 'none');
+      unset($clause['code']);
+    }
+    if (!empty($clause['email'])) {
+      $this->db->like('email', $clause['email'], 'none');
+      unset($clause['email']);
+    }
+    if (!empty($clause['name'])) {
+      $this->db->like('name', $clause['name'], 'none');
+      unset($clause['name']);
+    }
+
+    if (!empty($clause['order'])) {
+      $this->db->order_by($clause['order'][0], $clause['order'][1]);
+      unset($clause['order']);
+    }
+
+    $q = $this->db->get_where('billers', $clause);
+
+    if ($q && $q->num_rows()) {
+      return $q->result();
+    }
+    return [];
+  }
+
   public function getBillerSuggestions($term, $limit = 10)
   {
     if (empty($term)) return [];
@@ -4132,10 +4304,7 @@ class Site extends MY_Model
     $this->db->where(" (id LIKE '%" . $term . "%' OR name LIKE '%" . $term . "%' OR company LIKE '%" . $term . "%') ");
     $q = $this->db->get_where('billers', ['group_name' => 'biller'], $limit);
     if ($q->num_rows() > 0) {
-      foreach (($q->result()) as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -4151,8 +4320,6 @@ class Site extends MY_Model
 
   public function getCalendars($clause = [])
   {
-    $data = [];
-
     if (isset($clause['start_date'])) {
       $this->db->where("created_at >= '{$clause['start_date']} 00:00:00'");
     }
@@ -4163,22 +4330,16 @@ class Site extends MY_Model
     $q = $this->db->get_where('calendar', $clause);
 
     if ($q && $q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
+      return $q->result();
     }
-    return $data;
+    return [];
   }
 
   public function getCategories()
   { // Added
     $q = $this->db->get('categories');
     if ($q->num_rows() > 0) {
-      $data = [];
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -4224,10 +4385,7 @@ class Site extends MY_Model
     $q = $this->db->get('categories');
 
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -4249,10 +4407,7 @@ class Site extends MY_Model
   {
     $q = $this->db->get_where('combo_items', ['product_id' => $product_id]);
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -4361,10 +4516,7 @@ class Site extends MY_Model
     $q = $this->db->get_where('customers', $clauses);
 
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -4383,10 +4535,7 @@ class Site extends MY_Model
       ->like("customer_groups.name", $group_name, 'none');
     $q = $this->db->get();
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -4398,10 +4547,7 @@ class Site extends MY_Model
     $this->db->limit(20);
     $q = $this->db->get('customers');
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -4417,10 +4563,7 @@ class Site extends MY_Model
     }
     $q = $this->db->get_where('customers', ['group_name' => 'customer'], $limit);
     if ($q->num_rows() > 0) {
-      foreach (($q->result()) as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -4429,11 +4572,7 @@ class Site extends MY_Model
   {
     $q = $this->db->get_where('users', ['customer_id' => $customer_id]);
     if ($q->num_rows() > 0) {
-      $data = [];
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -4474,10 +4613,7 @@ class Site extends MY_Model
     $q = $this->db->get_where('expense_categories', $clause);
 
     if ($q && $q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -4497,10 +4633,7 @@ class Site extends MY_Model
     $this->db->order_by('date', 'DESC');
     $q = $this->db->get_where('payments', ['expense_id' => $expense_id]);
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -4516,10 +4649,11 @@ class Site extends MY_Model
       $this->db->like('reference', $clause['reference']);
     }
 
-    if (!empty($clause['biller_id']) && gettype($clause['biller_id']) == 'array') {
-      $billers = implode(',', $clause['biller_id']);
-      $this->db->where("biller_id IN ({$billers})");
-      unset($clause['biller_id']);
+    if (!empty($clause['biller_id'])) {
+      if (gettype($clause['biller_id']) == 'array') {
+        $this->db->where_in('biller_id', $clause['biller_id']);
+        unset($clause['biller_id']);
+      }
     }
 
     if (!empty($clause['start_date'])) {
@@ -4539,10 +4673,7 @@ class Site extends MY_Model
     $q = $this->db->get_where('expenses', $clause);
 
     if ($q && $q->num_rows()) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -4620,6 +4751,28 @@ class Site extends MY_Model
     return [];
   }
 
+  public function getHoliday($clause = [])
+  {
+    if ($rows = $this->getHolidays($clause)) {
+      return $rows[0];
+    }
+    return NULL;
+  }
+
+  public function getHolidays($clause = [])
+  {
+    if (!empty($clause['biller_id'])) {
+
+    }
+    
+    $q = $this->db->get_where('holiday', $clause);
+
+    if ($q && $q->num_rows()) {
+      return $q->result();
+    }
+    return [];
+  }
+
   public function getIncomeByID($income_id)
   {
     $q = $this->db->get_where('incomes', ['id' => $income_id]);
@@ -4658,10 +4811,7 @@ class Site extends MY_Model
     $q = $this->db->get_where('income_categories', $clause);
 
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $data) {
-        $row[] = $data;
-      }
-      return $row;
+      return $q->result();
     }
     return [];
   }
@@ -4678,10 +4828,11 @@ class Site extends MY_Model
       $this->db->like('reference', $clause['reference']);
     }
 
-    if (!empty($clause['biller_id']) && gettype($clause['biller_id']) == 'array') {
-      $billers = implode(',', $clause['biller_id']);
-      $this->db->where("biller_id IN ({$billers})");
-      unset($clause['biller_id']);
+    if (!empty($clause['biller_id'])) {
+      if (gettype($clause['biller_id']) == 'array') {
+        $this->db->where_in('biller_id', $clause['biller_id']);
+        unset($clause['biller_id']);
+      }
     }
 
     if (!empty($clause['start_date'])) {
@@ -4701,10 +4852,25 @@ class Site extends MY_Model
     $q = $this->db->get_where('incomes', $clause);
 
     if ($q && $q->num_rows()) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
+    }
+    return [];
+  }
+
+  public function getJob($clause = [])
+  {
+    if ($row = $this->getJobs($clause)) {
+      return $row[0];
+    }
+    return NULL;
+  }
+
+  public function getJobs($clause = [])
+  {
+    $this->db->order_by('id', 'ASC');
+    $q = $this->db->get_where('jobs', $clause);
+    if ($q && $q->num_rows()) {
+      return $q->result();
     }
     return [];
   }
@@ -4818,9 +4984,7 @@ class Site extends MY_Model
     $q = $this->db->get_where('maintenance_logs', $clause);
 
     if ($q && $q->num_rows()) {
-      foreach ($q->result() as $row) {
-        $rows[] = $row;
-      }
+      return $q->result();
     }
 
     return $rows;
@@ -4858,10 +5022,7 @@ class Site extends MY_Model
     $q = $this->db->get('notifications');
 
     if ($q->num_rows() > 0) {
-      foreach (($q->result()) as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -4902,7 +5063,7 @@ class Site extends MY_Model
   /**
    * GET PAYMENTS.
    * @param object $clause [ id, expense_id, income_id, mutation_id, purchase_id, sale_id, transfer_id,
-   *   bank_id, method, start_date, end_date, order(column|sort) ]
+   *   bank_id, biller_id, method, start_date, end_date, order(column|sort) ]
    */
   public function getPayments($clause = [])
   {
@@ -4910,6 +5071,7 @@ class Site extends MY_Model
       $this->db->where("date >= '{$clause['start_date']} 00:00:00'");
       unset($clause['start_date']);
     }
+
     if (!empty($clause['end_date'])) {
       $this->db->where("date <= '{$clause['end_date']} 23:59:59'");
       unset($clause['end_date']);
@@ -4920,6 +5082,16 @@ class Site extends MY_Model
       unset($clause['has']);
     }
 
+    if (!empty($clause['nul'])) {
+      $this->db->where("{$clause['nul']} IS NULL");
+      unset($clause['nul']);
+    }
+
+    if (!empty($clause['method'])) {
+      $this->db->like('method', $clause['method'], 'none');
+      unset($clause['method']);
+    }
+
     if (!empty($clause['order']) && is_array($clause['order'])) {
       $this->db->order_by($clause['order'][0], $clause['order'][1]);
       unset($clause['order']);
@@ -4928,11 +5100,7 @@ class Site extends MY_Model
     $q = $this->db->get_where('payments', $clause);
 
     if ($q && $q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -4947,10 +5115,7 @@ class Site extends MY_Model
     $q = $this->db->get_where('payments', ['banks.number' => $accountNo]);
 
     if ($q && $q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -4960,10 +5125,7 @@ class Site extends MY_Model
     $this->db->like('reference', $reference, 'none');
     $q = $this->db->get('payments');
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -4972,11 +5134,7 @@ class Site extends MY_Model
   {
     $q = $this->db->get_where('payments', ['sale_id' => $sale_id]);
     if ($q->num_rows() > 0) {
-      $data = [];
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -5011,6 +5169,9 @@ class Site extends MY_Model
     return NULL;
   }
 
+  /**
+   * MASALAH
+   */
   public function getPaymentValidationBySaleID($id)
   {
     $this->db->order_by('date', 'DESC');
@@ -5021,22 +5182,20 @@ class Site extends MY_Model
     return NULL;
   }
 
+  /**
+   * MASALAH
+   */
   public function getPaymentValidationsByStatus($status)
   {
     if (gettype($status) == 'string')
       $this->db->like('status', $status, 'both');
     if (gettype($status) == 'array') {
-      foreach ($status as $st) {
-        $this->db->or_like('status', $st, 'both');
-      }
+      $this->db->where_in('status', $status);
     }
+
     $q = $this->db->get('payment_validations');
     if ($q->num_rows() > 0) {
-      $data = [];
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -5058,6 +5217,14 @@ class Site extends MY_Model
       if ($q->num_rows() > 0) {
         return $q->row();
       }
+    }
+    return NULL;
+  }
+
+  public function getProduct($clause = [])
+  {
+    if ($rows = $this->getProducts($clause)) {
+      return $rows[0];
     }
     return NULL;
   }
@@ -5138,10 +5305,7 @@ class Site extends MY_Model
     }
     $q = $this->db->get_where('combo_items', ['combo_items.product_id' => $product_id]);
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -5238,10 +5402,7 @@ class Site extends MY_Model
     $q = $this->db->get('products');
 
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -5251,6 +5412,21 @@ class Site extends MY_Model
     $q = $this->db->get_where('product_prices', ['product_id' => $product_id, 'price_group_id' => $price_group_id]);
     if ($q->num_rows() > 0) {
       return $q->row();
+    }
+    return NULL;
+  }
+
+  /**
+   * Get product reports.
+   *
+   * @param array $clause [ int id, str condition, id product_id, str product_code, int warehouse_id,
+   *  str warehouse_code, int created_by, int updated_by, str start_date, str end_date,
+   *  array order_by['created_at', 'ASC'], int limit ]
+   */
+  public function getProductReport($clause = [])
+  {
+    if ($rows = $this->getProductReports($clause)) {
+      return $rows[0];
     }
     return NULL;
   }
@@ -5303,11 +5479,7 @@ class Site extends MY_Model
     $q = $this->db->get_where('product_report', $clauses);
 
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-
-      return $data;
+      return $q->result();
     }
 
     return [];
@@ -5320,45 +5492,40 @@ class Site extends MY_Model
    */
   public function getProducts($clause = [])
   {
-    $clauses = [];
-
     if (!empty($clause['code'])) {
       $this->db->like('code', $clause['code'], 'none');
+      unset($clause['code']);
     }
 
     if (!empty($clause['name'])) {
       $this->db->like('name', $clause['name'], 'none'); // IF ANY ERROR CHANGE TO 'both'
-    }
-
-    if (!empty($clause['active'])) {
-      $this->db->where('active', $clause['active']);
+      unset($clause['name']);
     }
 
     if (!empty($clause['type'])) {
       if (gettype($clause['type']) == 'string') { // If type is String.
-        $this->db->like('type', $clause['type']);
+        $this->db->like('type', $clause['type'], 'none');
       } else if (gettype($clause['type']) == 'array') { // If type is Array.
-        $this->db->group_start();
-        foreach ($clause['type'] as $type) {
-          $this->db->or_like('type', $type);
-        }
-        $this->db->group_end();
+        $this->db->where_in('type', $clause['type']);
       }
+      unset($clause['type']);
     }
 
-    $q = $this->db->get_where('products', $clauses);
+    if (!empty($clause['order'])) {
+      $this->db->order_by($clause['order'][0], $clause['order'][1]);
+      unset($clause['order']);
+    }
+
+    $q = $this->db->get_where('products', $clause);
 
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
 
   /**
-   * (NEW) Get products for select2.
+   * Get products for select2. (NEW)
    * @param string $term Search terms.
    * @param array $opt [ type:(standard|combo|service), limit:10, warehouse_id ]
    */
@@ -5366,11 +5533,12 @@ class Site extends MY_Model
   {
     $hasWarehouse = (isset($opt['warehouse_id']));
 
-    $whQty = ($hasWarehouse ? 'warehouses_products.quantity' : 'products.quantity');
+    $quantity    = ($hasWarehouse ? 'warehouses_products.quantity' : 'products.quantity');
+    $safetyStock = ($hasWarehouse ? 'warehouses_products.safety_stock' : 'products.safety_stock');
 
     $this->db
       ->select("products.id, CONCAT('(', products.code, ') ', products.name) AS text, products.code,
-        products.name, cost, {$whQty}")
+        products.name, cost, markon, markon_price, {$quantity}, {$safetyStock}")
       ->from('products');
 
     if ($hasWarehouse) {
@@ -5447,10 +5615,7 @@ class Site extends MY_Model
 
     $q = $this->db->get('products');
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -5469,6 +5634,64 @@ class Site extends MY_Model
     return NULL;
   }
 
+  /**
+   * Get stock purchase (NEW)
+   * @param array $clause [ id, reference, biller_id, category_id, warehouse_id, supplier_id,
+   *  payment_status, status, start_date, end_date, order ]
+   */
+  public function getPurchase($clause = [])
+  {
+    if ($rows = $this->getPurchases($clause)) {
+      return $rows[0];
+    }
+    return NULL;
+  }
+
+  /**
+   * Get stock purchase (NEW)
+   * @param array $clause [ id, reference, biller_id, category_id, warehouse_id, supplier_id,
+   *  payment_status, status, start_date, end_date, order ]
+   */
+  public function getPurchases($clause = [])
+  {
+    if (!empty($clause['reference'])) {
+      $this->db->like('reference', $clause['reference'], 'none');
+      unset($clause['reference']);
+    }
+
+    if (!empty($clause['payment_status'])) {
+      $this->db->like('payment_status', $clause['payment_status'], 'none');
+      unset($clause['payment_status']);
+    }
+
+    if (!empty($clause['status'])) {
+      $this->db->like('status', $clause['status'], 'none');
+      unset($clause['status']);
+    }
+
+    if (!empty($clause['start_date'])) {
+      $this->db->where("created_at >= '{$clause['start_date']} 00:00:00'");
+      unset($clause['start_date']);
+    }
+
+    if (!empty($clause['end_date'])) {
+      $this->db->where("created_at <= '{$clause['end_date']} 23:59:59'");
+      unset($clause['end_date']);
+    }
+
+    if (!empty($clause['order']) && is_array($clause['order'])) {
+      $this->db->order_by($clause['order'][0], $clause['order'][1]);
+      unset($clause['order']);
+    }
+
+    $q = $this->db->get_where('purchases', $clause);
+
+    if ($q && $q->num_rows()) {
+      return $q->result();
+    }
+    return [];
+  }
+
   public function getQuantityAlertProducts()
   {
     $this->db
@@ -5483,10 +5706,7 @@ class Site extends MY_Model
       ->where('track_quantity', 1);
     $q = $this->db->get('products');
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -5575,7 +5795,7 @@ class Site extends MY_Model
   public function getSaleByID($id)
   {
     $q = $this->db->get_where('sales', ['id' => $id], 1);
-    if ($q->num_rows() > 0) {
+    if ($q && $q->num_rows() > 0) {
       return $q->row();
     }
     return NULL;
@@ -5674,10 +5894,7 @@ class Site extends MY_Model
     $q = $this->db->get_where('sale_items', $clauses);
 
     if ($q && $q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     } else if (!$q) {
       echo 'Database error . ' . $this->db->error()['message']; die();
     }
@@ -5700,10 +5917,7 @@ class Site extends MY_Model
 
     $q = $this->db->get_where('sale_items', ['sale_id' => $sale_id]);
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $data) {
-        $row[] = $data;
-      }
-      return $row;
+      return $q->result();
     }
     return [];
   }
@@ -5712,10 +5926,7 @@ class Site extends MY_Model
   {
     $q = $this->db->get_where('payments', ['sale_id' => $sale_id]);
     if ($q->num_rows() > 0) {
-      foreach (($q->result()) as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -5749,10 +5960,7 @@ class Site extends MY_Model
 
     $q = $this->db->get('products');
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
   }
 
@@ -5763,46 +5971,38 @@ class Site extends MY_Model
    */
   public function getSales($clause = [])
   {
-    $clauses = [];
-
-    if (!empty($clause['customer_id']))    $clauses['customer_id']    = $clause['customer_id'];
-    if (!empty($clause['payment_status'])) $clauses['payment_status'] = $clause['payment_status'];
-    if (!empty($clause['status']))         $clauses['status']         = $clause['status'];
-    if (!empty($clause['use_tb']))         $clauses['use_tb']         = $clause['use_tb'];
-    if (!empty($clause['warehouse_id']))   $clauses['warehouse_id']   = $clause['warehouse_id'];
-    if (!empty($clause['created_by']))     $clauses['created_by']     = $clause['created_by'];
-
     if (!empty($clause['reference'])) {
       $this->db->like('reference', $clause['reference'], 'none');
+      unset($clause['reference']);
     }
 
-    if (!empty($clause['warehouse_id']) && gettype($clause['warehouse_id']) == 'array') {
-      $warehouses = implode(',', $clause['warehouse_id']);
-      $this->db->where("warehouse_id IN ({$warehouses})");
-    } else if (!empty($clause['warehouse_id'])) {
-      $clauses['warehouse_id'] = $clause['warehouse_id'];
+    if (isset($clause['warehouse_id'])) {
+      if (gettype($clause['warehouse_id']) == 'array') {
+        $this->db->where_in('warehouse_id', $clause['warehouse_id']);
+        unset($clause['warehouse_id']);
+      }
     }
 
-    if (!empty($clause['biller_id']) && gettype($clause['biller_id']) == 'array') {
-      $billers = implode(',', $clause['biller_id']);
-      $this->db->where("biller_id IN ({$billers})");
-    } else if (!empty($clause['biller_id'])) {
-      $clauses['biller_id'] = $clause['biller_id'];
+    if (isset($clause['biller_id'])) {
+      if (gettype($clause['biller_id']) == 'array') {
+        $this->db->where_in('biller_id', $clause['biller_id']);
+        unset($clause['biller_id']);
+      }
     }
 
-    if (!empty($clause['start_date']) || !empty($clause['end_date'])) {
-      $startDate = ($clause['start_date'] ?? date('Y-m-d'));
-      $endDate   = ($clause['end_date']   ?? date('Y-m-d'));
-      $this->db->where("date BETWEEN '{$startDate} 00:00:00' AND '{$endDate} 23:59:59'");
+    if (!empty($clause['start_date'])) {
+      $this->db->where("date >= '{$clause['start_date']} 00:00:00'");
+      unset($clause['start_date']);
+    }
+    if (!empty($clause['end_date'])) {
+      $this->db->where("date <= '{$clause['end_date']} 23:59:59'");
+      unset($clause['end_date']);
     }
 
-    $q = $this->db->get_where('sales', $clauses);
+    $q = $this->db->get_where('sales', $clause);
 
     if ($q && $q->num_rows()) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -5816,10 +6016,7 @@ class Site extends MY_Model
       ->like("customer_groups.name", $group_name, 'none');
     $q = $this->db->get();
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -5829,10 +6026,7 @@ class Site extends MY_Model
     $q = $this->db->get_where('sales', ['payment_status' => $status]);
     if ($q->num_rows() > 0) {
       $data = [];
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return [];
+      return $q->result();
     }
   }
 
@@ -5841,10 +6035,7 @@ class Site extends MY_Model
     $this->db->like('reference', $ref, 'both');
     $q = $this->db->get('sales');
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -5882,13 +6073,29 @@ class Site extends MY_Model
     $q = $this->db->get_where('sales_tb', $clauses);
 
     if ($q && $q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
+
+  public function getSchedule($clause = [])
+  {
+    if ($rows = $this->getSchedules($clause)) {
+      return $rows[0];
+    }
+    return NULL;
+  }
+
+  public function getSchedules($clause = [])
+  {
+    $q = $this->db->get_where('schedule', $clause);
+
+    if ($q && $q->num_rows()) {
+      return $q->result();
+    }
+    return [];
+  }
+
 
   public function getSettings()
   {
@@ -5904,17 +6111,6 @@ class Site extends MY_Model
     $settings = $this->getSettings();
     if ($settings) {
       return json_decode($settings->settings_json);
-    }
-    return NULL;
-  }
-
-
-
-  public function getSmsSettings()
-  {
-    $q = $this->db->get('sms_settings');
-    if ($q->num_rows() > 0) {
-      return $q->row();
     }
     return NULL;
   }
@@ -6073,10 +6269,7 @@ class Site extends MY_Model
     $q = $this->db->get_where('internal_uses', $clauses);
 
     if ($q && $q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -6119,10 +6312,7 @@ class Site extends MY_Model
     $q = $this->db->get();
 
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -6134,41 +6324,38 @@ class Site extends MY_Model
    */
   public function getStockOpnames($clause = [])
   {
-    $clauses = [];
-
-    if (!empty($clause['id'])) $clauses['id'] = $clause['id'];
-    if (!empty($clause['adjustment_plus_id'])) $clauses['adjustment_plus_id'] = $clause['adjustment_plus_id'];
-    if (!empty($clause['adjustment_min_id'])) $clauses['adjustment_min_id'] = $clause['adjustment_min_id'];
     if (!empty($clause['status'])) {
       $this->db->like('status', $clause['status']);
     }
 
-    if (!empty($clause['warehouse_id']) && gettype($clause['warehouse_id']) == 'array') {
-      $warehouses = implode(',', $clause['warehouse_id']);
-      $this->db->where("warehouse_id IN ({$warehouses})");
-    } else if (!empty($clause['warehouse_id'])) {
-      $clauses['warehouse_id'] = $clause['warehouse_id'];
+    if (isset($clause['warehouse_id'])) {
+      if (gettype($clause['warehouse_id']) == 'array') {
+        $whIds = implode(',', $clause['warehouse_id']);
+        $this->db->where("warehouse_id IN ({$whIds})");
+        unset($clause['warehouse_id']);
+      }
     }
 
-    if (!empty($clause['warehouse_code'])) {
-      $this->db->like('warehouse_code', $clause['warehouse_code']);
+    if (isset($clause['warehouse_code'])) {
+      if (gettype($clause['warehouse_code']) == 'array') {
+        $whCodes = implode(',', $clause['warehouse_code']);
+        $this->db->where("warehouse_code IN ({$whCodes})");
+        unset($clause['warehouse_code']);
+      }
     }
-    if (!empty($clause['created_by'])) $clauses['created_by'] = $clause['created_by'];
-    if (!empty($clause['updated_by'])) $clauses['updated_by'] = $clause['updated_by'];
 
     if (!empty($clause['start_date'])) {
       $this->db->where("date >= '{$clause['start_date']} 00:00:00'");
+      unset($clause['start_date']);
     }
     if (!empty($clause['end_date'])) {
       $this->db->where("date <= '{$clause['end_date']} 23:59:59'");
+      unset($clause['end_date']);
     }
 
-    $q = $this->db->get_where('stock_opnames', $clauses);
+    $q = $this->db->get_where('stock_opnames', $clause);
     if ($q && $q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -6201,10 +6388,7 @@ class Site extends MY_Model
     $q = $this->db->get('warehouses_products');
 
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -6231,10 +6415,7 @@ class Site extends MY_Model
     $this->db->order_by('date', 'DESC');
     $q = $this->db->get_where('payments', ['purchase_id' => $purchase_id]);
     if ($q->num_rows() > 0) {
-      foreach (($q->result()) as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -6243,17 +6424,27 @@ class Site extends MY_Model
    * THE ONLY FUNCTION TO GET STOCK PURCHASES.
    * @param array $clause [ id, warehouse_id, start_date, end_date, order[column, sort]]
    */
-  public function getStockPurchases($clause)
+  public function getStockPurchases($clause = [])
   {
     if (!empty($clause['reference'])) {
       $this->db->like('reference', $clause['reference'], 'none');
       unset($clause['reference']);
     }
 
-    if (!empty($clause['warehouse_id']) && gettype($clause['warehouse_id']) == 'array') {
-      $warehouses = implode(',', $clause['warehouse_id']);
-      $this->db->where("warehouse_id IN ({$warehouses})");
-      unset($clause['warehouse_id']);
+    if (isset($clause['biller_id'])) {
+      if (gettype($clause['biller_id']) == 'array') {
+        $billers = implode(',', $clause['biller_id']);
+        $this->db->where("biller_id IN ({$billers})");
+        unset($clause['biller_id']);
+      }
+    }
+
+    if (isset($clause['warehouse_id'])) {
+      if (gettype($clause['warehouse_id']) == 'array') {
+        $warehouses = implode(',', $clause['warehouse_id']);
+        $this->db->where("warehouse_id IN ({$warehouses})");
+        unset($clause['warehouse_id']);
+      }
     }
 
     if (!empty($clause['start_date'])) {
@@ -6261,12 +6452,11 @@ class Site extends MY_Model
       unset($clause['start_date']);
     }
     if (!empty($clause['end_date'])) {
-      $this->db->where("date <= '{$clause['end_date']} 23:23:59'");
+      $this->db->where("date <= '{$clause['end_date']} 23:59:59'");
       unset($clause['end_date']);
     }
 
     if (!empty($clause['order']) && gettype($clause['order']) == 'array') {
-      // $clause['order'][0] = 'created_at | $clause['order'][1] = 'ASC'
       $this->db->order_by($clause['order'][0], $clause['order'][1]);
       unset($clause['order']);
     }
@@ -6274,10 +6464,7 @@ class Site extends MY_Model
     $q = $this->db->get_where('purchases', $clause);
 
     if ($q && $q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -6368,10 +6555,7 @@ class Site extends MY_Model
     $q = $this->db->get_where('stocks', $clause);
 
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -6408,10 +6592,7 @@ class Site extends MY_Model
   {
     $q = $this->db->get_where('payments', ['transfer_id' => $transfer_id]);
     if ($q->num_rows() > 0) {
-      foreach (($q->result()) as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -6420,41 +6601,47 @@ class Site extends MY_Model
    * THE ONLY FUNCTION TO GET STOCK TRANSFERS.
    * @param array $clause [ id, from_warehouse_id to_warehouse_id, start_date, end_date ]
    */
-  public function getStockTransfers($clause)
+  public function getStockTransfers($clause = [])
   {
-    $clauses = [];
-
-    if (!empty($clause['id'])) $clauses['id'] = $clause['id'];
     if (!empty($clause['reference'])) {
       $this->db->like('reference', $clause['reference'], 'none');
+      unset($clause['reference']);
     }
 
-    if (!empty($clause['from_warehouse_id']) && gettype($clause['from_warehouse_id']) == 'array') {
-      $from_warehouses = implode(',', $clause['from_warehouse_id']);
-      $this->db->where("from_warehouse_id IN ({$from_warehouses})");
-    } else if (!empty($clause['from_warehouse_id'])) {
-      $clauses['from_warehouse_id'] = $clause['from_warehouse_id'];
-    }
-
-    if (!empty($clause['to_warehouse_id']) && gettype($clause['to_warehouse_id']) == 'array') {
-      $to_warehouses = implode(',', $clause['to_warehouse_id']);
-      $this->db->where("to_warehouse_id IN ({$to_warehouses})");
-    } else if (!empty($clause['to_warehouse_id'])) {
-      $clauses['to_warehouse_id'] = $clause['to_warehouse_id'];
-    }
-
-    if (!empty($clause['start_date']) || !empty($clause['end_date'])) {
-      $startDate = ($clause['start_date'] ?? date('Y-m-') . '01');
-      $endDate   = ($clause['end_date']   ?? date('Y-m-d'));
-      $this->db->where("date BETWEEN '{$startDate} 00:00:00' AND '{$endDate} 23:59:59'");
-    }
-
-    $q = $this->db->get_where('transfers', $clauses);
-    if ($q && $q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
+    if (isset($clause['from_warehouse_id'])) {
+      if (gettype($clause['from_warehouse_id']) == 'array') {
+        $from_warehouses = implode(',', $clause['from_warehouse_id']);
+        $this->db->where("from_warehouse_id IN ({$from_warehouses})");
+        unset($clause['from_warehouse_id']);
       }
-      return $data;
+    }
+
+    if (isset($clause['to_warehouse_id'])) {
+      if (gettype($clause['to_warehouse_id']) == 'array') {
+        $to_warehouses = implode(',', $clause['to_warehouse_id']);
+        $this->db->where("to_warehouse_id IN ({$to_warehouses})");
+        unset($clause['to_warehouse_id']);
+      }
+    }
+
+    if (!empty($clause['start_date'])) {
+      $this->db->where("date >= '{$clause['start_date']} 00:00:00'");
+      unset($clause['start_date']);
+    }
+    if (!empty($clause['end_date'])) {
+      $this->db->where("date <= '{$clause['end_date']} 23:59:59'");
+      unset($clause['end_date']);
+    }
+
+    if (!empty($clause['order']) && gettype($clause['order']) == 'array') {
+      $this->db->order_by($clause['order'][0], $clause['order'][1]);
+      unset($clause['order']);
+    }
+
+    $q = $this->db->get_where('transfers', $clause);
+
+    if ($q && $q->num_rows() > 0) {
+      return $q->result();
     }
     return [];
   }
@@ -6466,10 +6653,7 @@ class Site extends MY_Model
     $q = $this->db->get('categories');
 
     if ($q->num_rows() > 0) {
-      foreach (($q->result()) as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -6491,10 +6675,7 @@ class Site extends MY_Model
     $q = $this->db->get('categories');
 
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -6505,10 +6686,7 @@ class Site extends MY_Model
     $this->db->like('base_unit', $unit->code);
     $q = $this->db->get('units');
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -6556,10 +6734,7 @@ class Site extends MY_Model
     $this->db->where('supplier_id', $supplier_id);
     $q = $this->db->get('products');
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -6575,10 +6750,7 @@ class Site extends MY_Model
     }
     $q = $this->db->get('suppliers', $limit);
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -6588,10 +6760,7 @@ class Site extends MY_Model
     $q = $this->db->get_where('users', ['supplier_id' => $supplier_id]);
     if ($q->num_rows() > 0) {
       $data = [];
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -6645,9 +6814,7 @@ class Site extends MY_Model
     $q = $this->db->get_where('trackingpod', $clause);
 
     if ($q && $q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $res[] = $row;
-      }
+      return $q->result();
     }
     return $res;
   }
@@ -6670,9 +6837,7 @@ class Site extends MY_Model
     $q = $this->db->get_where('trackingpod', $clause);
 
     if ($q && $q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $res[] = $row;
-      }
+      return $q->result();
     }
 
     return $res;
@@ -6701,6 +6866,59 @@ class Site extends MY_Model
       }
     }
     return $items;
+  }
+
+  public function getTransfer($clause = [])
+  {
+    if ($rows = $this->getTransfers($clause)) {
+      return $rows[0];
+    }
+    return NULL;
+  }
+
+  /**
+   * Get stock transfers (NEW)
+   * @param array $clause [ id, reference, from_warehouse_id, to_warehouse_id,
+   *  payment_status, status, start_date, end_date, order ]
+   */
+  public function getTransfers($clause = [])
+  {
+    if (!empty($clause['reference'])) {
+      $this->db->like('reference', $clause['reference'], 'none');
+      unset($clause['reference']);
+    }
+
+    if (!empty($clause['payment_status'])) {
+      $this->db->like('payment_status', $clause['payment_status'], 'none');
+      unset($clause['payment_status']);
+    }
+
+    if (!empty($clause['status'])) {
+      $this->db->like('status', $clause['status'], 'none');
+      unset($clause['status']);
+    }
+
+    if (!empty($clause['start_date'])) {
+      $this->db->where("created_at >= '{$clause['start_date']} 00:00:00'");
+      unset($clause['start_date']);
+    }
+
+    if (!empty($clause['end_date'])) {
+      $this->db->where("created_at <= '{$clause['end_date']} 23:59:59'");
+      unset($clause['end_date']);
+    }
+
+    if (!empty($clause['order']) && is_array($clause['order'])) {
+      $this->db->order_by($clause['order'][0], $clause['order'][1]);
+      unset($clause['order']);
+    }
+
+    $q = $this->db->get_where('transfers', $clause);
+
+    if ($q && $q->num_rows()) {
+      return $q->result();
+    }
+    return [];
   }
 
   public function getUnitByCode($code)
@@ -6739,10 +6957,7 @@ class Site extends MY_Model
         ->group_end();
       $q = $this->db->get('units');
       if ($q->num_rows() > 0) {
-        foreach ($q->result() as $row) {
-          $data[] = $row;
-        }
-        return $data;
+        return $q->result();
       }
     }
     return [];
@@ -6762,10 +6977,7 @@ class Site extends MY_Model
         ->order_by('id', 'ASC');
       $q = $this->db->get('units');
       if ($q->num_rows() > 0) {
-        foreach ($q->result() as $row) {
-          $data[] = $row;
-        }
-        return $data;
+        return $q->result();
       }
     }
     return [];
@@ -6892,26 +7104,13 @@ class Site extends MY_Model
 
   public function getUsers($clause = [])
   {
-    $clauses = [];
-
-    if (!empty($clause['id']))           $clauses['users.id']     = $clause['id'];
-    if (!empty($clause['group_id']))     $clauses['group_id']     = $clause['group_id'];
-    if (!empty($clause['biller_id']))    $clauses['biller_id'] = $clause['biller_id'];
-    if (!empty($clause['warehouse_id'])) $clauses['warehouse_id'] = $clause['warehouse_id'];
-
     $this->db->select('users.*, groups.name AS group_name');
     $this->db->join('groups', 'groups.id = users.group_id', 'left');
 
-    $this->db->where('users.active', 1);
-
-    $q = $this->db->get_where('users', $clauses);
+    $q = $this->db->get_where('users', $clause);
 
     if ($q->num_rows() > 0) {
-      $data = [];
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -6929,10 +7128,7 @@ class Site extends MY_Model
     }
     $q = $this->db->get('users', $limit);
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -6953,9 +7149,7 @@ class Site extends MY_Model
     $q = $this->db->get_where('wa_job', $clause);
 
     if ($q && $q->num_rows()) {
-      foreach ($q->result() as $row) {
-        $rows[] = $row;
-      }
+      return $q->result();
     }
     return $rows;
   }
@@ -7011,22 +7205,37 @@ class Site extends MY_Model
     }
     $q = $this->db->get_where('warehouses_products', ['product_id' => $product_id]);
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
 
+  public function getWarehouse($clause = [])
+  {
+    if ($row = $this->getWarehouses($clause)) {
+      return $row[0];
+    }
+    return NULL;
+  }
+
   public function getWarehouses($clause = [])
   {
+    if (!empty($clause['code'])) {
+      $this->db->like('code', $clause['code'], 'none');
+      unset($clause['code']);
+    }
+    if (!empty($clause['name'])) {
+      $this->db->like('name', $clause['name'], 'none');
+      unset($clause['name']);
+    }
+    if (!empty($clause['order'])) {
+      $this->db->order_by($clause['order'][0], $clause['order'][1]);
+      unset($clause['order']);
+    }
+
     $q = $this->db->get_where('warehouses', $clause);
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -7162,6 +7371,7 @@ class Site extends MY_Model
     $this->db
       ->select('banks.number, banks.name, banks.holder, banks.type')
       ->where('active', 1)
+      ->where("banks.number <> '2222004005'")
       ->group_start()
       ->like('banks.type', 'Transfer')
       ->or_like('banks.type', 'EDC')
@@ -7170,7 +7380,7 @@ class Site extends MY_Model
 
     $q = $this->db->get('banks');
 
-    if ($q->num_rows() > 0) {
+    if ($q && $q->num_rows() > 0) {
 
       $curl = curl_init(base_url('api/v1/mutasibank/accounts'));
 
@@ -7193,13 +7403,13 @@ class Site extends MY_Model
       }
 
       foreach ($q->result() as $row) { // Grouped by bank number.
-        $banks = $this->getAllBanks();
+        $banks = $this->getBanks();
         $mutasi_bank = NULL;
-        $total_balance = 0;
+        $totalBalance = 0;
 
         foreach ($banks as $bank) { // Collect balance.
           if (strcmp($row->number, $bank->number) === 0) {
-            $total_balance += $bank->balance;
+            $totalBalance += $bank->amount;
           }
         }
 
@@ -7216,7 +7426,7 @@ class Site extends MY_Model
           $recon_data = [
             'erp_acc_name' => $row->holder,
             'account_no'   => $row->number,
-            'amount_erp'   => $total_balance
+            'amount_erp'   => $totalBalance
           ];
 
           if ($mutasi_bank) {
@@ -7231,7 +7441,7 @@ class Site extends MY_Model
           $recon_data = [
             'erp_acc_name' => $row->holder,
             'account_no'   => $row->number,
-            'amount_erp'   => $total_balance
+            'amount_erp'   => $totalBalance
           ];
 
           if ($mutasi_bank) {
@@ -7642,7 +7852,7 @@ class Site extends MY_Model
   {
     $sales = [];
 
-    $this->syncPaymentValidations();
+    // $this->syncPaymentValidations(); // Cause memory crash (looping).
 
     if (!empty($clause['sale_id'])) {
       $saleType = gettype($clause['sale_id']);
@@ -7655,7 +7865,7 @@ class Site extends MY_Model
         die("syncSales: unknown data type '" . gettype($clause['sale_id']) . "'");
       }
     } else { // Default if sale_id is NULL.
-      $sales = $this->getSales($clause);
+      $sales = $this->getSales();
     }
 
     if (empty($sales)) die('Why sales is empty?');
@@ -7811,7 +8021,7 @@ class Site extends MY_Model
       if (isset($saleJS->source) && $saleJS->source == 'W2P') {
         if ($sale->status != $saleStatus || $sale->payment_status != $paymentStatus)
         {
-          $this->rdlog->info("Dispatching sale {$sale->reference} to Web2Print by syncSales.");
+          // $this->rdlog->info("Dispatching sale {$sale->reference} to Web2Print by syncSales.");
           dispatchW2PSale($sale->id);
         }
       }
@@ -8289,6 +8499,16 @@ class Site extends MY_Model
     return FALSE;
   }
 
+  public function updateHoliday($id, $data)
+  {
+    $this->db->update('holiday', $data, ['id' => $id]);
+
+    if ($this->db->affected_rows()) {
+      return TRUE;
+    }
+    return FALSE;
+  }
+
   public function updateIncome($income_id, $data)
   {
     $this->db->trans_start();
@@ -8328,6 +8548,21 @@ class Site extends MY_Model
   }
 
   /**
+   * Update job.
+   * @param int $jobId Job ID.
+   * @param array $data [ controller, method, param, result, status ]
+   */
+  public function updateJob($jobId, $data)
+  {
+    $this->db->update('jobs', $data, ['id' => $jobId]);
+
+    if ($this->db->affected_rows()) {
+      return TRUE;
+    }
+    return FALSE;
+  }
+
+  /**
    * THE ONLY FUNCTION TO UPDATE PAYMENT.
    * @param int $id Payment ID.
    * @param array $data [ date, expense_id, income_id, mutation_id, purchase_id, sale_id, transfer_id,
@@ -8354,6 +8589,7 @@ class Site extends MY_Model
       if (!empty($data['transfer_id'])) $payment_data['transfer_id'] = $data['transfer_id'];
       if (!empty($data['reference']))   $payment_data['reference']   = $data['reference'];
       if (!empty($data['bank_id']))     $payment_data['bank_id']     = $data['bank_id'];
+      if (!empty($data['biller_id']))   $payment_data['biller_id']   = $data['biller_id'];
       if (!empty($data['method']))      $payment_data['method']      = $data['method'];
       if (isset($data['amount']))       $payment_data['amount']      = $data['amount'];
       if (!empty($data['created_by']))  $payment_data['created_by']  = $data['created_by'];
@@ -8723,6 +8959,63 @@ class Site extends MY_Model
     return FALSE;
   }
 
+  public function updatePurchase($purchaseId, $data, $items = [])
+  {
+    if (!empty($data['supplier_id'])) {
+      $supplier = $this->getSupplierByID($data['supplier_id']);
+      $data['supplier_name']  = $supplier->name;
+    }
+
+    if (!empty($data['warehouse_id'])) {
+      $warehouse = $this->getWarehouseByID($data['warehouse_id']);
+      $data['warehouse_code'] = $warehouse->code;
+    }
+
+    if ($items && is_array($items)) {
+      $grandTotal = 0; $receivedValue = 0;
+
+      foreach ($items as $item) {
+        $grandTotal += ($item['cost'] * $item['purchased_qty']);
+        $receivedValue += ($item['cost'] * $item['quantity']);
+      }
+
+      $data['grand_total']    = $grandTotal;
+      $data['received_value'] = $receivedValue;
+    }
+
+    $data = setUpdatedBy($data);
+
+    $this->db->update('purchases', $data, ['id' => $purchaseId]);
+
+    if ($this->db->affected_rows()) {
+      if ($items && is_array($items)) {
+        $purchase = $this->getStockPurchaseByID($purchaseId); // Load new purchase.
+        $this->deleteStockQuantity(['purchase_id' => $purchaseId]);
+
+        $data['status'] = ($data['status'] == 'received_partial' ? 'received' : $data['status']);
+
+        foreach ($items as $item) {
+          $this->addStockQuantity([ // Add new item if not exists.
+            'date'          => $data['date'],
+            'purchase_id'   => $purchaseId,
+            'product_id'    => $item['product_id'],
+            'cost'          => $item['cost'],
+            'purchased_qty' => $item['purchased_qty'],
+            'quantity'      => $item['quantity'],
+            'spec'          => $item['spec'],
+            'status'        => $data['status'],
+            'warehouse_id'  => $data['warehouse_id'],
+            'created_by'    => ($data['created_by'] ?? $purchase->created_by),
+            'updated_by'    => ($data['updated_by'] ?? $this->session->userdata('user_id')),
+            'json_data'     => $item['json_data']
+          ]);
+        }
+      }
+      return TRUE;
+    }
+    return FALSE;
+  }
+
   /**
    * THE ONLY FUNCTION TO UPDATE SALE.
    * @param int $sale_id Sale ID.
@@ -8779,6 +9072,7 @@ class Site extends MY_Model
         // Sale JSON
         $saleJS = getJSON($sale->json_data);
 
+        if (!empty($data['approved']))                $saleJS->approved                = $data['approved'];
         if (!empty($data['cashier_by']))              $saleJS->cashier_by              = $data['cashier_by'];
         if (!empty($data['source']))                  $saleJS->source                  = $data['source'];
         if (!empty($data['est_complete_date']))       $saleJS->est_complete_date       = $data['est_complete_date'];
@@ -9043,6 +9337,16 @@ class Site extends MY_Model
     return FALSE;
   }
 
+  public function updateSchedule($id, $data)
+  {
+    $this->db->update('schedule', $data, ['id' => $id]);
+
+    if ($this->db->affected_rows()) {
+      return TRUE;
+    }
+    return FALSE;
+  }
+
   /**
    * THE ONLY UPDATE ADJUSTMENT STOCK QUANTITY FUNCTIONS.
    */
@@ -9276,28 +9580,14 @@ class Site extends MY_Model
       $data['warehouse_name'] = $warehouse->name;
     }
 
-    $this->db->trans_start();
     $this->db->update('purchases', $data, ['id' => $purchase_id]);
-    $this->db->trans_complete();
 
-    if ($this->db->trans_status() !== FALSE) {
-      if ($items) {
-        $purchase = $this->getStockPurchaseByID($purchase_id);
+    if ($this->db->affected_rows()) {
+      if ($items && is_array($items)) {
+        $purchase = $this->getStockPurchaseByID($purchase_id); // Load new purchase.
         $this->deleteStockQuantity(['purchase_id' => $purchase_id]);
 
         foreach ($items as $item) {
-          $product = $this->getProductByID($item['product_id']);
-          if ($data['status'] == 'received' && $product->unit != $item['unit_id']) {
-            $units = $this->getUnitsByBUID($product->unit);
-            if ($units) {
-              foreach ($units as $unit) {
-                if ($unit->id == $item['unit_id']) {
-                  $item['quantity'] = unitToBaseQty($item['purchased_qty'], $unit); // 1 => 500
-                }
-              }
-            }
-          }
-
           $this->addStockQuantity([ // Add new item if not exists.
             'date'          => $data['date'],
             'purchase_id'   => $purchase_id,
@@ -9310,7 +9600,7 @@ class Site extends MY_Model
             'unit_id'       => $item['unit_id'],
             'warehouse_id'  => $data['warehouse_id'],
             'created_by'    => ($data['created_by'] ?? $purchase->created_by),
-            'updated_by'    => $this->session->userdata('user_id'),
+            'updated_by'    => ($data['updated_by'] ?? $this->session->userdata('user_id')),
             'json_data'     => $item['json_data']
           ]);
         }
@@ -9559,6 +9849,110 @@ class Site extends MY_Model
         }
       }
 
+      return TRUE;
+    }
+    return FALSE;
+  }
+
+  /**
+   * Update stock transfer (NEW)
+   * @param int $transferId Transfer ID
+   * @param array $data [ from_warehouse_id, to_warehouse_id, note, paid, payment_status, status,
+   *  received_date, sent_date, attachment ]
+   * @param array $items [ *product_id, *price, *quantity, spec ]
+   */
+  public function updateTransfer($transferId, $data, $items = [])
+  {
+    $transfer = $this->getTransfer(['id' => $transferId]);
+    $transferJS = getJSON($transfer->json);
+
+    if ($whFrom = $this->getWarehouse(['id' => $data['from_warehouse_id']])) {
+      $data['from_warehouse_code'] = $whFrom->code;
+    }
+
+    if ($whTo = $this->getWarehouse(['id' => $data['to_warehouse_id']])) {
+      $data['to_warehouse_code'] = $whTo->code;
+    }
+
+    if (!empty($data['sent_date'])) {
+      $transferJS->sent_date = $data['sent_date'];
+      unset($data['sent_date']);
+    }
+
+    if (!empty($data['received_date'])) {
+      $transferJS->received_date = $data['received_date'];
+      unset($data['received_date']);
+    }
+
+    if ($transferJS) {
+      $data['json'] = json_encode($transferJS);
+    }
+
+    if ($items && is_array($items)) {
+      $grandTotal = 0;
+
+      foreach ($items as $item) {
+        $grandTotal += ($item['price'] * $item['quantity']);
+      }
+
+      $data['grand_total'] = $grandTotal;
+    }
+
+    $data = setUpdatedBy($data);
+
+    $this->db->update('transfers', $data, ['id' => $transferId]);
+
+    if ($this->db->affected_rows()) {
+      $transfer = $this->getTransfer(['id' => $transferId]);
+      $transferJS = getJSON($transfer->json);
+
+      if ($items) {
+        $this->deleteStockQuantity(['transfer_id' => $transferId]);
+
+        foreach ($items as $item) {
+          if ($data['status'] == 'received' || $data['status'] == 'received_partial') {
+            $this->increaseStockQuantity([
+              'date'         => ($transferJS->received_date ?? $transfer->date),
+              'transfer_id'  => $transferId,
+              'product_id'   => $item['product_id'],
+              'price'        => $item['price'], // Must mark-on price.
+              'quantity'     => $item['quantity'],
+              'spec'         => $item['spec'],
+              'warehouse_id' => $data['to_warehouse_id'],
+              'created_by'   => ($data['created_by'] ?? $transfer->created_by),
+              'updated_by'   => $data['updated_by'],
+              'updated_at'   => date('Y-m-d H:i:s')
+            ]);
+
+            $this->decreaseStockQuantity([
+              'date'         => ($transferJS->sent_date ?? $transfer->date),
+              'transfer_id'  => $transferId,
+              'product_id'   => $item['product_id'],
+              'price'        => $item['price'], // Must mark-on price.
+              'quantity'     => $item['quantity'],
+              'spec'         => $item['spec'],
+              'warehouse_id' => $data['from_warehouse_id'],
+              'created_by'   => ($data['created_by'] ?? $transfer->created_by),
+              'updated_by'   => $data['updated_by'],
+              'updated_at'   => date('Y-m-d H:i:s')
+            ]);
+          } else { // packing, sent
+            $this->addStockQuantity([
+              'date'         => $data['date'],
+              'transfer_id'  => $transferId,
+              'product_id'   => $item['product_id'],
+              'price'        => $item['price'], // Must mark-on price / warehouse price.
+              'quantity'     => $item['quantity'],
+              'spec'         => $item['spec'],
+              'status'       => $data['status'],
+              'warehouse_id' => $data['from_warehouse_id'],
+              'created_by'   => ($data['created_by'] ?? $transfer->created_by),
+              'updated_by'   => $data['updated_by'],
+              'updated_at'   => date('Y-m-d H:i:s')
+            ]);
+          }
+        }
+      }
       return TRUE;
     }
     return FALSE;

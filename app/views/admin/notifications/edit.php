@@ -40,7 +40,7 @@
                 'warning' => 'Warning'
               ];
             ?>
-            <?= form_dropdown('type', $tp, $notification->type, 'class="form-control" data-placeholder="Select Message Type" style="width:100%;"'); ?>
+            <?= form_dropdown('type', $tp, $notification->type, 'class="select2" data-placeholder="Select Message Type" style="width:100%;"'); ?>
           </div>
         </div>
       </div>

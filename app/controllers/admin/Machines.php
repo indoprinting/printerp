@@ -19,6 +19,7 @@ class Machines extends MY_Controller
     $xls = ($this->input->get('xls') == 1 ? TRUE : FALSE);
     $startDate = ($this->input->get('start_date') ?? date('Y-m-') . '01');
     $endDate   = ($this->input->get('end_date') ?? date('Y-m-d'));
+    $condition = $this->input->get('condition');
     $warehouses = $this->session->userdata('warehouse_id') ?? $this->input->get('warehouse');
     $whNames = [];
 
@@ -85,6 +86,10 @@ class Machines extends MY_Controller
 
           return ($hasUpdated ? '<div class="text-center"><i class="fad fa-2x fa-thumbs-up"></i></div>' : '');
         });
+
+      if ($condition) {
+        $this->datatable->like("JSON_UNQUOTE(JSON_EXTRACT(products.json_data, '$.condition'))", $condition, 'none');
+      }
 
       if ($whNames) {
         $this->datatable->group_start();
@@ -465,6 +470,7 @@ class Machines extends MY_Controller
       $date         = ($this->isAdmin ? $this->input->post('date') : $this->serverDateTime);
       $condition    = $this->input->post('condition');
       $note         = $this->input->post('note');
+      $picId        = $this->input->post('pic');
       $warehouse_id = filterDecimal($this->input->post('warehouse'));
 
       if (empty($condition)) sendJSON(['success' => 0, 'message' => 'Condition must be set.']);
@@ -513,9 +519,10 @@ class Machines extends MY_Controller
       }
 
       if ($this->site->addProductReport($reportData)) {
-        $this->site->updateProducts([[ // Update note only.
+        $this->site->updateProducts([[ // Update note and pic.
           'product_id' => $product->id,
-          'note' => $note
+          'note' => $note,
+          'pic_id' => intval($picId)
         ]]);
 
         if ($condition == 'good') { // Reset if machine is good.
@@ -652,17 +659,13 @@ class Machines extends MY_Controller
         </script>');
     }
 
-    $reports = $this->site->getProductReports(['id' => $reportId]);
+    $report = $this->site->getProductReport(['id' => $reportId]);
 
-    if ($reports) {
-      $product = $this->site->getProductByID($reports[0]->product_id);
+    if ($report) {
+      $product = $this->site->getProductByID($report->product_id);
     } else {
       sendJSON(['success' => 0, 'message' => 'Report not found']);
     }
-
-    $this->data['product'] = $product;
-    $this->data['report']  = $reports[0];
-    $this->data['creator'] = $this->site->getUserByID($this->session->userdata('user_id'));
 
     if ($this->requestMethod == 'POST') {
       $created_by   = $this->input->post('created_by');
@@ -670,6 +673,7 @@ class Machines extends MY_Controller
       $condition    = $this->input->post('condition');
       $note         = $this->input->post('note');
       $warehouse_id = $this->input->post('warehouse');
+      $picId        = $this->input->post('pic');
 
       if (empty($condition)) sendJSON(['success' => 0, 'message' => 'Condition must be set.']);
 
@@ -709,6 +713,11 @@ class Machines extends MY_Controller
       }
 
       if ($this->site->updateProductReport($reportId, $reportData)) {
+        $this->site->updateProducts([[
+          'product_id' => $product->id,
+          'note'   => $note,
+          'pic_id' => intval($picId)
+        ]]);
         $this->site->syncProductReports($product->id);
 
         sendJSON(['success' => 1, 'message' => 'Product Report has been updated successfully.']);
@@ -716,6 +725,11 @@ class Machines extends MY_Controller
 
       sendJSON(['success' => 0, 'message' => getLastError()]);
     }
+
+    $this->data['product'] = $product;
+    $this->data['productJS'] = json_decode($product->json_data);
+    $this->data['report']  = $report;
+    $this->data['creator'] = $this->site->getUserByID($this->session->userdata('user_id'));
 
     $this->load->view($this->theme . 'machines/report_edit', $this->data);
   }

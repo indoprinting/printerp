@@ -29,7 +29,7 @@
         }
       }
       ?>
-      <?= form_dropdown('base_unit', $opts, set_value('base_unit'), 'class="form-control tip select" id="base_unit" style="width:100%;"'); ?>
+      <?= form_dropdown('base_unit', $opts, set_value('base_unit'), 'class="select2" id="base_unit" style="width:100%;"'); ?>
     </div>
     <div id="measuring" style="display:none;">
       <div class="form-group">
@@ -37,7 +37,7 @@
         <?php
         $oopts = ['*' => lang('*'), '/' => lang('/'), '+' => lang('+'), '-' => lang('-')];
         ?>
-        <?= form_dropdown('operator', $oopts, set_value('operator'), 'class="form-control tip select" id="operator" style="width:100%;"'); ?>
+        <?= form_dropdown('operator', $oopts, set_value('operator'), 'class="select2" id="operator" style="width:100%;"'); ?>
       </div>
       <div class="form-group">
         <?= lang('operation_value', 'operation_value'); ?>

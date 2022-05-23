@@ -11,7 +11,7 @@
         <div class="form-group">
           <label for="warehouse">Warehouse</label>
           <?php
-            $warehouses = $this->site->getAllWarehouses();
+            $warehouses = $this->site->getWarehouses(['active' => 1]);
 
             if ($warehouses) {
               foreach ($warehouses as $warehouse) {
@@ -19,7 +19,7 @@
               }
             }
 
-            echo form_dropdown('warehouse', $whs, $warehouse_id, 'class="form-control select" id="warehouse" style="width:100%;"');
+            echo form_dropdown('warehouse', $whs, $warehouse_id, 'class="select2" id="warehouse" style="width:100%;"');
           ?>
         </div>
       </div>
@@ -62,7 +62,7 @@
     <?php echo form_button('add_items', lang('add_items'), 'class="btn btn-primary" id="add_items"'); ?>
   </div>
 </div>
-<script src="<?= $assets ?>js/custom.js"></script>
+<script src="<?= $assets ?>js/modal.js?v=<?= $res_hash ?>"></script>
 <script>
   $(document).ready(function (e) {
     let hSearch = null;
@@ -70,7 +70,7 @@
     window.Table2 = $('#Table2').DataTable({
       ajax: {
         data: {
-          <?= $this->security->get_csrf_token_name(); ?>: '<?= $this->security->get_csrf_hash(); ?>'
+          <?= csrf_token(); ?>: '<?= csrf_hash(); ?>'
         },
         type: 'POST',
         url: site.base_url + 'products/stock_opname/suggestions'
@@ -125,4 +125,3 @@
     }
   });
 </script>
-<script async src="<?= $assets ?>js/modal.js?v=<?= $res_hash ?>"></script>

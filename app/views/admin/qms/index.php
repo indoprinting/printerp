@@ -139,21 +139,21 @@ if ($end_date = $this->input->get('end_date')) {
                   }
                 }
                 ?>
-                <?= form_multiselect('warehouses[]', $bl, ($warehouses ?? ''), 'class="form-control select2" id="warehouses" data-placeholder="Select warehouse" style="width:100%;"'); ?>
+                <?= form_multiselect('warehouses[]', $bl, ($warehouses ?? ''), 'class="select2" id="warehouses" data-placeholder="Select warehouse" style="width:100%;"'); ?>
               </div>
             </div>
           </div>
           <div class="row">
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('start_date'); ?></label>
-                <input type="text" class="form-control date" id="start_date" name="start_date" value="<?= ($start_date ?? '') ?>" />
+                <input type="date" class="form-control" id="start_date" name="start_date" value="<?= ($start_date ?? '') ?>" />
               </div>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('end_date'); ?></label>
-                <input type="text" class="form-control date" id="end_date" name="end_date" value="<?= ($end_date ?? '') ?>" />
+                <input type="date" class="form-control" id="end_date" name="end_date" value="<?= ($end_date ?? '') ?>" />
               </div>
             </div>
           </div>

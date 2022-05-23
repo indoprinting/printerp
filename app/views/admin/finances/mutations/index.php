@@ -171,7 +171,7 @@ if ($biller_ids = $this->input->get('biller')) {
                   }
                 }
 
-                echo form_multiselect('biller', $bils, $biller_ids, 'class="form-control" id="biller" data-placeholder="Select Billers" style="width:100%;"');
+                echo form_multiselect('biller', $bils, $biller_ids, 'class="select2" id="biller" data-placeholder="Select Billers" style="width:100%;"');
                 ?>
               </div>
             </div>
@@ -198,7 +198,7 @@ if ($biller_ids = $this->input->get('biller')) {
                     $bk[$bank->name] = $bank->name;
                   }
                 }
-                echo form_dropdown('acc_from', $bk, $accFrom, 'class="form-control" id="acc_from" style="width:100%;"'); ?>
+                echo form_dropdown('acc_from', $bk, $accFrom, 'class="select2" id="acc_from" style="width:100%;"'); ?>
               </div>
             </div>
             <div class="col-sm-4">
@@ -213,21 +213,21 @@ if ($biller_ids = $this->input->get('biller')) {
                     $bk[$bank->name] = $bank->name;
                   }
                 }
-                echo form_dropdown('acc_to', $bk, $accTo, 'class="form-control" id="acc_to" style="width:100%;"'); ?>
+                echo form_dropdown('acc_to', $bk, $accTo, 'class="select2" id="acc_to" style="width:100%;"'); ?>
               </div>
             </div>
           </div>
           <div class="row">
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('start_date'); ?></label>
-                <input type="text" class="form-control date" id="start_date" name="start_date" value="<?= $startDate; ?>" />
+                <input type="date" class="form-control" id="start_date" name="start_date" value="<?= $startDate; ?>" />
               </div>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('end_date'); ?></label>
-                <input type="text" class="form-control date" id="end_date" name="end_date" value="<?= $endDate; ?>" />
+                <input type="date" class="form-control" id="end_date" name="end_date" value="<?= $endDate; ?>" />
               </div>
             </div>
           </div>

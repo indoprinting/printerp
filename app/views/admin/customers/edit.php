@@ -24,7 +24,7 @@
           } else {
             $disabled = '';
           }
-          echo form_dropdown('customer_group', $cgs, $customer->customer_group_id, 'class="form-control select" id="customer_group" style="width:100%;" required="required"' . $disabled);
+          echo form_dropdown('customer_group', $cgs, $customer->customer_group_id, 'class="form-control select2" id="customer_group" style="width:100%;" required="required"' . $disabled);
           ?>
         </div>
       </div>
@@ -38,7 +38,7 @@
               $pgs[$price_group->id] = $price_group->name;
             }
           }
-          echo form_dropdown('price_group', $pgs, $customer->price_group_id, 'class="form-control select" id="price_group" style="width:100%;"');
+          echo form_dropdown('price_group', $pgs, $customer->price_group_id, 'class="form-control select2" id="price_group" style="width:100%;"');
           ?>
         </div>
       </div>
@@ -96,7 +96,7 @@
         </div>
         <div class="form-group">
           <label for="notify_wa">Notify WA</label>
-          <select id="notify_wa" name="notify_wa" class="form-control" style="width:100%;">
+          <select id="notify_wa" name="notify_wa" class="select2" style="width:100%;">
             <option value="">(Send by Default)</option>
             <option value="1">Yes</option>
             <option value="0">No</option>

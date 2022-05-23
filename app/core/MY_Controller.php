@@ -31,12 +31,14 @@ class MY_Controller extends CI_Controller
 
     $this->errorMsg = 'success';
 
-    $this->Settings = $this->site->get_setting();
+    $this->Settings = $this->site->getSettings();
 
     if (!$this->Settings) {
       echo '<b>Settings is not an object.</b><br>';
       die('Error: ' . getLastError());
     }
+
+    $this->SettingsJSON = $this->site->getSettingsJSON();
 
     if (!is_cli()) {
       $this->isAJAX = (strcasecmp($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '', 'XMLHttpRequest') == 0 ? TRUE : FALSE);
@@ -76,6 +78,8 @@ class MY_Controller extends CI_Controller
     $this->data['assets']   = base_url() . 'assets/';
     $this->data['res_hash'] = $this->res_hash;
     $this->data['Settings'] = $this->Settings;
+    $this->data['SettingsJSON'] = $this->SettingsJSON; // Remove soon
+    $this->data['SettingsJS'] = $this->SettingsJSON;
     $this->loggedIn         = $this->sma->logged_in();
 
     if ($this->loggedIn) {
@@ -151,6 +155,86 @@ class MY_Controller extends CI_Controller
         $this->data['GP'] = NULL;
       }
 
+      // Schedule IDP
+      $this->schedules = [
+        [
+          'warehouse' => 'DUR',
+          'sun'       => ['09:00', '18:00'],
+          'mon'       => ['07:00', '22:00'],
+          'tue'       => ['07:00', '22:00'],
+          'wed'       => ['07:00', '22:00'],
+          'thu'       => ['07:00', '22:00'],
+          'fri'       => ['07:00', '22:00'],
+          'sat'       => ['09:00', '18:00'],
+        ],
+        [
+          'warehouse' => 'FAT',
+          'sun'       => ['09:00', '18:00'],
+          'mon'       => ['07:00', '22:00'],
+          'tue'       => ['07:00', '22:00'],
+          'wed'       => ['07:00', '22:00'],
+          'thu'       => ['07:00', '22:00'],
+          'fri'       => ['07:00', '22:00'],
+          'sat'       => ['09:00', '18:00'],
+        ],
+        [
+          'warehouse' => 'GAJ',
+          'sun'       => ['09:00', '18:00'],
+          'mon'       => ['07:00', '22:00'],
+          'tue'       => ['07:00', '22:00'],
+          'wed'       => ['07:00', '22:00'],
+          'thu'       => ['07:00', '22:00'],
+          'fri'       => ['07:00', '22:00'],
+          'sat'       => ['09:00', '18:00'],
+        ],
+        [
+          'warehouse' => 'PLE',
+          'sun'       => ['09:00', '18:00'],
+          'mon'       => ['07:00', '22:00'],
+          'tue'       => ['07:00', '22:00'],
+          'wed'       => ['07:00', '22:00'],
+          'thu'       => ['07:00', '22:00'],
+          'fri'       => ['07:00', '22:00'],
+          'sat'       => ['09:00', '18:00'],
+        ],
+        [
+          'warehouse' => 'TEM',
+          'sun'       => ['09:00', '18:00'],
+          'mon'       => ['07:00', '22:00'],
+          'tue'       => ['07:00', '22:00'],
+          'wed'       => ['07:00', '22:00'],
+          'thu'       => ['07:00', '22:00'],
+          'fri'       => ['07:00', '22:00'],
+          'sat'       => ['09:00', '18:00'],
+        ],
+        [
+          'warehouse' => 'UNG',
+          'sun'       => ['09:00', '18:00'],
+          'mon'       => ['07:00', '22:00'],
+          'tue'       => ['07:00', '22:00'],
+          'wed'       => ['07:00', '22:00'],
+          'thu'       => ['07:00', '22:00'],
+          'fri'       => ['07:00', '22:00'],
+          'sat'       => ['09:00', '18:00'],
+        ],
+        [
+          'warehouse' => 'WEL',
+          'sun'       => NULL,
+          'mon'       => ['07:00', '22:00'],
+          'tue'       => ['07:00', '22:00'],
+          'wed'       => ['07:00', '22:00'],
+          'thu'       => ['07:00', '22:00'],
+          'fri'       => ['07:00', '22:00'],
+          'sat'       => NULL,
+        ],
+      ];
+
+      // Add holidays manually.
+      $this->holidays = [
+        ['2022-05-01', '2022-05-08'],
+        '2022-05-17'
+      ];
+
       $this->dateFormats         = $dateFormats;
       $this->data['dateFormats'] = $dateFormats;
       $this->load->language('calendar');
@@ -220,7 +304,8 @@ class MY_Controller extends CI_Controller
     $data['Supplier']            = $data['Supplier'];
     $data['Customer']            = $data['Customer'];
     $data['Settings']            = $data['Settings'];
-    $data['Settings_JSON']       = getJSON($data['Settings']->settings_json);
+    $data['Settings_JSON']       = getJSON($data['Settings']->settings_json); // Remove soon.
+    $data['SettingsJS']          = getJSON($data['Settings']->settings_json);
     $data['dateFormats']         = $data['dateFormats'];
     $data['assets']              = $data['assets'];
     $data['GP']                  = $data['GP']; // Group Permissions.

@@ -35,11 +35,11 @@
           scope: "<?= base_url(); ?>"
         }).then((reg) => {
           if (reg.installing) {
-            console.log('Installing service worker.');
+            // console.log('Installing service worker.');
           } else if (reg.waiting) {
-            console.log('Service worker installed.');
+            // console.log('Service worker installed.');
           } else if (reg.active) {
-            console.log('Service worker active.');
+            // console.log('Service worker active.');
           }
         });
       }
@@ -550,6 +550,13 @@
                             </li>
                           <?php endif; ?>
                           <?php if ($Owner || $Admin || $GP['purchases-index']) : ?>
+                            <li id="procurements_purchases2">
+                              <a class="submenu" href="<?= admin_url('procurements/purchases2'); ?>">
+                                <i class="fad fa-credit-card" style="color: #80FFFF"></i><span class="text"> Purchases</span>
+                              </a>
+                            </li>
+                          <?php endif; ?>
+                          <?php if ($Owner || $Admin || $GP['purchases-index']) : ?>
                             <li id="procurements_purchases">
                               <a class="submenu" href="<?= admin_url('procurements/purchases'); ?>">
                                 <i class="fad fa-credit-card" style="color: #80FFFF"></i><span class="text"> <?= lang('purchases_list'); ?></span>
@@ -594,7 +601,7 @@
                     <?php if (
                       $Owner || $Admin ||
                       $GP['products-index'] || $GP['products-add'] || $GP['products-barcode'] ||
-                      $GP['products-adjustments'] || $GP['products-stock_count']
+                      $GP['products-adjustments'] || $GP['products-stock_count'] || $GP['products-mutation_view']
                     ) : ?>
                       <li class="mm_products">
                         <a class="dropmenu" href="#">
@@ -621,15 +628,23 @@
                             <li id="products_categories">
                               <a href="<?= admin_url('products/categories') ?>">
                                 <i class="fad fa-folder-open" style="color: #FFFF80"></i>
-                                <span class="text"> <?= lang('product_categories'); ?></span>
+                                <span class="text"> <?= lang('categories'); ?></span>
                               </a>
                             </li>
                           <?php endif; ?>
                           <?php if ($Owner || $Admin || $GP['products-mutation_view']) : ?>
-                            <li id="products_mutations">
-                              <a href="<?= admin_url('products/mutations') ?>">
+                            <li id="products_mutation">
+                              <a href="<?= admin_url('products/mutation') ?>">
                                 <i class="fad fa-arrow-right-arrow-left" style="color: #FF8040"></i>
-                                <span class="text"> <?= lang('product_mutations'); ?></span>
+                                <span class="text"> <?= lang('mutation'); ?></span>
+                              </a>
+                            </li>
+                          <?php endif; ?>
+                          <?php if ($Owner || $Admin || getPermission('products-transfer_view')) : ?>
+                            <li id="products_transfer">
+                              <a href="<?= admin_url('products/transfer') ?>">
+                                <i class="fad fa-arrow-right-arrow-left" style="color: #40FF80"></i>
+                                <span class="text"> <?= lang('transfer'); ?></span>
                               </a>
                             </li>
                           <?php endif; ?>
@@ -765,6 +780,31 @@
                       </li>
                     <?php endif; ?>
 
+                    <?php if ($isAdmin) : ?>
+                      <li class="mm_schedule">
+                        <a class="dropmenu" href="#">
+                          <i class="fad fa-calendar-alt" style="color: #80FF40"></i>
+                          <span class="text"> Schedule
+                          </span> <span class="chevron closed"></span>
+                        </a>
+                        <ul>
+                          <li id="schedule_index">
+                            <a class="submenu" href="<?= admin_url('schedule'); ?>">
+                              <i class="fad fa-calendar-alt" style="color: #4080FF"></i>
+                              <span class="text"> Schedule</span>
+                            </a>
+                          </li>
+                          <li id="schedule_holiday">
+                            <a class="submenu" href="<?= admin_url('schedule/holiday'); ?>">
+                              <i class="fad fa-calendar" style="color: #FF4080"></i>
+                              <span class="text"> Holiday</span>
+                            </a>
+                          </li>
+                        </ul>
+                        </a>
+                      </li>
+                    <?php endif; ?>
+
                     <li class="mm_trackingpod">
                       <a class="dropmenu" href="#">
                         <i class="fad fa-chart-network" style="color: #8080FF"></i>
@@ -779,14 +819,31 @@
                           </a>
                         </li>
                         <li id="trackingpod_add">
-                          <a class="submenu" href="<?= admin_url('trackingpod/add'); ?>"
-                            data-toggle="modal" data-target="#myModal" data-backdrop="false">
+                          <a class="submenu" href="<?= admin_url('trackingpod/add'); ?>" data-toggle="modal" data-target="#myModal" data-backdrop="false">
                             <i class="fad fa-plus-circle" style="color: #80FF80"></i>
                             <span class="text"> Add Tracking POD</span>
                           </a>
                         </li>
                       </ul>
                     </li>
+
+                    <?php if ($isAdmin) : ?>
+                      <li class="mm_whatsapp">
+                        <a class="dropmenu" href="#">
+                          <i class="fab fa-whatsapp" style="color: #40FF40"></i>
+                          <span class="text"> Whatsapp
+                          </span> <span class="chevron closed"></span>
+                        </a>
+                        <ul>
+                          <li id="whatsapp_index">
+                            <a class="submenu" href="<?= admin_url('whatsapp'); ?>">
+                              <i class="fad fa-send" style="color: #FF40FF"></i>
+                              <span class="text"> Sent Messages</span>
+                            </a>
+                          </li>
+                        </ul>
+                      </li>
+                    <?php endif; ?>
 
                     <?php if (
                       $Owner || $Admin ||
@@ -847,7 +904,7 @@
                       </li>
                     <?php endif; ?>
 
-                    <?php if ($Owner) : ?>
+                    <?php if ($Owner || $Admin || getPermission('developer')) : ?>
                       <li class="mm_developers">
                         <a class="dropmenu" href="#">
                           <i class="fad fa-code"></i><span class="text"> <?= lang('developers'); ?></span>
@@ -1142,14 +1199,18 @@
   <script src="<?= $assets; ?>js/jquery.dataTables.dtFilter.min.js"></script>
   <?php if (
     ($m == 'products' && $v == 'stock_opname') ||
-    ($m == 'products' && $v == 'mutations') ||
+    ($m == 'products' && $v == 'mutation') ||
+    ($m == 'products' && $v == 'transfer') ||
     ($m == 'finances' && $v == 'reconciliations') ||
     ($m == 'developers') ||
     ($m == 'machines') ||
+    ($m == 'procurements' && $v == 'purchases2') ||
     ($m == 'procurements' && $v == 'purchases' && $x == 'plan') ||
     ($m == 'procurements' && $v == 'transfers' && $x == 'plan') ||
     ($m == 'qms') ||
-    ($m == 'trackingpod')
+    ($m == 'schedule') ||
+    ($m == 'trackingpod') ||
+    ($m == 'whatsapp')
   ) { ?>
     <!-- NEW DATATABLES -->
     <script type="text/javascript" src="<?= $assets; ?>plugins/datatables/datatables.min.js"></script>
@@ -1184,7 +1245,7 @@
     $xm = (!empty($x) && !is_numeric($x) ? "_{$x}" : '');
     ?>
     $(window).on('load', function() {
-      console.log(`menu <?= $m ?>_<?= $v ?><?= $xm ?>`);
+      // console.log(`menu <?= $m ?>_<?= $v ?><?= $xm ?>`);
       $('.mm_<?= $m ?>').addClass('active');
       $('.mm_<?= $m ?>').find("ul").first().slideToggle();
       $('#<?= $m ?>_<?= $v ?><?= $xm ?>').addClass('active'); // Custom PrintERP.
@@ -1193,6 +1254,7 @@
   </script>
   <script src="<?= base_url('assets/js/common.js?v=' . $res_hash); ?>"></script>
   <script src="<?= base_url('assets/js/product_mutation.js?v=' . $res_hash); ?>"></script>
+  <script src="<?= base_url('assets/js/product_transfer.js?v=' . $res_hash); ?>"></script>
   <script src="<?= base_url('assets/js/notificator.js?v=' . $res_hash); ?>"></script>
 </body>
 

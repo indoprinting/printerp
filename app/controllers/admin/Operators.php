@@ -256,12 +256,18 @@ class Operators extends MY_Controller
 
       if ($saleItem = $this->site->getSaleItemByID($items[0]->id)) {
         if ($sale = $this->site->getSaleByID($saleItem->sale_id)) {
+          $saleJS = getJSON($sale->json_data);
           $saleItemJS = getJSON($sale->json_data);
+          if (isset($saleJS->approved) && $saleJS->approved == 0) {
+            sendJSON(['error' => 1, 'msg' => "Nota <b>{$sale->reference}</b> belum di approved."]);
+          }
           if (strtotime($this->serverDateTime) > strtotime($saleItemJS->est_complete_date)) {
             $isCompleteOverTime = TRUE;
           }
         }
       }
+
+      $hMutex = mutexCreate('Operators_completeSaleItems', TRUE); // Create mutex.
 
       foreach ($items as $item) {
         $saleItem = $this->site->getSaleItemByID($item->id);
@@ -283,6 +289,8 @@ class Operators extends MY_Controller
           $responseMsg .= "Item '{$saleItem->product_code}' has been completed.<br>";
         }
       }
+
+      mutexRelease($hMutex); // Release mutex Operators_completeSaleItems.
 
       if ($errorCount == count($items)) $error = 1;
 

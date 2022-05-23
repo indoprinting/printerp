@@ -5,7 +5,7 @@ if(!window.jQuery) {
 }
 
 $(document).ready(function (e) {
-  initiCheck();
+  initControls();
 
   $('form[data-toggle="validator"]').bootstrapValidator({ feedbackIcons: { valid: 'fa fa-check', invalid: 'fa fa-times', validating: 'fa fa-refresh' }, excluded: [':disabled'] });
   fields = $('.modal-content').find('.form-control');

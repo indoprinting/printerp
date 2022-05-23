@@ -42,15 +42,14 @@
           <div class="row">
             <div class="col-sm-6">
               <div class="form-group">
-<script async src="<?= $assets ?>js/modal.js?v=<?= $res_hash ?>"></script>
                 <?= lang('paying_by', 'bank_id'); ?>
-                <select name="bank_id" id="bank_id" class="form-control select" required="required" style="width:100%;">
+                <select name="bank_id" id="bank_id" class="select2" required="required" style="width:100%;">
                   <option value="">Select Paid By</option>
-                  <?php
-                  foreach ($banks as $bank) { ?>
+                  <?php foreach ($banks as $bank) :
+                    if ($bank->biller_id != $this->site->getBiller(['code' => $transfer->from_warehouse_code])->id) continue;  
+                  ?>
                     <option value="<?= $bank->id; ?>"><?= $bank->name; ?> (<?= $bank->number; ?>)</option>
-                  <?php
-                  } ?>
+                  <?php endforeach; ?>
                 </select>
               </div>
             </div>
@@ -83,14 +82,11 @@
   <?php echo form_close(); ?>
 </div>
 <script type="text/javascript" src="<?= $assets ?>js/custom.js"></script>
-<script type="text/javascript" charset="UTF-8">
-  $.fn.datetimepicker.dates['sma'] = <?= $dp_lang ?>;
-</script>
 <script async src="<?= $assets ?>js/modal.js?v=<?= $res_hash ?>"></script>
 <?php
 $bal = [];
 foreach ($banks as $_bank) {
-  $bal[$_bank->id] = $_bank->balance;
+  $bal[$_bank->id] = $_bank->amount;
 }
 ?>
 <script type="text/javascript" charset="UTF-8">

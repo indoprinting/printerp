@@ -176,7 +176,7 @@ if ($filter = $this->input->get('f')) {
                   'pic'       => 'PIC',
                   'warehouse' => 'Warehouse'
                 ];
-                echo form_dropdown('group_by', $group, ($filter['group_by'] ?? ''), 'class="form-control select" id="group_by" data-placeholder="Select Group By" style="width:100%;"'); ?>
+                echo form_dropdown('group_by', $group, ($filter['group_by'] ?? ''), 'class="select2" id="group_by" data-placeholder="Select Group By" style="width:100%;"'); ?>
               </div>
             </div>
             <div class="col-sm-4">
@@ -188,7 +188,7 @@ if ($filter = $this->input->get('f')) {
                 foreach ($warehouses as $wh) {
                   $whs[$wh->id] = $wh->name;
                 }
-                echo form_multiselect('warehouses', $whs, ($filter['warehouses'] ?? ''), 'class="form-control select" id="warehouses" data-placeholder="Select Category" style="width:100%;"'); ?>
+                echo form_multiselect('warehouses', $whs, ($filter['warehouses'] ?? ''), 'class="select2" id="warehouses" data-placeholder="Select Category" style="width:100%;"'); ?>
               </div>
             </div>
           </div>
@@ -196,13 +196,13 @@ if ($filter = $this->input->get('f')) {
             <div class="col-sm-6">
               <div class="form-group">
                 <label><?= lang('start_date'); ?></label>
-                <input class="form-control date" id="start_date" name="start_date" value="<?= ($filter['start_date'] ?? ''); ?>">
+                <input type="date" class="form-control" id="start_date" name="start_date" value="<?= ($filter['start_date'] ?? ''); ?>">
               </div>
             </div>
             <div class="col-sm-6">
               <div class="form-group">
                 <label><?= lang('end_date'); ?></label>
-                <input class="form-control date" id="end_date" name="end_date" value="<?= ($filter['end_date'] ?? ''); ?>">
+                <input type="date" class="form-control" id="end_date" name="end_date" value="<?= ($filter['end_date'] ?? ''); ?>">
               </div>
             </div>
           </div>

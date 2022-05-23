@@ -34,6 +34,7 @@
             <?= lang('invoice'); ?>: <?= $inv->reference; ?><br>
             <?= lang('date'); ?>: <?= $this->sma->hrld($inv->date); ?><br>
             <?= lang('sale_status'); ?>: <?= lang($inv->status); ?><br>
+            Approval Status: <?= (isset($saleJS->approved) && $saleJS->approved ? 'Approved' : 'Not Approved') ?><br>
             <?= lang('payment_method'); ?>:
             <?php
             if (!empty($payments)) {
@@ -138,7 +139,7 @@
     <div class="row">
       <div class="col-md-12">
         <div class="table-responsive">
-          <img src="https://erp.indoprinting.co.id/assets/uploads/logos/logo-indoprinting-300.png" class="print-only" style="opacity: .1;position:absolute;width:900px">
+          <img src="<?= site_url() ?>assets/uploads/logos/logo-indoprinting-300.png" class="print-only" style="opacity: .1;position:absolute;width:900px">
           <table class="table table-bordered table-condensed table-hover table-striped print-table order-table">
             <thead>
               <tr>

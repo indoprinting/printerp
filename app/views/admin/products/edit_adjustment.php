@@ -128,7 +128,7 @@
           foreach ($warehouses as $warehouse) {
             $wh[$warehouse->id] = $warehouse->name;
           }
-          echo form_dropdown('warehouse', $wh, (isset($_POST['warehouse']) ? $_POST['warehouse'] : $adjustment->warehouse_id), 'id="qawarehouse" class="form-control input-tip select" data-placeholder="' . lang('select') . ' ' . lang('warehouse') . '" required="required" style="width:100%;" '); ?>
+          echo form_dropdown('warehouse', $wh, (isset($_POST['warehouse']) ? $_POST['warehouse'] : $adjustment->warehouse_id), 'id="qawarehouse" class="select2" data-placeholder="' . lang('select') . ' ' . lang('warehouse') . '" required="required" style="width:100%;" '); ?>
                 </div>
               </div>
               <?php
@@ -200,7 +200,7 @@
                       'overwrite' => 'Overwrite'
                     ];
                   ?>
-                  <?= form_dropdown('mode', $modes, $adjustment->mode, 'class="form-control" id="mode" required="required"'); ?>
+                  <?= form_dropdown('mode', $modes, $adjustment->mode, 'class="select2" id="mode" required="required"'); ?>
                 </div>
               </div>
               <div class="col-md-12">

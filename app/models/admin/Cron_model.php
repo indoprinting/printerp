@@ -12,6 +12,30 @@ class Cron_model extends CI_Model
     $this->rdlog->setFileName('cron');
   }
 
+  protected function deleteLogs()
+  {
+    $logs = [
+      APPPATH . 'logs',
+      FCPATH . 'files/exports',
+      FCPATH . 'files/import',
+      FCPATH . 'files/products/imports',
+      FCPATH . 'files/sales/attachments',
+      FCPATH . 'files/sales/payments',
+      FCPATH . 'files/trackingpod/attachments',
+      '/home/idp/logs'
+    ];
+
+    foreach ($logs as $log) {
+      $files = array_diff(scandir($log), array('.', '..'));
+
+      foreach ($files as $file) {
+        if (filemtime("$log/$file") < strtotime('-1 month')) {
+          unlink("$log/$file");
+        }
+      }
+    }
+  }
+
   public function getSettings()
   {
     $q = $this->db->get_where('settings', ['setting_id' => 1], 1);
@@ -70,6 +94,7 @@ class Cron_model extends CI_Model
 
   public function run_monthly()
   {
+    $this->deleteLogs();
     return TRUE;
   }
 

@@ -25,7 +25,7 @@
                 $usr[$user->id] = $user->first_name . ' ' . $user->last_name;
               }
             ?>
-            <?= form_dropdown('created_by', $usr, $payment->created_by, 'class="form-control select2" id="ep_created_by" style="width:100%;"'); ?>
+            <?= form_dropdown('created_by', $usr, $payment->created_by, 'class="select2" id="ep_created_by" style="width:100%;"'); ?>
           </div>
         </div>
         <?php } else { ?>
@@ -35,7 +35,7 @@
           <div class="well well-sm">
             <div class="form-group">
               <?= lang('payment_method', 'payment_method'); ?>
-              <select id="payment_method" class="form-control select2" name="payment_method" style="width:100%;">
+              <select id="payment_method" class="select2" name="payment_method" style="width:100%;">
                 <?= $this->sma->paid_opts(NULL, FALSE, TRUE); ?>
               </select>
             </div>
@@ -45,7 +45,7 @@
           <div class="well well-sm bank_id" style="display: none">
             <div class="form-group">
               <?= lang('bank_account', 'bank_id'); ?>
-              <select id="bank_id" class="form-control select2" name="bank_id" style="width:100%;">
+              <select id="bank_id" class="select2" name="bank_id" style="width:100%;">
               </select>
             </div>
           </div>

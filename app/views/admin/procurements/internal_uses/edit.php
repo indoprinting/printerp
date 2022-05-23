@@ -195,7 +195,7 @@
                   $bl[$biller->id] = $biller->name;
                 }
 
-                echo form_dropdown('biller', $bl, $internal_use->biller_id, 'class="form-control" id="biller" data-placeholder="Select Biller" required="required"');
+                echo form_dropdown('biller', $bl, $internal_use->biller_id, 'class="select2" id="biller" data-placeholder="Select Biller" required="required" style="width:100%"');
                 ?>
               </div>
             </div>
@@ -217,7 +217,7 @@
                           'from_warehouse',
                           $wh,
                           $internal_use->from_warehouse_id,
-                          'id="from_warehouse" class="form-control input-tip select" data-placeholder="Select Warehouse From" required="required" style="width:100%;"'
+                          'id="from_warehouse" class="form-control input-tip select2" data-placeholder="Select Warehouse From" required="required" style="width:100%;"'
                         ); ?>
                       </div>
                     </div>
@@ -233,7 +233,7 @@
                           'to_warehouse',
                           $wh,
                           $internal_use->to_warehouse_id,
-                          'id="to_warehouse" class="form-control input-tip select" data-placeholder="Select Warehouse To" required="required" style="width:100%;"'
+                          'id="to_warehouse" class="form-control input-tip select2" data-placeholder="Select Warehouse To" required="required" style="width:100%;"'
                         );
                         ?>
                       </div>
@@ -349,7 +349,7 @@
                   $st['need_approval'] = 'Need Approval';
                 }
 
-                echo form_dropdown('status', $st, $internal_use->status, 'id="iustatus" class="form-control input-tip select" data-placeholder="Select Status" required="required" style="width:100%;"');
+                echo form_dropdown('status', $st, $internal_use->status, 'id="iustatus" class="form-control input-tip select2" data-placeholder="Select Status" required="required" style="width:100%;"');
                 ?>
               </div>
             </div>

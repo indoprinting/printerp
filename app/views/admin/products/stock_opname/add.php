@@ -1,7 +1,7 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
 <script>
   $(document).ready(function() {
-    if ( ! localStorage.getItem('so_pic')) {
+    if (!localStorage.getItem('so_pic')) {
       localStorage.setItem('so_pic', "<?= $this->session->userdata('user_id'); ?>");
     }
 
@@ -45,15 +45,15 @@
               <div class="form-group">
                 <?= lang('pic', 'so_pic'); ?>
                 <?php
-                $allUsers = $this->site->getAllUsers();
+                $allUsers = $this->site->getUsers(['active' => 1]);
 
                 if ($allUsers) {
                   foreach ($allUsers as $user) {
-                    if ( ! $Owner && ! $Admin && $this->session->userdata('user_id') != $user->id) continue;
+                    if (!$isAdmin && $this->session->userdata('user_id') != $user->id) continue;
                     $users[$user->id] = $user->first_name . ' ' . $user->last_name;
                   }
                 }
-                echo form_dropdown('pic', $users, '', 'class="form-control" id="so_pic" style="width:100%;" required="required"'); ?>
+                echo form_dropdown('pic', $users, '', 'class="select2" id="so_pic" style="width:100%;" required="required"'); ?>
               </div>
             </div>
 
@@ -63,11 +63,11 @@
                   <?= lang('warehouse', 'so_warehouse'); ?>
                   <?php
                   $wh[''] = '';
-                  $warehouses = $this->site->getAllWarehouses();
+                  $warehouses = $this->site->getWarehouses(['active' => 1]);
                   foreach ($warehouses as $warehouse) {
                     $wh[$warehouse->id] = $warehouse->name;
                   }
-                  echo form_dropdown('warehouse', $wh, $this->Settings->default_warehouse, 'id="so_warehouse" class="form-control input-tip select" data-placeholder="Select Warehouse" required="required" style="width:100%;"'); ?>
+                  echo form_dropdown('warehouse', $wh, $this->Settings->default_warehouse, 'id="so_warehouse" class="select2" data-placeholder="Select Warehouse" required="required" style="width:100%;"'); ?>
                 </div>
               </div>
             <?php } else { ?>

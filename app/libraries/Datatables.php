@@ -42,6 +42,8 @@ class Datatables
   private $table;
   private $unset_columns = [];
   private $where         = [];
+  private $where_in      = [];
+  private $where_not_in  = [];
 
   /**
    * Copies an instance of CI
@@ -334,6 +336,26 @@ class Datatables
   }
 
   /**
+   * Generates the WHERE IN portion of the query
+   */
+  public function where_in($key, $value = null, $escape = true)
+  {
+    $this->where_in[] = [$key, $value, $escape];
+    $this->ci->db->where_in($key, $value, $escape);
+    return $this;
+  }
+
+  /**
+   * Generates the WHERE NOT IN portion of the query
+   */
+  public function where_not_in($key, $value = null, $escape = true)
+  {
+    $this->where_in[] = [$key, $value, $escape];
+    $this->ci->db->where_not_in($key, $value, $escape);
+    return $this;
+  }
+
+  /**
    * Return the difference of open and close characters
    *
    * @param string $str
@@ -601,6 +623,14 @@ class Datatables
 
     foreach ($this->where as $val) {
       $this->ci->db->where($val[0], $val[1], $val[2], FALSE);
+    }
+
+    foreach ($this->where_in as $val) {
+      $this->ci->db->where_in($val[0], $val[1], $val[2], FALSE);
+    }
+
+    foreach ($this->where_not_in as $val) {
+      $this->ci->db->where_not_in($val[0], $val[1], $val[2], FALSE);
     }
 
     foreach ($this->or_where as $val) {

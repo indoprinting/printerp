@@ -44,15 +44,16 @@ class Db_model extends CI_Model
     $debugMode = FALSE;
     $rows = [];
 
-    for ($a = 3; $a >= 0; $a--)
+    for ($a = 24; $a >= 0; $a--)
     {
-      $dateMonth = date('Y-m', strtotime("-{$a} month"));
+      // $dateMonth = date('Y-m', strtotime('-' . $a * 31 . ' day'));
+      $dateMonth = date('Y-m', strtotime('-' . $a . ' month', strtotime(date('Y-m-') . '01')));
       $row = NULL;
 
       if (!$debugMode) {
         $this->db
         // ->select("SUM(grand_total) AS total, '0' AS total_paid, '0' AS total_balance")
-        ->select("SUM(grand_total) AS total, SUM(paid) AS total_paid, SUM(balance) AS total_balance")
+        ->select("COALESCE(SUM(grand_total), 0) AS total, COALESCE(SUM(paid), 0) AS total_paid, COALESCE(SUM(balance), 0) AS total_balance")
         ->from('sales')
         ->where("date LIKE '{$dateMonth}%'");
 
@@ -64,12 +65,12 @@ class Db_model extends CI_Model
           $row = $q->row();
         }
       }
-      
+
       if ($row || $debugMode) {
         $total = ($debugMode ? 0 : $row->total);
         $total_paid = ($debugMode ? 0 : $row->total_paid);
         $total_balance = ($debugMode ? 0 : $row->total_balance);
-  
+
         $rows[] = (object)[
           'bulan' => $dateMonth,
           'grand_total' => $total,

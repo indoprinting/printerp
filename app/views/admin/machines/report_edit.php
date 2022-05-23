@@ -2,7 +2,7 @@
 <div class="modal-content">
   <div class="modal-header">
     <button type="button" class="close" data-dismiss="modal" aria-hidden="true"><i class="fa fa-times"></i></button>
-    <h4 class="modal-title text-center" id="myModalLabel">Add Report [<?= $product->code ?>]</h4>
+    <h4 class="modal-title text-center" id="myModalLabel">Edit Report [<?= $product->code ?>]</h4>
   </div>
   <div class="modal-body">
     <form id="form" data-toggle="validator" enctype="multipart/form-data">
@@ -10,7 +10,7 @@
         <div class="col-md-6">
           <div class="form-group">
             <label for="created_by">Created By</label>
-            <select class="form-control select2" id="created_by" name="created_by" style="width:100%;">
+            <select class="select2" id="created_by" name="created_by" style="width:100%;">
               <?php $users = $this->site->getUsers(); ?>
               <?php foreach ($users as $user) :
                 $selected = ($report->created_by == $user->id ? ' selected' : '');
@@ -35,7 +35,7 @@
         <div class="col-md-6">
           <div class="form-group">
             <label for="warehouse_id">Warehouse</label>
-            <select class="form-control select2" id="warehouse_id" name="warehouse" style="width:100%;">
+            <select class="select2" id="warehouse_id" name="warehouse" style="width:100%;">
               <?php $warehouses = $this->site->getAllWarehouses(); ?>
               <?php foreach ($warehouses as $warehouse) :
                 if (!$isAdmin) {
@@ -54,8 +54,8 @@
 
         <div class="col-md-6">
           <div class="form-group">
-            <label for="condition">Condition</label>
-            <select class="form-control select2" id="condition" name="condition" data-placeholder="Select Condition" style="width:100%;">
+            <label for="md-condition">Condition</label>
+            <select class="select2" id="md-condition" name="condition" data-placeholder="Select Condition" style="width:100%;">
               <option value=""></option>
               <option value="good">Good (Baik)</option>
               <option value="off">Off (Mati)</option>
@@ -64,6 +64,26 @@
           </div>
         </div>
       </div>
+
+      <div class="row">
+        <div class="col-md-12">
+          <div class="form-group">
+            <label for="pic">Team Support</label>
+            <select class="select2" id="pic" name="pic" data-placeholder="Pilih TS" style="width:100%;">
+              <option value=""></option>
+              <?php $users = $this->site->getUsers(['active' => 1]); ?>
+              <?php foreach ($users as $user):
+                $userGroup = $this->site->getUserGroup($user->id);
+
+                if ($userGroup->name != 'support') continue;
+              ?>
+                <option value="<?= $user->id ?>" data-group="<?= $userGroup->name ?>"><?= $user->first_name . ' ' . $user->last_name ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div class="row">
         <div class="col-md-12">
           <div class="form-group">
@@ -91,7 +111,8 @@
 <script defer src="<?= $assets ?>js/modal.js?v=<?= $res_hash ?>"></script>
 <script>
   $(document).ready(function() {
-    $('#condition').val('<?= $report->condition ?>').trigger('change');
+    $('#md-condition').val('<?= $report->condition ?>').trigger('change');
+    $('#pic').val('<?= $productJS->pic_id ?>').trigger('change');
 
     $('#submit').click(function() {
       let form = new FormData(document.getElementById('form'));

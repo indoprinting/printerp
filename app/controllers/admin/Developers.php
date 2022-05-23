@@ -66,7 +66,7 @@ class Developers extends MY_Controller
 
   private function api_keys_edit()
   {
-    
+
   }
 
   private function api_keys_generate()
@@ -86,7 +86,7 @@ class Developers extends MY_Controller
       ['link' => '#', 'page' => lang('api_keys')]
     ];
     $meta = ['page_title' => lang('api_keys'), 'bc' => $bc];
-    
+
     $this->data = array_merge($this->data, $meta);
 
     $this->page_construct('developers/api_keys/index', $this->data);
@@ -105,6 +105,94 @@ class Developers extends MY_Controller
 
   public function index()
   {
+  }
+
+  public function ocr()
+  {
+    if ($this->requestMethod == 'POST') {
+      $uploader = new FileUpload();
+
+      if ($uploader->has('attachment')) {
+        if ($uploader->getSize('mb') > 2) {
+          $this->response(400, ['message' => 'Size cannot exceed more than 2MB.']);
+        }
+
+        $text = ocr($uploader->getTempName());
+
+        if ($text) {
+          $data = print_r($text, TRUE);
+
+          $this->response(200, ['data' => $data, 'message' => 'OCR scan success.']);
+        }
+
+        $this->response(400, ['message' => 'OCR cannot parse image.']);
+      }
+    }
+  }
+
+  public function sendWA()
+  {
+    if ($this->requestMethod == 'POST') {
+      $phone    = $this->input->post('phone');
+      $server   = $this->input->post('server');
+      $deviceId = $this->input->post('deviceid');
+      $apiKey   = $this->input->post('apikey');
+      $message  = $this->input->post('message');
+
+      $data = [];
+      $url  = '';
+
+      if ($message) {
+        // $message = preg_replace('\<div\>|\<\/div\>', '', $message);
+      }
+
+      if ($server == 'watsap') {
+        $url = 'https://api.watsap.id/send-message';
+        $data['id_device'] = $deviceId;
+        $data['api-key']   = $apiKey;
+        $data['no_hp']     = $phone;
+        $data['pesan']     = $message;
+
+        $data = json_encode($data);
+      } else if ($server == 'whacenter') {
+        $url = 'https://app.whacenter.com/api/send';
+        $data['device_id'] = $deviceId;
+        $data['number']    = $phone;
+        $data['message']   = $message;
+      } else if ($server == 'jobs') {
+        if ($insertId = $this->site->addWAJob(['phone' => $phone, 'message' => $message])) {
+          $this->response(200, ['message' => "Message has been queued with ID {$insertId}."]);
+        }
+        $this->response(400, ['message' => getLastError()]);
+      }
+
+      $curl = curl_init();
+
+      curl_setopt_array($curl, [
+        CURLOPT_CUSTOMREQUEST => 'POST',
+        CURLOPT_HEADER => FALSE,
+        CURLOPT_POSTFIELDS => $data,
+        CURLOPT_RETURNTRANSFER => TRUE,
+        CURLOPT_URL => $url
+      ]);
+
+      $res = curl_exec($curl);
+
+      $errMsg = curl_error($curl);
+
+      curl_close($curl);
+
+      $json = json_decode($res);
+
+      if ($json) {
+        if ($json->status) {
+          $this->response(200, ['message' => "Message has been sent by {$server}.", 'data' => $json]);
+        }
+        $this->response(400, ['message' => 'Failed to send message.', 'data' => $json]);
+      }
+
+      $this->response(200, ['message' => 'Failed to send message', 'data' => $errMsg]);
+    }
   }
 
   public function tools()

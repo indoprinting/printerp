@@ -121,7 +121,7 @@
           foreach ($warehouses as $warehouse) {
             $wh[$warehouse->id] = $warehouse->name;
           }
-          echo form_dropdown('warehouse', $wh, ($warehouse_id ? $warehouse_id : $Settings->default_warehouse), 'id="qawarehouse" class="form-control" data-placeholder="' . lang('select') . ' ' . lang('warehouse') . '" required="required" ' . ($warehouse_id ? 'readonly' : '') . ' style="width:100%;"'); ?>
+          echo form_dropdown('warehouse', $wh, ($warehouse_id ? $warehouse_id : $Settings->default_warehouse), 'id="qawarehouse" class="select2" data-placeholder="' . lang('select') . ' ' . lang('warehouse') . '" required="required" ' . ($warehouse_id ? 'readonly' : '') . ' style="width:100%;"'); ?>
                 </div>
               </div>
             <?php } else {
@@ -193,7 +193,7 @@
                       'overwrite' => 'Overwrite'
                     ];
                   ?>
-                  <?= form_dropdown('mode', $modes, '', 'class="form-control" id="mode" required="required"'); ?>
+                  <?= form_dropdown('mode', $modes, '', 'class="select2" id="mode" required="required"'); ?>
                 </div>
               </div>
               <div class="col-md-12">

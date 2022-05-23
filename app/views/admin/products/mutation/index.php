@@ -28,7 +28,7 @@ if ($endDate = $this->input->get('end_date')) {
           data[security.csrf_token_name] = security.csrf_hash;
         },
         method: 'POST',
-        url: site.base_url + 'products/mutations/getMutations?<?= $q ?>'
+        url: site.base_url + 'products/mutation/getMutations?<?= $q ?>'
       },
       columnDefs: [{
           targets: 0,
@@ -93,7 +93,7 @@ if ($endDate = $this->input->get('end_date')) {
         $whs = substr(rd_trim($whs), 0, -1); // Trim and remove last character (,).
       }
       ?>
-      <i class="fa-fw fad fa-cogs"></i><?= $page_title . ' (' . $whs . ')'; ?>
+      <i class="fa-fw fad fa-cogs"></i><?= $page_title; ?>
       <?= ($this->input->post('start_date') ? '(' . $this->input->post('start_date') . ')' : '') . ($this->input->post('end_date') ? ' to (' . $this->input->post('end_date') . ')' : ''); ?>
     </h2>
 
@@ -105,8 +105,7 @@ if ($endDate = $this->input->get('end_date')) {
           </a>
           <ul class="dropdown-menu dropdown-menu-right tasks-menus" role="menu" aria-labelledby="dLabel">
             <li>
-              <a href="<?= admin_url('products/mutations/add'); ?>" id="add_product_mutation" data-toggle="modal"
-                  data-backdrop="false" data-target="#myModal" data-modal-class="modal-lg">
+              <a href="<?= admin_url('products/mutation/add'); ?>" id="add_product_mutation" data-toggle="modal" data-backdrop="false" data-target="#myModal" data-modal-class="modal-lg">
                 <i class="fad fa-fw fa-plus-square"></i> Add Product Mutation
               </a>
             </li>
@@ -127,8 +126,9 @@ if ($endDate = $this->input->get('end_date')) {
   <div class="box-content">
     <div class="row">
       <div class="col-lg-12">
+        <p class="introtext"><strong><?= lang('warehouse'); ?></strong>: <?= lang('all_warehouses'); ?></p>
         <div id="form_filter" class="closed well well-sm" style="display: none">
-          <?php echo admin_form_open('products/mutations'); ?>
+          <?php echo admin_form_open('products/mutation'); ?>
           <div class="row">
             <div class="col-sm-4">
               <div class="form-group">
@@ -142,21 +142,21 @@ if ($endDate = $this->input->get('end_date')) {
                   }
                 }
                 ?>
-                <?= form_multiselect('warehouses[]', $bl, ($warehouses ?? ''), 'class="form-control select2" id="warehouses" data-placeholder="Select warehouse" style="width:100%;"'); ?>
+                <?= form_multiselect('warehouses[]', $bl, ($warehouses ?? ''), 'class="select2" id="warehouses" data-placeholder="Select warehouse" style="width:100%;"'); ?>
               </div>
             </div>
           </div>
           <div class="row">
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label for="startDate"><i class="fad fa-clock"></i> Start Date</label>
-                <input class="form-control date" id="startDate" name="start_date" type="text">
+                <input class="form-control" id="startDate" name="start_date" type="date">
               </div>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label for="endDate"><i class="fad fa-clock"></i> End Date</label>
-                <input class="form-control date" id="endDate" name="end_date" type="text">
+                <input class="form-control" id="endDate" name="end_date" type="date">
               </div>
             </div>
           </div>
@@ -164,7 +164,7 @@ if ($endDate = $this->input->get('end_date')) {
             <div class="col-sm-12">
               <div class="form-group">
                 <button type="button" class="btn btn-primary" id="btn_filter"><i class="fad fa-filter"></i> Filter</button>
-                <a href="<?= admin_url('products/mutations'); ?>" class="btn btn-danger">Reset</a>
+                <a href="<?= admin_url('products/mutation'); ?>" class="btn btn-danger">Reset</a>
               </div>
             </div>
           </div>
@@ -261,7 +261,7 @@ if ($endDate = $this->input->get('end_date')) {
                 addAlert('Unknown error', 'danger');
               }
             },
-            url: site.base_url + 'products/mutations/delete'
+            url: site.base_url + 'products/mutation/delete'
           })
         }
       });
@@ -289,7 +289,7 @@ if ($endDate = $this->input->get('end_date')) {
         }
       }
 
-      location.href = site.base_url + 'products/mutations' + q;
+      location.href = site.base_url + 'products/mutation' + q;
     });
   });
 </script>

@@ -71,16 +71,16 @@
             </div>
           </div>
           <div class="row">
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label for="startDate"><i class="fad fa-clock"></i> Start Date</label>
-                <input class="form-control date" id="startDate" type="text">
+                <input class="form-control" id="startDate" type="date">
               </div>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label for="endDate"><i class="fad fa-clock"></i> End Date</label>
-                <input class="form-control date" id="endDate" type="text">
+                <input class="form-control" id="endDate" type="date">
               </div>
             </div>
           </div>

@@ -31,7 +31,7 @@
             foreach ($price_groups as $price_group) {
               $pgs[$price_group->id] = $price_group->name;
             }
-            echo form_dropdown('price_group', $pgs, '', 'class="form-control tip select" id="price_group" style="width:100%;"');
+            echo form_dropdown('price_group', $pgs, '', 'class="select2" id="price_group" style="width:100%;"');
             ?>
           </div>
         </div>

@@ -10,7 +10,7 @@
         <div class="col-md-6">
           <div class="form-group">
             <label for="created_by">Created By</label>
-            <select class="form-control select2" id="created_by" name="created_by" style="width:100%;">
+            <select class="select2" id="created_by" name="created_by" style="width:100%;">
               <?php $users = $this->site->getUsers(); ?>
               <?php foreach ($users as $user):
                 if (!$isAdmin) {
@@ -33,7 +33,7 @@
         <div class="col-md-6">
           <div class="form-group">
             <label for="warehouse_id">Warehouse</label>
-            <select class="form-control select2" id="warehouse_id" name="warehouse" style="width:100%;">
+            <select class="select2" id="warehouse_id" name="warehouse" style="width:100%;">
               <?php $warehouses = $this->site->getAllWarehouses(); ?>
               <?php foreach ($warehouses as $warehouse) :
                 if (!$isAdmin) {
@@ -53,7 +53,7 @@
         <div class="col-md-6">
           <div class="form-group">
             <label for="condition">Condition</label>
-            <select class="form-control select2" id="condition" name="condition" data-placeholder="Select Condition" style="width:100%;">
+            <select class="select2" id="condition" name="condition" data-placeholder="Select Condition" style="width:100%;">
               <option value=""></option>
               <option value="good">Good (Baik)</option>
               <option value="off">Off (Mati)</option>
@@ -62,6 +62,26 @@
           </div>
         </div>
       </div>
+
+      <div class="row">
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="pic">Team Support</label>
+            <select class="select2" id="pic" name="pic" data-placeholder="Pilih TS" style="width:100%;">
+              <option value=""></option>
+              <?php $users = $this->site->getUsers(['active' => 1]); ?>
+              <?php foreach ($users as $user):
+                $userGroup = $this->site->getUserGroup($user->id);
+
+                if ($userGroup->name != 'support') continue;
+              ?>
+                <option value="<?= $user->id ?>" data-group="<?= $userGroup->name ?>"><?= $user->first_name . ' ' . $user->last_name ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div class="row">
         <div class="col-md-12">
           <div class="form-group">

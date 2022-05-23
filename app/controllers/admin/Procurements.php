@@ -178,7 +178,7 @@ class Procurements extends MY_Controller
 
         $this->upload->initialize($config);
 
-        if ( ! $this->upload->do_upload('document')) {
+        if (!$this->upload->do_upload('document')) {
           $error = $this->upload->display_errors();
           $this->session->set_flashdata('error', $error);
           redirect($_SERVER['HTTP_REFERER']);
@@ -304,7 +304,7 @@ class Procurements extends MY_Controller
         if (isset($item_code) && isset($item_quantity)) {
           $product = $this->site->getProductByCode($item_code);
 
-          if ( ! $product) {
+          if (!$product) {
             $this->session->set_flashdata('error', lang('no_match_found') . ' (' . lang('product_name') . ' <strong>' . $product->name . '</strong> ' . lang('product_code') . ' <strong>' . $product->code . '</strong>)');
             admin_redirect('procurements/internal_uses/edit/' . $internal_use->id);
           }
@@ -370,7 +370,7 @@ class Procurements extends MY_Controller
 
         $this->upload->initialize($config);
 
-        if ( ! $this->upload->do_upload('document')) {
+        if (!$this->upload->do_upload('document')) {
           $error = $this->upload->display_errors();
           $this->session->set_flashdata('error', $error);
           redirect($_SERVER['HTTP_REFERER']);
@@ -619,8 +619,8 @@ class Procurements extends MY_Controller
       $this->datatables
         ->join('stocks', 'stocks.internal_use_id = internal_uses.id', 'left')
         ->group_start()
-          ->like('stocks.product_code', $item_name, 'both')
-          ->or_like('stocks.product_name', $item_name, 'both')
+        ->like('stocks.product_code', $item_name, 'both')
+        ->or_like('stocks.product_name', $item_name, 'both')
         ->group_end();
     }
     if ($reference) {
@@ -739,7 +739,7 @@ class Procurements extends MY_Controller
         $row->quantity         = $safe_stock;
         $row->spec             = '';
         $row->base_unit        = $row->unit;
-        $row->unit             = ( ! empty($row->purchase_unit) ? $row->purchase_unit : $row->unit);
+        $row->unit             = (!empty($row->purchase_unit) ? $row->purchase_unit : $row->unit);
         $row->machine_id       = 0;
         $units                 = $this->site->getUnitsByBUID($row->unit);
 
@@ -789,7 +789,218 @@ class Procurements extends MY_Controller
   }
 
   /**
+   * PURCHASES 2 (NEW)
+   */
+  public function purchases2()
+  {
+    checkPermission('purchases-index');
+
+    if ($argv = func_get_args()) {
+      $method = __FUNCTION__ . '_' . $argv[0];
+
+      if (method_exists($this, $method)) {
+        array_shift($argv);
+        return call_user_func_array([$this, $method], $argv);
+      }
+    }
+
+    $meta = [
+      'page_title' => lang('purchases'),
+      'bc' => [
+        ['link' => base_url(), 'page' => lang('home')],
+        ['link' => '#', 'page' => lang('procurements')],
+        ['link' => '#', 'page' => lang('purchases')]
+      ]
+    ];
+    $this->data = array_merge($this->data, $meta);
+
+    $this->page_construct('procurements/purchases2/index', $this->data);
+  }
+
+  protected function purchases2_add()
+  {
+    checkPermission('purchases-add');
+
+    if ($this->requestMethod == 'POST') {
+      $createdAt   = $this->input->post('created_at');
+      $createdBy   = $this->input->post('created_by');
+      $warehouseId = $this->input->post('warehouse');
+      $note        = $this->input->post('note');
+      $products    = $this->input->post('product');
+
+      $items = [];
+      $productSize = count($products['id']);
+
+      for ($a = 0; $a < $productSize; $a++) {
+        $items[] = [
+          'product_id' => $products['id'][$a],
+          'price'      => $products['price'][$a],
+          'quantity'   => $products['quantity'][$a],
+          'status'     => 'pending'
+        ];
+      }
+
+      $purchaseData = [
+        'created_at'   => $createdAt,
+        'created_by'   => $createdBy,
+        'warehouse_id' => $warehouseId,
+        'status'       => 'pending',
+        'note'         => $note
+      ];
+
+      $upload = new FileUpload();
+
+      if ($upload->has('attachment')) {
+        $name = $upload->getRandomName();
+        $upload->move(FCPATH . 'files/procurements/purchases/attachments', $name);
+        $purchaseData['attachment'] = $name;
+      }
+
+      if ($this->site->addPurchase($purchaseData, $items)) {
+        $this->response(201, ['message' => 'Purchase berhasil dibuat.']);
+      }
+      $this->response(400, ['message' => 'Gagal membuat Purchase.']);
+    }
+
+    $this->load->view($this->theme . 'procurements/purchases2/add', $this->data);
+  }
+
+  protected function purchases2_getPurchases()
+  {
+    $startDate  = $this->input->get('start_date');
+    $endDate    = $this->input->get('end_date');
+    $billers    = $this->input->get('biller');
+    $warehouses = $this->input->get('warehouse');
+
+    $this->load->library('datatable');
+
+    $this->datatable
+      ->select("purchases.id AS id, purchases.id AS pid, purchases.attachment,
+        purchases.reference, purchases.status AS status, purchases.payment_status AS payment_status,
+        suppliers.company AS supplier_name, purchases.grand_total AS po_value,
+        purchases.received_value AS received_value,
+        purchases.paid AS paid, purchases.balance AS balance,
+        purchases.received_date AS received_date,
+        purchases.payment_date AS payment_date,
+        purchases.due_date AS due_date,
+        purchases.date AS created_at, creator.fullname AS creator_name,
+        purchases.updated_at, updater.fullname AS updater_name")
+      ->from('purchases')
+      ->join('suppliers', 'suppliers.id = purchases.supplier_id', 'left')
+      ->join('users creator', 'creator.id = purchases.created_by', 'left')
+      ->join('users updater', 'updater.id = purchases.updated_by', 'left');
+
+    if ($startDate) {
+      $this->datatable->where("purchases.date >= '{$startDate} 00:00:00'");
+    }
+
+    if ($endDate) {
+      $this->datatable->where("purchases.date <= '{$endDate} 23:59:59'");
+    }
+
+    if ($billers) {
+      $this->datatable->where_in('purchases.biller_id', $billers);
+    }
+
+    if ($warehouses) {
+      $this->datatable->where_in('purchases.warehouse_id', $warehouses);
+    }
+
+    $this->datatable->editColumn('pid', function ($data) {
+      return "
+        <div class=\"text-center\">
+          <a href=\"{$this->theme}procurements/purchases2/delete/{$data['id']}\"
+            class=\"tip \"
+            data-action=\"confirm\" style=\"color:red;\" title=\"Delete Purchase\">
+              <i class=\"fad fa-fw fa-trash\"></i>
+          </a>
+          <a href=\"{$this->theme}procurements/purchases2/edit/{$data['id']}\"
+            class=\"tip\"
+            data-toggle=\"modal\" data-backdrop=\"false\" data-target=\"#myModal\"
+            data-modal-class=\"modal-lg\" title=\"Edit Purchase\">
+              <i class=\"fad fa-fw fa-edit\"></i>
+          </a>
+          <a href=\"{$this->theme}procurements/purchases2/view/{$data['id']}\"
+            class=\"tip\"
+            data-toggle=\"modal\" data-backdrop=\"false\" data-target=\"#myModal\"
+            data-modal-class=\"modal-lg\"
+            title=\"View Details\">
+              <i class=\"fad fa-fw fa-chart-bar\"></i>
+          </a>
+          <a href=\"{$this->theme}procurements/purchases2/viewPayments/{$data['id']}\"
+            class=\"tip\"
+            data-toggle=\"modal\" data-backdrop=\"false\" data-target=\"#myModal\"
+            data-modal-class=\"modal-lg\"
+            title=\"View Payments\">
+              <i class=\"fad fa-fw fa-money-bill-wave\"></i>
+          </a>
+        </div>";
+    })
+    ->editColumn('status', function ($data) {
+      switch ($data['status']) {
+        case 'need_approval':
+          $type = 'danger';
+          break;
+        case 'approved':
+          $type = 'success';
+          break;
+        case 'ordered':
+        case 'received_partial':
+          $type = 'info';
+          break;
+        case 'received':
+          $type = 'primary';
+          break;
+        default:
+          $type = 'warning';
+      }
+
+      $status = ucwords(str_replace('_', ' ', $data['status']));
+
+      return "
+      <div class=\"text-center\">
+        <a href=\"" . admin_url('procurements/purchases2/edit/' . $data['id'] . '?mode=status') . "\"
+          class=\"label label-{$type} status\"
+          data-toggle=\"modal\" data-target=\"#myModal\" data-modal-class=\"modal-lg\">{$status}
+        </a>
+      </div>
+      ";
+    })
+    ->editColumn('payment_status', function ($data) {
+      switch ($data['payment_status']) {
+        case 'need_approval':
+          $type = 'danger';
+          break;
+        case 'approved':
+        case 'paid':
+          $type = 'success';
+          break;
+        case 'paid_partial':
+          $type = 'info';
+          break;
+        case 'pending':
+        default:
+          $type = 'warning';
+      }
+
+      $status = ucwords(str_replace('_', ' ', $data['payment_status']));
+
+      return "
+      <div class=\"text-center\">
+        <a href=\"" . admin_url('procurements/purchases2/addPayment/' . $data['id']) . "\"
+          class=\"label label-{$type} status\"
+          data-toggle=\"modal\" data-target=\"#myModal\" data-modal-class=\"modal-lg\">{$status}
+        </a>
+      </div>
+      ";
+    });
+
+    $this->datatable->generate();
+  }
+
+  /**
    * PURCHASES
+   * @deprecated FUCK IT OFF!!!
    */
   public function purchases()
   {
@@ -1353,19 +1564,13 @@ class Procurements extends MY_Controller
       } else {
         $this->session->set_flashdata('error', lang('payment_add_failed'));
       }
-      /*$this->procurements_model->addPurchaseHistory([
-        'reference'         => $purchase->reference,
-        'payment_reference' => $payment['reference'],
-        'description'       => "Payment has been added, amount <b>{$this->sma->formatMoney($payment['amount'])}</b> of <b>{$this->sma->formatMoney($purchase->grand_total - $purchase->paid)}</b>, paid by <b>{$bank->name}</b>.",
-        'user_id'           => $this->session->userdata('user_id')
-      ]);*/
       redirect($_SERVER['HTTP_REFERER']);
     } else {
       if ($this->input->post('add_payment')) {
         $this->session->set_flashdata('error', validation_errors());
         redirect($_SERVER['HTTP_REFERER']);
       }
-      $banks = $this->site->getBanksByType(['cash', 'edc', 'transfer']);
+      $banks = $this->site->getBanks(['type' => ['Cash', 'EDC', 'INV', 'Transfer']]);
       for ($a = 0; $a < count($banks); $a++) {
         $banks[$a]->balance = $banks[$a]->amount;
         //$banks[$a]->balance = $this->site->getBankBalanceByID($banks[$a]->id);
@@ -1430,8 +1635,8 @@ class Procurements extends MY_Controller
     $this->form_validation->set_rules('warehouse', $this->lang->line('warehouse'), 'required');
 
     if ($this->form_validation->run() == true) {
-      $date = $this->sma->fld(trim($this->input->post('date')));
-      $postatus         = $this->input->post('status');
+      $date           = $this->input->post('date');
+      $postatus       = $this->input->post('status');
       $biller_id      = $this->input->post('biller');
       $category_id    = $this->input->post('category');
       $warehouse_id   = $this->input->post('warehouse');
@@ -1448,7 +1653,7 @@ class Procurements extends MY_Controller
       $received_date  = NULL;
 
       if ($postatus == 'received') {
-        $received_date = date('Y-m-d H:i:s');
+        $received_date = $date; // date('Y-m-d H:i:s');
       }
 
       for ($r = 0; $r < $i; $r++) {
@@ -2041,7 +2246,7 @@ class Procurements extends MY_Controller
         suppliers.id AS supplier_id")
       ->from('suppliers')
       ->like("LOWER(JSON_UNQUOTE(JSON_EXTRACT(json_data, '$.visit_days')))", $today, 'both');
-      // ->like("LOWER(JSON_UNQUOTE(JSON_EXTRACT(json_data, '$.visit_weeks')))", $week, 'both');
+    // ->like("LOWER(JSON_UNQUOTE(JSON_EXTRACT(json_data, '$.visit_weeks')))", $week, 'both');
 
     echo $this->datatable->generate();
   }
@@ -2493,7 +2698,7 @@ class Procurements extends MY_Controller
             admin_redirect('procurements/transfers/add');
           }
 
-          $product_data[] = [
+          $productData[] = [
             'product_id' => $product->id,
             'quantity'   => $item_quantity,
             'price'      => round(filterDecimal($item_markon_price)),
@@ -2506,13 +2711,13 @@ class Procurements extends MY_Controller
         }
       }
 
-      if (empty($product_data)) {
+      if (empty($productData)) {
         $this->form_validation->set_rules('product', lang('order_items'), 'required');
       }
 
       $grand_total = $total;
 
-      $transfer_data = [
+      $transferData = [
         'date'              => $date,
         'from_warehouse_id' => $from_warehouse_id,
         'to_warehouse_id'   => $to_warehouse_id,
@@ -2538,12 +2743,12 @@ class Procurements extends MY_Controller
           redirect($_SERVER['HTTP_REFERER']);
         }
         $photo = $this->upload->file_name;
-        $transfer_data['attachment'] = $photo;
+        $transferData['attachment'] = $photo;
       }
     }
 
     if ($this->form_validation->run() == true) {
-      if ($this->site->addStockTransfer($transfer_data, $product_data)) {
+      if ($this->site->addTransfer($transferData, $productData)) {
         $this->session->set_userdata('remove_tols', 1);
         $this->session->set_flashdata('message', lang('transfer_added'));
       } else {
@@ -2649,13 +2854,15 @@ class Procurements extends MY_Controller
       $this->session->set_flashdata('error', validation_errors());
       admin_redirect('procurements/transfers');
     }
-    $banks = $this->site->getAllBanks();
-    for ($a = 0; $a < count($banks); $a++) {
-      $banks[$a]->balance = $this->site->getBankBalanceByID($banks[$a]->id);
-    }
+
+    $banks = $this->site->getBanks(['active' => 1]);
+    // for ($a = 0; $a < count($banks); $a++) {
+    //   // $banks[$a]->balance = $this->site->getBankBalanceByID($banks[$a]->id);
+    // }
+
     $this->data['banks'] = $banks;
     $this->data['transfer'] = $transfer;
-    $this->data['users'] = $this->site->getAllUsers();
+    $this->data['users'] = $this->site->getUsers(['active' => 1]);
     $this->load->view($this->theme . 'procurements/transfers/add_payment', $this->data);
   }
 
@@ -2718,17 +2925,17 @@ class Procurements extends MY_Controller
     admin_redirect('procurements/transfers');
   }
 
-  private function transfers_edit($transfer_id)
+  private function transfers_edit($transferId)
   {
     $this->sma->checkPermissions('edit', NULL, 'transfers');
 
     if ($this->input->get('id')) {
-      $transfer_id = $this->input->get('id');
+      $transferId = $this->input->get('id');
     }
 
-    $this->site->syncStockTransfer($transfer_id);
+    // $this->site->syncStockTransfer($transferId);
 
-    $transfer = $this->site->getStockTransferByID($transfer_id);
+    $transfer = $this->site->getTransfer(['id' => $transferId]);
 
     if (!$transfer) {
       $this->session->set_flashdata('error', 'Stock Transfer ID is not set.');
@@ -2754,8 +2961,8 @@ class Procurements extends MY_Controller
       $i = isset($_POST['product_id']) ? count($_POST['product_id']) : 0;
       for ($r = 0; $r < $i; $r++) {
         $item_code          = $_POST['product_code'][$r];
-        $item_markon_price  = $_POST['markon_price'][$r];
-        $item_quantity      = $_POST['quantity'][$r];
+        $item_markon_price  = filterDecimal($_POST['markon_price'][$r]);
+        $item_quantity      = filterDecimal($_POST['quantity'][$r]);
         $item_spec          = $_POST['spec'][$r];
 
         if (isset($item_code) && isset($item_quantity)) {
@@ -2765,10 +2972,10 @@ class Procurements extends MY_Controller
 
           if ($from_warehouse_qty < $item_quantity) {
             $this->session->set_flashdata('error', lang('no_match_found') . ' (' . lang('product_name') . ' <strong>' . $product->name . '</strong> ' . lang('product_code') . ' <strong>' . $product->code . '</strong>)');
-            admin_redirect('procurements/transfers/edit/' . $transfer_id);
+            admin_redirect('procurements/transfers/edit/' . $transferId);
           }
 
-          $product_data = [
+          $productData = [
             'product_id'   => $product->id,
             'quantity'     => $item_quantity,
             'price'        => roundDecimal($item_markon_price),
@@ -2778,18 +2985,18 @@ class Procurements extends MY_Controller
 
           $subtotal = roundDecimal($item_markon_price * $item_quantity);
 
-          $products[] = $product_data;
+          $items[] = $productData;
           $total += $subtotal;
         }
       }
 
-      if (empty($products)) {
+      if (empty($items)) {
         $this->form_validation->set_rules('product', lang('order_items'), 'required');
       }
 
       $grand_total = $total;
 
-      $transfer_data = [
+      $transferData = [
         'date'              => $date,
         'from_warehouse_id' => $from_warehouse_id,
         'to_warehouse_id'   => $to_warehouse_id,
@@ -2801,11 +3008,11 @@ class Procurements extends MY_Controller
       ];
 
       if ($status == 'sent') {
-        $transfer_data['sent_date'] = $this->serverDateTime;
+        $transferData['sent_date'] = $this->serverDateTime;
       }
 
       if ($status == 'received') {
-        $transfer_data['received_date'] = $this->serverDateTime;
+        $transferData['received_date'] = $this->serverDateTime;
       }
 
       if ($_FILES['document']['size'] > 0) {
@@ -2826,25 +3033,25 @@ class Procurements extends MY_Controller
         }
 
         $photo = $this->upload->file_name;
-        $transfer_data['attachment'] = $photo;
+        $transferData['attachment'] = $photo;
       }
     }
 
     if ($this->form_validation->run() == true) {
-      if ($this->site->updateStockTransfer($transfer_id, $transfer_data, $products)) {
+      if ($this->site->updateTransfer($transferId, $transferData, $items)) {
         $this->session->set_userdata('remove_tols', 1);
         $this->session->set_flashdata('message', lang('stock_transfer_edited'));
       } else {
         $this->session->set_userdata('remove_tols', 1);
         $this->session->set_flashdata('error', lang('stock_transfer_edit_failed'));
-        admin_redirect('procurements/transfers/edit/' . $transfer_id);
+        admin_redirect('procurements/transfers/edit/' . $transferId);
       }
       admin_redirect('procurements/transfers');
     } else { // VIEW
       $this->data['error']    = (validation_errors() ? validation_errors() : $this->session->flashdata('error'));
       $this->data['transfer'] = $transfer;
 
-      $transfer_items = $this->site->getStockTransferItemsByTransferID($transfer_id);
+      $transfer_items = $this->site->getStockTransferItemsByTransferID($transferId);
       $from_warehouse_id = $transfer->from_warehouse_id;
       $to_warehouse_id   = $transfer->to_warehouse_id;
 
@@ -2888,7 +3095,7 @@ class Procurements extends MY_Controller
       }
 
       $this->data['transfer_items'] = json_encode($to_items);
-      $this->data['id']             = $transfer_id;
+      $this->data['id']             = $transferId;
       $this->data['warehouses']     = $this->site->getAllWarehouses();
 
       $bc = [
@@ -2977,10 +3184,10 @@ class Procurements extends MY_Controller
         $this->session->set_flashdata('error', validation_errors());
         redirect($_SERVER['HTTP_REFERER']);
       }
-      $banks = $this->site->getBanksByType(['transfer', 'edc']);
-      for ($a = 0; $a < count($banks); $a++) {
-        $banks[$a]->balance = $this->site->getBankBalanceByID($banks[$a]->id);
-      }
+      $banks = $this->site->getBanks();
+      // for ($a = 0; $a < count($banks); $a++) {
+      //   $banks[$a]->balance = $this->site->getBankBalanceByID($banks[$a]->id);
+      // }
       $this->data['error']          = (validation_errors() ? validation_errors() : $this->session->flashdata('error'));
       $this->data['banks']          = $banks;
       $this->data['payment']        = $payment;
@@ -3003,7 +3210,7 @@ class Procurements extends MY_Controller
         warehouses.id AS warehouses_id") // FALSE required for disable escaping column.
       ->from('warehouses')
       ->like("LOWER(JSON_UNQUOTE(JSON_EXTRACT(json_data, '$.visit_days')))", $today, 'both');
-      // ->like("LOWER(JSON_UNQUOTE(JSON_EXTRACT(json_data, '$.visit_weeks')))", $week, 'both');
+    // ->like("LOWER(JSON_UNQUOTE(JSON_EXTRACT(json_data, '$.visit_weeks')))", $week, 'both');
 
     echo $this->datatable->generate();
   }
@@ -3047,11 +3254,12 @@ class Procurements extends MY_Controller
     if (!$xls) { // View Web.
       $this->load->library('datatables');
       $this->datatables
-        ->select('id, date, reference, from_warehouse_name as fname, from_warehouse_code as fcode, to_warehouse_name as tname,
-          to_warehouse_code as tcode, grand_total, paid, (grand_total - paid) AS balance, payment_status, status, attachment')
+        ->select('transfers.id AS id, date, reference, whfrom.name AS fname, whto.name AS tname,
+          grand_total, paid, (grand_total - paid) AS balance, payment_status, transfers.status AS status,
+          attachment')
         ->from('transfers')
-        ->edit_column('fname', '$1 ($2)', 'fname, fcode')
-        ->edit_column('tname', '$1 ($2)', 'tname, tcode');
+        ->join('warehouses whfrom', 'whfrom.id = transfers.from_warehouse_id', 'left')
+        ->join('warehouses whto', 'whto.id = transfers.to_warehouse_id', 'left');
 
       if ($reference) {
         $this->datatables->like('reference', $reference, 'both');
@@ -3217,7 +3425,7 @@ class Procurements extends MY_Controller
   { // transfers
     $this->data['payments'] = $this->site->getStockTransferPayments($transferId);
     $this->data['inv']      = $this->site->getStockTransferByID($transferId);
-    $this->site->syncStockTransfer($transferId);
+    // $this->site->syncStockTransfer($transferId);
     $this->load->view($this->theme . 'procurements/transfers/payments', $this->data);
   }
 
@@ -3285,8 +3493,8 @@ class Procurements extends MY_Controller
       $i = isset($_POST['product_id']) ? count($_POST['product_id']) : 0;
       for ($r = 0; $r < $i; $r++) {
         $item_code          = $_POST['product_code'][$r];
-        $item_markon_price  = $_POST['markon_price'][$r];
-        $item_quantity      = $_POST['quantity'][$r];
+        $item_markon_price  = filterDecimal($_POST['markon_price'][$r]);
+        $item_quantity      = filterDecimal($_POST['quantity'][$r]);
         $item_spec          = $_POST['spec'][$r];
 
         if (isset($item_code) && isset($item_markon_price) && isset($item_quantity)) {
@@ -3301,12 +3509,12 @@ class Procurements extends MY_Controller
           $product_data = [
             'product_id'   => $product->id,
             'quantity'     => $item_quantity,
-            'price'        => round(filterDecimal($item_markon_price)),
+            'price'        => round($item_markon_price),
             'spec'         => $item_spec,
             'warehouse_id' => $to_warehouse_id
           ];
 
-          $subtotal = round(filterDecimal($item_markon_price * $item_quantity));
+          $subtotal = round($item_markon_price * $item_quantity);
 
           $products[] = $product_data;
           $total += $subtotal;

@@ -162,6 +162,8 @@ class Qms extends MY_Controller
         'skip_list'  => []
       ];
 
+      $hMutex = mutexCreate('QMS_getDisplayData', TRUE);
+
       $call = $this->qms_model->getTodayCallableQueueTicket($warehouse_id);
 
       if ($call) {
@@ -234,6 +236,8 @@ class Qms extends MY_Controller
       } else {
         $display_data['skip_list'] = ['error' => 1, 'data' => [], 'msg' => 'No skipped ticket available.'];
       }
+
+      mutexRelease($hMutex); // QMS_getDisplayData
 
       sendJSON($display_data);
     }
@@ -619,6 +623,8 @@ class Qms extends MY_Controller
   {
     $user_id = $this->session->userdata('user_id');
 
+    $hMutex = mutexCreate('QMS_sendReport', TRUE);
+
     if ($queueSession = $this->qms_model->getTodayQueueSession($user_id)) {
       $sessionData = [
         'over_wcall_time'  => $this->input->post('over_wait_call_time'),
@@ -628,9 +634,12 @@ class Qms extends MY_Controller
       ];
 
       if ($this->qms_model->updateQueueSession($queueSession->id, $sessionData)) {
+        mutexRelease($hMutex);
         sendJSON(['error' => 0, 'text' => 'success']);
       }
     }
+
+    mutexRelease($hMutex);
     sendJSON(['error' => 1, 'text' => 'failed']);
   }
 

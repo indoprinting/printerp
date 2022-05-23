@@ -355,7 +355,7 @@ if ($end_date) {
 									'digital'  => 'Digital',
 									'service'  => 'Service'
 								];
-								echo form_dropdown('type', $opt, ($type ?? ''), 'class="form-control select" id="type" style="width:100%;"'); ?>
+								echo form_dropdown('type', $opt, ($type ?? ''), 'class="select2" id="type" style="width:100%;"'); ?>
 							</div>
 						</div>
 						<div class="col-sm-3">
@@ -368,7 +368,7 @@ if ($end_date) {
 								foreach ($categories as $category) {
 									$cat[$category->code] = $category->name . ' (' . $category->code . ')';
 								}
-								echo form_dropdown('category', $cat, ($category_code ?? ''), 'class="form-control select" id="category" style="width:100%;"'); ?>
+								echo form_dropdown('category', $cat, ($category_code ?? ''), 'class="select2" id="category" style="width:100%;"'); ?>
 							</div>
 						</div>
 					</div>
@@ -386,21 +386,21 @@ if ($end_date) {
 									}
 									$opt[$wh->id] = $wh->name;
 								}
-								echo form_dropdown('warehouse', $opt, ($warehouse_id ?? ''), 'class="form-control select" id="warehouse" style="width:100%;"'); ?>
+								echo form_dropdown('warehouse', $opt, ($warehouse_id ?? ''), 'class="select2" id="warehouse" style="width:100%;"'); ?>
 							</div>
 						</div>
 					</div>
 					<div class="row">
-						<div class="col-sm-6">
+						<div class="col-sm-2">
 							<div class="form-group">
 								<label><?= lang('start_date'); ?></label>
-								<input class="form-control date" id="start_date" name="start_date" value="<?= ($start_date ?? ''); ?>">
+								<input type="date" class="form-control" id="start_date" name="start_date" value="<?= ($start_date ?? ''); ?>">
 							</div>
 						</div>
-						<div class="col-sm-6">
+						<div class="col-sm-2">
 							<div class="form-group">
 								<label><?= lang('end_date'); ?></label>
-								<input class="form-control date" id="end_date" name="end_date" value="<?= ($end_date ?? ''); ?>">
+								<input type="date" class="form-control" id="end_date" name="end_date" value="<?= ($end_date ?? ''); ?>">
 							</div>
 						</div>
 					</div>

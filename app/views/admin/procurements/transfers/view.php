@@ -20,7 +20,6 @@
             <br><?= lang('ref'); ?>: <?= $transfer->reference; ?>
           </div>
           <div class="col-xs-6 pull-right text-right order_barcodes">
-            <img src="<?= admin_url('misc/barcode/' . $this->sma->base64url_encode($transfer->reference) . '/code128/74/0/1'); ?>" alt="<?= $transfer->reference; ?>" class="bcimg" />
             <?= $this->ridintek->qrcode(admin_url('transfers/view/' . $transfer->id)); ?>
           </div>
           <div class="clearfix"></div>

@@ -2,7 +2,7 @@
 <div class="modal-content">
   <div class="modal-header">
     <button type="button" class="close" data-dismiss="modal" aria-hidden="true"><i class="fa fa-times"></i></button>
-    <h4 class="modal-title text-center" id="myModalLabel"><?= ucfirst($mode) ?> Product Mutation</h4>
+    <h4 class="modal-title text-center" id="myModalLabel"><?= ucfirst($mode) ?> Product Transfer</h4>
   </div>
   <div class="modal-body">
     <form id="form" enctype="multipart/form-data">
@@ -10,7 +10,7 @@
         <div class="col-md-6">
           <div class="form-group">
             <label for="created_by">Created By</label>
-            <select class="form-control select2" id="created_by" name="created_by" style="width:100%;">
+            <select class="select2" id="created_by" name="created_by" style="width:100%;">
               <?php $users = $this->site->getUsers(); ?>
               <?php foreach ($users as $user) :
                 if (!$isAdmin) {
@@ -25,7 +25,7 @@
         <div class="col-md-6">
           <div class="form-group">
             <label for="date">Date</label>
-            <input type="text" class="form-control datetime" id="date" name="created_at" value="<?= $pm->created_at ?>" <?= ($isAdmin ? '' : ' disabled') ?>>
+            <input type="datetime-local" class="form-control" id="date" name="created_at" value="<?= dtJS($pm->created_at) ?>" <?= ($isAdmin ? '' : ' disabled') ?>>
           </div>
         </div>
       </div>
@@ -33,8 +33,8 @@
         <div class="col-md-6">
           <div class="form-group">
             <label for="from_warehouse">From Warehouse</label>
-            <select class="form-control select2" id="from_warehouse" name="from_warehouse" style="width:100%;">
-              <?php $warehouses = $this->site->getWarehouses(['active' => 1]); ?>
+            <select class="select2" id="from_warehouse" name="from_warehouse" style="width:100%;">
+              <?php $warehouses = $this->site->getWarehouses(['active' => 1, 'order' => ['name', 'ASC']]); ?>
               <?php foreach ($warehouses as $warehouse) :
                 $selected = '';
 
@@ -42,8 +42,6 @@
                   if ($this->session->userdata('warehouse_id')) {
                     if ($warehouse->id != $pm->from_warehouse_id) continue;
                   }
-                } else {
-                  if ($warehouse->code == 'LUC') $selected = ' selected';
                 }
               ?>
                 <option value="<?= $warehouse->id ?>" <?= $selected ?>><?= $warehouse->name ?></option>
@@ -54,8 +52,8 @@
         <div class="col-md-6">
           <div class="form-group">
             <label for="to_warehouse">To Warehouse</label>
-            <select class="form-control select2" id="to_warehouse" name="to_warehouse" style="width:100%;">
-              <?php $warehouses = $this->site->getWarehouses(['active' => 1]); ?>
+            <select class="select2" id="to_warehouse" name="to_warehouse" style="width:100%;">
+              <?php $warehouses = $this->site->getWarehouses(['active' => 1, 'order' => ['name', 'ASC']]); ?>
               <?php foreach ($warehouses as $warehouse) :
                 $selected = '';
 
@@ -78,7 +76,7 @@
         <div class="col-md-12">
           <div class="form-group">
             <label for="status">Status</label>
-            <select class="form-control select2" id="status" name="status" style="width:100%;">
+            <select class="select2" id="status" name="status" style="width:100%;">
               <option value="pending">Pending</option>
               <option value="sent">Sent</option>
               <option value="received">Received</option>
@@ -104,15 +102,16 @@
             <legend class="scheduler-border well-success">Product List</legend>
             <div class="col-md-12">
               <div class="table-responsive">
-                <table id="PMList" class="table table-condensed table-bordered table-hover table-striped">
+                <table id="PTList" class="table table-condensed table-bordered table-hover table-striped">
                   <thead>
                     <tr>
                       <th style="width:60px">Action</th>
                       <th>Code</th>
                       <th>Name</th>
-                      <th style="width:100px">Total Qty</th>
-                      <th style="width:100px">Received Qty</th>
-                      <th style="width:100px">Rest Qty</th>
+                      <th>Spec</th>
+                      <th>Markon Price</th>
+                      <th>Quantity</th>
+                      <th>Subtotal (Rp)</th>
                     </tr>
                   </thead>
                   <tbody></tbody>
@@ -150,7 +149,7 @@
 <script src="<?= $assets ?>js/modal.js?v=<?= $res_hash ?>"></script>
 <script>
   $(function() {
-    let productMutation = new ProductMutation('#PMList');
+    let productTransfer = new ProductTransfer('#PTList');
     let pmitems = JSON.parse('<?= json_encode($pmitems) ?>');
     let createdBy = '<?= $pm->created_by ?>';
     let fromWarehouse = '<?= $pm->from_warehouse_id ?>';
@@ -158,13 +157,13 @@
     let status = '<?= $pm->status ?>';
     let q = '';
 
-    productMutation.setMode('<?= $mode ?>'); // edit, status
+    productTransfer.setMode('<?= $mode ?>'); // edit, status
 
     q += 'warehouse=' + $('#from_warehouse').val();
 
     if (pmitems) {
       for (let pmitem of pmitems) {
-        productMutation.addItem(pmitem);
+        productTransfer.addItem(pmitem);
       }
     }
 
@@ -173,7 +172,7 @@
     if (toWarehouse) $('#to_warehouse').val(toWarehouse).trigger('change');
     if (status) $('#status').val(status).trigger('change');
 
-    if (productMutation.mode != 'status') {
+    if (productTransfer.mode != 'status') {
       $('#product').select2({
         ajax: {
           delay: 1000,
@@ -190,10 +189,9 @@
       $('#product').on('select2:select', function(e) {
         $(this).empty();
 
-        // TODO: Insert new item list.
-        productMutation.addItem(e.params.data);
+        productTransfer.setMode('<?= $mode ?>').addItem(e.params.data).refresh();
       });
-    } else if (productMutation.mode == 'status') {
+    } else if (productTransfer.mode == 'status') {
       $('#product').select2();
     }
 
@@ -201,10 +199,10 @@
       q = 'warehouse=' + $(this).val();
     });
 
-    // $('table#PMList tbody').sortable();
-
     $('#submit').click(function() {
       let formData = new FormData(document.getElementById('form'));
+
+      formData.append('mode', '<?= $mode; ?>');
 
       $.ajax({
         contentType: false,
@@ -226,7 +224,7 @@
 
           $('#myModal').modal('hide');
         },
-        url: site.base_url + 'products/mutations/edit/<?= $pm->id ?>'
+        url: site.base_url + 'products/transfer/edit/<?= $pm->id ?>'
       })
     });
   });

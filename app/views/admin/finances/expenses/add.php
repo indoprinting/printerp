@@ -39,6 +39,9 @@
           $ct[''] = lang('select') . ' ' . lang('category');
           if ($categories) {
             foreach ($categories as $category) {
+              // Skip for asset purchase.
+              if ($category->id == 18 || $category->id == 19) continue;
+
               $ct[$category->id] = $category->name;
             }
           }
@@ -52,18 +55,18 @@
           <div class="input-group">
             <select class="form-control" name="supplier" id="supplier"></select>
             <?php if ($Owner || $Admin || $GP['suppliers-index']) { ?>
-            <div class="input-group-addon no-print" style="padding: 2px 5px; border-left: 0;">
-              <a href="#" id="view-supplier" class="external" data-toggle="modal" data-target="#myModal">
-                <i class="fa fa-user" id="addIcon"></i>
-              </a>
-            </div>
+              <div class="input-group-addon no-print" style="padding: 2px 5px; border-left: 0;">
+                <a href="#" id="view-supplier" class="external" data-toggle="modal" data-target="#myModal">
+                  <i class="fa fa-user" id="addIcon"></i>
+                </a>
+              </div>
             <?php } ?>
             <?php if ($Owner || $Admin || $GP['suppliers-add']) { ?>
-            <div class="input-group-addon no-print" style="padding: 2px 5px;">
-              <a href="<?= admin_url('suppliers/add'); ?>" id="add-supplier" class="external" data-toggle="modal" data-target="#myModal2">
-                <i class="fa fa-plus-circle" id="addIcon"></i>
-              </a>
-            </div>
+              <div class="input-group-addon no-print" style="padding: 2px 5px;">
+                <a href="<?= admin_url('suppliers/add'); ?>" id="add-supplier" class="external" data-toggle="modal" data-target="#myModal2">
+                  <i class="fa fa-plus-circle" id="addIcon"></i>
+                </a>
+              </div>
             <?php } ?>
           </div>
         </div>
@@ -75,7 +78,7 @@
           <?= lang('paid_by', 'paid_by') ?>
           <?php
           $bk[''] = lang('select') . ' ' . lang('paid_by');
-          if ( ! empty($banks)) {
+          if (!empty($banks)) {
             foreach ($banks as $bank) {
               $bk[$bank->id] = $bank->name;
             }
@@ -91,12 +94,11 @@
     </div>
     <div class="form-group">
       <?= lang('amount', 'amount'); ?>
-      <input name="amount" type="text" id="amount" value="" class="pa form-control kb-pad currency" required="required"/>
+      <input name="amount" type="text" id="amount" value="" class="pa form-control kb-pad currency" required="required" />
     </div>
     <div class="form-group">
       <?= lang('attachment', 'attachment') ?>
-      <input id="attachment" type="file" data-browse-label="<?= lang('browse'); ?>" name="userfile" data-show-upload="false" data-show-preview="false"
-           class="form-control file">
+      <input id="attachment" type="file" data-browse-label="<?= lang('browse'); ?>" name="userfile" data-show-upload="false" data-show-preview="false" class="form-control file">
     </div>
     <div class="form-group">
       <?= lang('note', 'note'); ?>
@@ -110,7 +112,7 @@
 <?php echo form_close(); ?>
 <script type="text/javascript" src="<?= $assets ?>js/custom.js"></script>
 <script type="text/javascript" charset="UTF-8">
-  $(document).ready(function () {
+  $(document).ready(function() {
     $('.datetimenow').datetimepicker({
       format: site.dateFormats.js_ldate,
       fontAwesome: true,
@@ -123,12 +125,12 @@
     }).datetimepicker('update', new Date());
 
     $('#paid_by').change(function() {
-    <?php
-        $bal = [];
-        foreach ($banks as $bank) {
-          $bal[$bank->id] = $bank->balance;
-        }
-    ?>
+      <?php
+      $bal = [];
+      foreach ($banks as $bank) {
+        $bal[$bank->id] = $bank->balance;
+      }
+      ?>
       let bal = JSON.parse('<?= json_encode($bal); ?>');
       $('#balance_paid_by').html(currencyFormat(bal[$(this).val()]));
     });

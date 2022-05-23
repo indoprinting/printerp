@@ -10,7 +10,7 @@
         <div class="col-md-6">
           <div class="form-group">
             <label for="created_by">Created By</label>
-            <select class="form-control select2" id="created_by" name="created_by" style="width:100%;">
+            <select class="select2" id="created_by" name="created_by" style="width:100%;">
               <?php $users = $this->site->getUsers(); ?>
               <?php foreach ($users as $user) :
                 if (!$isAdmin) {
@@ -25,7 +25,7 @@
         <div class="col-md-6">
           <div class="form-group">
             <label for="date">Date</label>
-            <input type="text" class="form-control datetime" id="date" name="created_at" value="<?= $this->serverDateTime ?>" <?= ($isAdmin ? '' : ' disabled') ?>>
+            <input type="datetime-local" class="form-control" id="date" name="created_at" value="<?= dtJS($this->serverDateTime) ?>" <?= ($isAdmin ? '' : ' disabled') ?>>
           </div>
         </div>
       </div>
@@ -33,8 +33,8 @@
         <div class="col-md-6">
           <div class="form-group">
             <label for="from_warehouse">From Warehouse</label>
-            <select class="form-control select2" id="from_warehouse" name="from_warehouse" style="width:100%;">
-              <?php $warehouses = $this->site->getWarehouses(['active' => 1]); ?>
+            <select class="select2" id="from_warehouse" name="from_warehouse" style="width:100%;">
+              <?php $warehouses = $this->site->getWarehouses(['active' => 1, 'order' => ['name', 'ASC']]); ?>
               <?php foreach ($warehouses as $warehouse) :
                 $selected = '';
 
@@ -54,8 +54,8 @@
         <div class="col-md-6">
           <div class="form-group">
             <label for="to_warehouse">To Warehouse</label>
-            <select class="form-control select2" id="to_warehouse" name="to_warehouse" style="width:100%;">
-              <?php $warehouses = $this->site->getWarehouses(['active' => 1]); ?>
+            <select class="select2" id="to_warehouse" name="to_warehouse" style="width:100%;">
+              <?php $warehouses = $this->site->getWarehouses(['active' => 1, 'order' => ['name', 'ASC']]); ?>
               <?php foreach ($warehouses as $warehouse) :
                 $selected = '';
 
@@ -158,15 +158,12 @@
     $('#product').on('select2:select', function(e) {
       $(this).empty();
 
-      // TODO: Insert new item list.
       productMutation.addItem(e.params.data);
     });
 
     $('#from_warehouse').on('change', function() {
       q = 'warehouse=' + $(this).val();
     });
-
-    // $('table#PMList tbody').sortable();
 
     $('#submit').click(function() {
       let formData = new FormData(document.getElementById('form'));
@@ -191,7 +188,7 @@
 
           $('#myModal').modal('hide');
         },
-        url: site.base_url + 'products/mutations/add'
+        url: site.base_url + 'products/mutation/add'
       })
     });
   });

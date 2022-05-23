@@ -313,7 +313,7 @@ if ($end_payment_date = $this->input->get('end_payment_date')) {
                   foreach ($warehouses as $wh) {
                     $whs[$wh->id] = $wh->name;
                   }
-                  echo form_multiselect('warehouse', $whs, ($warehouse ?? ''), 'class="form-control select2" id="warehouse" data-placeholder="Select Warehouse" style="width:100%;"');
+                  echo form_multiselect('warehouse', $whs, ($warehouse ?? ''), 'class="select2" id="warehouse" data-placeholder="Select Warehouse" style="width:100%;"');
                 }
                 ?>
               </div>
@@ -322,55 +322,56 @@ if ($end_payment_date = $this->input->get('end_payment_date')) {
               <div class="form-group">
                 <label><?= lang('purchase_status'); ?></label>
                 <?php
-                $all_status = $this->sma->getAllStatus();
-                $stat = [];
-                foreach ($all_status as $st) {
-                  if ($st == 'approved' || $st == 'need_approval' || $st == 'ordered' || $st == 'partial' || $st == 'received') {
-                    $stat[$st] = lang($st);
-                  }
-                }
-                echo form_multiselect('status', $stat, ($status ?? ''), 'class="form-control select2" id="status" data-placeholder="Select Purchase Status" style="width:100%;"'); ?>
+                $stat = [
+                  'approved' => lang('approved'),
+                  'need_approval' => lang('need_approval'),
+                  'ordered' => lang('ordered'),
+                  'received' => lang('received'),
+                  'received_partial' => lang('received_partial'),
+                ];
+                echo form_multiselect('status', $stat, ($status ?? ''), 'class="select2" id="status" data-placeholder="Select Purchase Status" style="width:100%;"'); ?>
               </div>
             </div>
             <div class="col-sm-4">
               <div class="form-group">
                 <label><?= lang('payment_status'); ?></label>
                 <?php
-                $stat = [];
-                foreach ($all_status as $status) {
-                  if ($status == 'approved' || $status == 'need_approval' || $status == 'partial' || $status == 'paid' || $status == 'pending') {
-                    $stat[$status] = lang($status);
-                  }
-                }
-                echo form_multiselect('payment_status[]', $stat, ($payment_status ?? ''), 'class="form-control select2" id="payment_status" data-placeholder="Select Payment Status" style="width:100%;"'); ?>
+                $paystat = [
+                  'approved' => lang('approved'),
+                  'need_approval' => lang('need_approval'),
+                  'paid' => lang('paid'),
+                  'partial' => lang('partial'),
+                  'pending' => lang('pending'),
+                ];
+                echo form_multiselect('payment_status[]', $paystat, ($payment_status ?? ''), 'class="select2" id="payment_status" data-placeholder="Select Payment Status" style="width:100%;"'); ?>
               </div>
             </div>
           </div>
           <div class="row">
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('start_date'); ?></label>
-                <input name="start_date" class="form-control date" id="start_date" type="text" value="<?= ($start_date ?? ''); ?>">
+                <input name="start_date" class="form-control" id="start_date" type="date" value="<?= ($start_date ?? ''); ?>">
               </div>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('end_date'); ?></label>
-                <input name="end_date" class="form-control date" id="end_date" type="text" value="<?= ($end_date ?? ''); ?>">
+                <input name="end_date" class="form-control" id="end_date" type="date" value="<?= ($end_date ?? ''); ?>">
               </div>
             </div>
           </div>
           <div class="row">
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('start_payment_date'); ?></label>
-                <input name="start_payment_date" class="form-control date" id="start_payment_date" type="text" value="<?= ($start_payment_date ?? ''); ?>">
+                <input name="start_payment_date" class="form-control" id="start_payment_date" type="date" value="<?= ($start_payment_date ?? ''); ?>">
               </div>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('end_payment_date'); ?></label>
-                <input name="end_payment_date" class="form-control date" id="end_payment_date" type="text" value="<?= ($end_payment_date ?? ''); ?>">
+                <input name="end_payment_date" class="form-control" id="end_payment_date" type="date" value="<?= ($end_payment_date ?? ''); ?>">
               </div>
             </div>
           </div>

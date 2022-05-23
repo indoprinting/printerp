@@ -172,7 +172,7 @@ if ($warehouse_to) $q .= '&warehouse=' . $warehouse_to;
                     $wh[$warehouse->id] = $warehouse->name;
                   }
                 ?>
-                <?= form_dropdown('warehouse', $wh, ($warehouse_to ?? ''), 'class="form-control select" id="warehouse_to" style="width:100%;"'); ?>
+                <?= form_dropdown('warehouse', $wh, ($warehouse_to ?? ''), 'class="form-control select2" id="warehouse_to" style="width:100%;"'); ?>
               </div>
             </div>
             <div class="col-sm-4">
@@ -183,16 +183,16 @@ if ($warehouse_to) $q .= '&warehouse=' . $warehouse_to;
             </div>
           </div>
           <div class="row">
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('start_date'); ?></label>
-                <input name="start_date" class="form-control date" id="start_date" type="text" value="<?= ($start_date ?? ''); ?>">
+                <input name="start_date" class="form-control" id="start_date" type="date" value="<?= ($start_date ?? ''); ?>">
               </div>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('end_date'); ?></label>
-                <input name="end_date" class="form-control date" id="end_date" type="text" value="<?= ($end_date ?? ''); ?>">
+                <input name="end_date" class="form-control" id="end_date" type="date" value="<?= ($end_date ?? ''); ?>">
               </div>
             </div>
           </div>

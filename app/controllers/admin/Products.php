@@ -17,6 +17,7 @@ class Products extends MY_Controller
     $this->load->library('form_validation');
     $this->load->admin_model('products_model');
     $this->load->admin_model('settings_model');
+    $this->load->model('ProductTransfer');
     $this->digital_upload_path = 'files/';
     $this->import_path         = 'files/import/';
     $this->upload_path         = 'assets/uploads/';
@@ -2573,7 +2574,7 @@ class Products extends MY_Controller
     $this->load->view($this->theme . 'products/modal_view', $this->data);
   }
 
-  public function mutations()
+  public function mutation()
   {
     checkPermission('products-mutation_view');
 
@@ -2591,20 +2592,20 @@ class Products extends MY_Controller
       'bc' => [
         ['link' => base_url(), 'page' => lang('home')],
         ['link' => admin_url('products'), 'page' => lang('products')],
-        ['link' => '#', 'page' => lang('mutations')]
+        ['link' => '#', 'page' => lang('mutation')]
       ]
     ];
     $this->data = array_merge($this->data, $meta);
 
-    $this->page_construct('products/mutations/index', $this->data);
+    $this->page_construct('products/mutation/index', $this->data);
   }
 
-  protected function mutations_add()
+  protected function mutation_add()
   {
     checkPermission('products-mutation_add');
 
     if ($this->requestMethod == 'POST') {
-      $createdAt       = $this->input->post('created_at');
+      $createdAt       = dtPHP($this->input->post('created_at'));
       $createdBy       = $this->input->post('created_by');
       $fromWarehouseId = $this->input->post('from_warehouse');
       $toWarehouseId   = $this->input->post('to_warehouse');
@@ -2635,7 +2636,7 @@ class Products extends MY_Controller
 
       if ($upload->has('attachment')) {
         $name = $upload->getRandomName();
-        $upload->move(FCPATH . 'files/products/mutations/attachments', $name);
+        $upload->move(FCPATH . 'files/products/mutation/attachments', $name);
         $pmData['attachment'] = $name;
       }
 
@@ -2645,12 +2646,14 @@ class Products extends MY_Controller
       $this->response(400, ['message' => 'Gagal membuat Product Mutation.']);
     }
 
-    $this->load->view($this->theme . 'products/mutations/add', $this->data);
+    $this->load->view($this->theme . 'products/mutation/add', $this->data);
   }
 
-  protected function mutations_delete($pmId = NULL)
+  protected function mutation_delete($pmId = NULL)
   {
-    checkPermission('products-mutation_delete');
+    if (!getPermission('products-mutation_delete')) {
+      $this->response(401, ['message' => 'Anda tidak punya akses untuk menghapus.']);
+    }
 
     if ($vals = $this->input->post('val')) {
       $deleted = 0;
@@ -2675,10 +2678,10 @@ class Products extends MY_Controller
     $this->response(400, ['message' => 'Tidak ada Product Mutation yang terpilih.']);
   }
 
-  protected function mutations_edit($pmId = NULL)
+  protected function mutation_edit($pmId = NULL)
   {
     $pm = $this->site->getProductMutation(['id' => $pmId]);
-    $mode = ($this->input->get('mode') ?? 'edit');
+    $mode = ($this->input->get('mode') ?? $this->input->post('mode') ?? 'edit');
 
     if ($mode == 'edit') {
       checkPermission('products-mutation_edit');
@@ -2687,7 +2690,7 @@ class Products extends MY_Controller
     }
 
     if ($this->requestMethod == 'POST') {
-      $createdAt       = ($this->isAdmin ? $this->input->post('created_at') : $pm->created_at);
+      $createdAt       = dtPHP($this->isAdmin ? $this->input->post('created_at') : $pm->created_at);
       $createdBy       = $this->input->post('created_by');
       $fromWarehouseId = $this->input->post('from_warehouse');
       $toWarehouseId   = $this->input->post('to_warehouse');
@@ -2726,7 +2729,7 @@ class Products extends MY_Controller
 
       if ($upload->has('attachment')) {
         $name = $upload->getRandomName();
-        $upload->move(FCPATH . 'files/products/mutations/attachments', $name);
+        $upload->move(FCPATH . 'files/products/mutation/attachments', $name);
         $pmData['attachment'] = $name;
       }
 
@@ -2755,10 +2758,10 @@ class Products extends MY_Controller
     $this->data['pm'] = $pm;
     $this->data['pmitems'] = $items;
 
-    $this->load->view($this->theme . 'products/mutations/edit', $this->data);
+    $this->load->view($this->theme . 'products/mutation/edit', $this->data);
   }
 
-  protected function mutations_getMutations()
+  protected function mutation_getMutations()
   {
     $startDate  = $this->input->get('start_date');
     $endDate    = $this->input->get('end_date');
@@ -2793,18 +2796,18 @@ class Products extends MY_Controller
     $this->datatable->editColumn('pid', function($data) {
         return "
         <div class=\"text-center\">
-          <a href=\"{$this->theme}products/mutations/delete/{$data['id']}\"
+          <a href=\"{$this->theme}products/mutation/delete/{$data['id']}\"
             class=\"tip \"
             data-action=\"confirm\" style=\"color:red;\" title=\"Delete Product Mutation\">
               <i class=\"fad fa-fw fa-trash\"></i>
           </a>
-          <a href=\"{$this->theme}products/mutations/edit/{$data['id']}\"
+          <a href=\"{$this->theme}products/mutation/edit/{$data['id']}\"
             class=\"tip\"
             data-toggle=\"modal\" data-backdrop=\"false\" data-target=\"#myModal\"
             data-modal-class=\"modal-lg\" title=\"Edit Product Mutation\">
               <i class=\"fad fa-fw fa-edit\"></i>
           </a>
-          <a href=\"{$this->theme}products/mutations/view/{$data['id']}\"
+          <a href=\"{$this->theme}products/mutation/view/{$data['id']}\"
             class=\"tip\"
             data-toggle=\"modal\" data-backdrop=\"false\" data-target=\"#myModal\"
             data-modal-class=\"modal-lg\"
@@ -2826,7 +2829,7 @@ class Products extends MY_Controller
 
         return "
         <div class=\"text-center\">
-          <a href=\"" . admin_url('products/mutations/edit/' . $data['id'] . '?mode=status') . "\"
+          <a href=\"" . admin_url('products/mutation/edit/' . $data['id'] . '?mode=status') . "\"
             class=\"label label-{$type} status\"
             data-toggle=\"modal\" data-target=\"#myModal\" data-modal-class=\"modal-lg\">{$status}
           </a>
@@ -2837,7 +2840,7 @@ class Products extends MY_Controller
     $this->datatable->generate();
   }
 
-  public function mutations_view($pmId = NULL)
+  public function mutation_view($pmId = NULL)
   {
     $pmitems = $this->site->getProductMutationItems(['pm_id' => $pmId]);
     $items = [];
@@ -2858,7 +2861,7 @@ class Products extends MY_Controller
     $this->data['pm']      = $this->site->getProductMutation(['id' => $pmId]);
     $this->data['pmitems'] = $items;
 
-    $this->load->view($this->theme . 'products/mutations/view', $this->data);
+    $this->load->view($this->theme . 'products/mutation/view', $this->data);
   }
 
   public function product_actions($wh = null)
@@ -3639,6 +3642,16 @@ class Products extends MY_Controller
     $this->page_construct('products/stock_opname/index', $this->data);
   }
 
+  private function stock_opname_formula()
+  {
+    $items = [];
+    $productId = $this->input->get('product'); // product id
+
+    $product = $this->site->getProduct(['id' => $productId]);
+
+    view($this->theme . 'products/stock_opname/formula', $this->data);
+  }
+
   private function stock_opname_suggestions()
   {
     $term         = $this->input->get('term');
@@ -3655,7 +3668,7 @@ class Products extends MY_Controller
     } else {
       $this->data['term'] = $term;
       $this->data['warehouse_id'] = $warehouse_id;
-      $this->load->view($this->theme . 'products/stock_opname/suggestion', $this->data);
+      view($this->theme . 'products/stock_opname/suggestion', $this->data);
     }
   }
 
@@ -3741,6 +3754,312 @@ class Products extends MY_Controller
 
     $items = $this->site->getProductSuggestions($term, $type, $limit);
     sendJSON(['results' => $items]);
+  }
+
+  public function transfer()
+  {
+    if ($argv = func_get_args()) {
+      $method = __FUNCTION__ . '_' . $argv[0];
+
+      if (method_exists($this, $method)) {
+        array_shift($argv);
+        return call_user_func_array([$this, $method], $argv);
+      }
+    }
+
+    $meta = [
+      'page_title' => lang('products_transfer'),
+      'bc' => [
+        ['link' => base_url(), 'page' => lang('home')],
+        ['link' => admin_url('products'), 'page' => lang('products')],
+        ['link' => '#', 'page' => lang('transfer')]
+      ]
+    ];
+    $this->data = array_merge($this->data, $meta);
+
+    $this->page_construct('products/transfer/index', $this->data);
+  }
+
+  protected function transfer_add()
+  {
+    checkPermission('products-transfer_add');
+
+    if ($this->requestMethod == 'POST') {
+      $createdAt       = ($this->isAdmin ? dtPHP($this->input->post('created_at')) : $this->serverDateTime);
+      $createdBy       = $this->input->post('created_by');
+      $warehouseIdFrom = $this->input->post('from_warehouse');
+      $warehouseIdTo   = $this->input->post('to_warehouse');
+      $note            = $this->input->post('note');
+      $products        = $this->input->post('product');
+
+      $items = [];
+      $productSize = count($products['id']);
+
+      for ($a = 0; $a < $productSize; $a++) {
+        $items[] = [
+          'product_id'   => $products['id'][$a],
+          'markon_price' => filterDecimal($products['markon_price'][$a]),
+          'quantity'     => filterDecimal($products['quantity'][$a]),
+          'spec'         => htmlEncode($products['spec'][$a])
+        ];
+      }
+
+      $ptData = [
+        'created_at'        => $createdAt,
+        'created_by'        => $createdBy,
+        'warehouse_id_from' => $warehouseIdFrom,
+        'warehouse_id_to'   => $warehouseIdTo,
+        'note'              => $note
+      ];
+
+      $upload = new FileUpload();
+
+      if ($upload->has('attachment')) {
+        $name = $upload->getRandomName();
+        $upload->move(FCPATH . 'files/products/transfer/attachments', $name);
+        $ptData['attachment'] = $name;
+      }
+
+      if ($this->ProductTransfer->addProductTransfer($ptData, $items)) {
+        $this->response(201, ['message' => 'Product Mutation berhasil dibuat.']);
+      }
+      $this->response(400, ['message' => 'Gagal membuat Product Mutation.']);
+    }
+
+    $this->load->view($this->theme . 'products/transfer/add', $this->data);
+  }
+
+  protected function transfer_delete($pmId = NULL)
+  {
+    if (!getPermission('products-transfer_delete')) {
+      $this->response(401, ['message' => 'Anda tidak punya akses untuk menghapus.']);
+    }
+
+    if ($vals = $this->input->post('val')) {
+      $deleted = 0;
+
+      foreach ($vals as $pmId) {
+        if ($this->ProductTransfer->deleteProductTransfers(['id' => $pmId])) {
+          $deleted++;
+        }
+      }
+
+      if ($deleted) $this->response(200, ['message' => "{$deleted} Product Transfer berhasil dihapus."]);
+
+      $this->response(400, ['message' => 'Gagal menghapus Product Transfer.']);
+    }
+
+    if ($pmId) {
+      if ($deleted = $this->ProductTransfer->deleteProductTransfers(['id' => $pmId])) {
+        $this->response(200, ['message' => "{$deleted} Product Transfer berhasil dihapus."]);
+      }
+      $this->response(400, ['message' => 'Gagal menghapus Product Transfer.']);
+    }
+
+    $this->response(400, ['message' => 'Tidak ada Product Transfer yang terpilih.']);
+  }
+
+  protected function transfer_edit($pmId = NULL)
+  {
+    $pm = $this->site->getProductMutation(['id' => $pmId]);
+    $mode = ($this->input->get('mode') ?? $this->input->post('mode') ?? 'edit');
+
+    if ($mode == 'edit') {
+      checkPermission('products-mutation_edit');
+    } else if ($mode == 'status') {
+      checkPermission('products-mutation_status');
+    }
+
+    if ($this->requestMethod == 'POST') {
+      $createdAt       = dtPHP($this->isAdmin ? $this->input->post('created_at') : $pm->created_at);
+      $createdBy       = $this->input->post('created_by');
+      $fromWarehouseId = $this->input->post('from_warehouse');
+      $toWarehouseId   = $this->input->post('to_warehouse');
+      $note            = $this->input->post('note');
+      $products        = $this->input->post('product');
+      $status          = $this->input->post('status');
+
+      if (empty($status)) {
+        $this->response(400, ['message' => 'Status tidak boleh kosong.']);
+      }
+
+      $items = [];
+      $productSize = count($products['id']);
+
+      for ($a = 0; $a < $productSize; $a++) {
+        $receivedQty = (floatval($products['received_qty'][$a]) + floatval($products['quantity'][$a]));
+
+        $items[] = [
+          'product_id'   => floatval($products['id'][$a]),
+          'quantity'     => floatval($products['total_qty'][$a]), // Total qty
+          'received_qty' => $receivedQty,
+          'status'       => $status
+        ];
+      }
+
+      $pmData = [
+        'created_at'        => $createdAt,
+        'created_by'        => $createdBy,
+        'from_warehouse_id' => $fromWarehouseId,
+        'to_warehouse_id'   => $toWarehouseId,
+        'status'            => $status,
+        'note'              => $note
+      ];
+
+      $upload = new FileUpload();
+
+      if ($upload->has('attachment')) {
+        $name = $upload->getRandomName();
+        $upload->move(FCPATH . 'files/products/mutation/attachments', $name);
+        $pmData['attachment'] = $name;
+      }
+
+      if ($this->site->updateProductMutation($pmId, $pmData, $items)) {
+        $this->response(200, ['message' => 'Product Mutation has been updated.']);
+      }
+      $this->response(400, ['message' => 'Failed to update Product Mutation.']);
+    }
+
+    $pmitems = $this->site->getProductMutationItems(['pm_id' => $pmId]);
+    $items = [];
+
+    foreach ($pmitems as $pmitem) {
+      $product = $this->site->getProductById($pmitem->product_id);
+
+      $items[] = [
+        'id'           => $pmitem->product_id,
+        'code'         => $pmitem->product_code,
+        'name'         => $product->name,
+        'quantity'     => $pmitem->quantity,
+        'received_qty' => $pmitem->received_qty,
+      ];
+    }
+
+    $this->data['mode'] = $mode;
+    $this->data['pm'] = $pm;
+    $this->data['pmitems'] = $items;
+
+    $this->load->view($this->theme . 'products/mutation/edit', $this->data);
+  }
+
+  protected function transfer_getTransfers()
+  {
+    $startDate  = $this->input->get('start_date');
+    $endDate    = $this->input->get('end_date');
+    $warehouses = $this->input->get('warehouse');
+
+    $this->load->library('datatable');
+
+    $this->datatable
+      ->select("product_transfer.id AS id, product_transfer.id AS pid, reference, attachment,
+        items, whfrom.name AS wh_name_from, whto.name AS wh_name_to,
+        product_transfer.status AS status, product_transfer.payment_status AS payment_status,
+        product_transfer.grand_total, product_transfer.paid, note,
+        created_at, creator.fullname AS creator_name")
+      ->from('product_transfer')
+      ->join('warehouses whfrom', 'whfrom.id = product_transfer.warehouse_id_from', 'left')
+      ->join('warehouses whto', 'whto.id = product_transfer.warehouse_id_to', 'left')
+      ->join('users creator', 'creator.id = product_transfer.created_by', 'left')
+      ->editColumn('pid', function ($data) {
+        return "
+        <div class=\"text-center\">
+          <a href=\"{$this->theme}products/transfer/delete/{$data['id']}\"
+            class=\"tip \"
+            data-action=\"confirm\" style=\"color:red;\" title=\"Delete Product Transfer\">
+              <i class=\"fad fa-fw fa-trash\"></i>
+          </a>
+          <a href=\"{$this->theme}products/transfer/edit/{$data['id']}\"
+            class=\"tip\"
+            data-toggle=\"modal\" data-backdrop=\"false\" data-target=\"#myModal\"
+            data-modal-class=\"modal-lg\" title=\"Edit Product Transfer\">
+              <i class=\"fad fa-fw fa-edit\"></i>
+          </a>
+          <a href=\"{$this->theme}products/transfer/view/{$data['id']}\"
+            class=\"tip\"
+            data-toggle=\"modal\" data-backdrop=\"false\" data-target=\"#myModal\"
+            data-modal-class=\"modal-lg\"
+            title=\"View Details\">
+              <i class=\"fad fa-fw fa-chart-bar\"></i>
+          </a>
+        </div>";
+      })
+      ->editColumn('status', function($data) {
+        switch ($data['status']) {
+          case 'packing':          $type = 'warning'; break;
+          case 'sent':             $type = 'success'; break;
+          case 'received_partial': $type = 'info'; break;
+          case 'received':         $type = 'primary'; break;
+          default:                 $type = 'warning';
+        }
+
+        $status = ucwords(str_replace('_', ' ', $data['status']));
+
+        return "
+        <div class=\"text-center\">
+          <a href=\"" . admin_url('products/transfer/edit/' . $data['id'] . '?mode=status') . "\"
+            class=\"label label-{$type} status\"
+            data-toggle=\"modal\" data-target=\"#myModal\" data-modal-class=\"modal-lg\">{$status}
+          </a>
+        </div>
+        ";
+      })
+      ->editColumn('payment_status', function($data) {
+        switch ($data['payment_status']) {
+          case 'pending':      $type = 'warning'; break;
+          case 'paid':         $type = 'success'; break;
+          case 'paid_partial': $type = 'info'; break;
+          default:             $type = 'warning';
+        }
+
+        $status = ucwords(str_replace('_', ' ', $data['payment_status']));
+
+        return "
+        <div class=\"text-center\">
+          <a href=\"" . admin_url('products/transfer/add_payment/' . $data['id']) . "\"
+            class=\"label label-{$type} status\"
+            data-toggle=\"modal\" data-target=\"#myModal\" data-modal-class=\"modal-lg\">{$status}
+          </a>
+        </div>
+        ";
+      });
+
+    if ($startDate) {
+      $this->datatable->where("created_at >= '{$startDate} 00:00:00'");
+    }
+
+    if ($endDate) {
+      $this->datatable->where("created_at <= '{$endDate} 23:59:59'");
+    }
+
+    if ($warehouses) {
+      $this->datatable->where_in('warehouse_id_from', $warehouses);
+    }
+
+    $this->datatable->generate();
+  }
+
+  protected function transfer_view($pmId = NULL)
+  {
+    $pmitems = $this->site->getProductMutationItems(['pm_id' => $pmId]);
+    $items = [];
+
+    foreach ($pmitems as $pmitem) {
+      $product = $this->site->getProductById($pmitem->product_id);
+
+      $items[] = (object)[
+        'product_id'   => $pmitem->product_id,
+        'product_code' => $pmitem->product_code,
+        'product_name' => $product->name,
+        'quantity'     => $pmitem->quantity,
+        'received_qty' => $pmitem->received_qty,
+        'status'       => $pmitem->status
+      ];
+    }
+
+    $this->data['pm']      = $this->site->getProductMutation(['id' => $pmId]);
+    $this->data['pmitems'] = $items;
+
+    $this->load->view($this->theme . 'products/mutation/view', $this->data);
   }
 
   public function view($id = null)

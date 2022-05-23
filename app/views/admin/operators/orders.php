@@ -379,7 +379,7 @@ if ($end_date) {
                     $st[$status] = lang($status);
                   }
                 }
-                echo form_dropdown('item_status', $st, ($item_status ?? ''), 'class="form-control" id="item_status" style="width:100%;"'); ?>
+                echo form_dropdown('item_status', $st, ($item_status ?? ''), 'class="select2" id="item_status" style="width:100%;"'); ?>
               </div>
             </div>
             <div class="col-sm-4">
@@ -393,21 +393,21 @@ if ($end_date) {
                     $st[$status] = lang($status);
                   }
                 }
-                echo form_dropdown('pay_status', $st, ($payment_status ?? ''), 'class="form-control" id="pay_status" style="width:100%;"'); ?>
+                echo form_dropdown('pay_status', $st, ($payment_status ?? ''), 'class="select2" id="pay_status" style="width:100%;"'); ?>
               </div>
             </div>
           </div>
           <div class="row">
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('from_date'); ?></label>
-                <input type="text" class="form-control date" id="start_date" name="from_date" value="<?= ($start_date ?? '') ?>" />
+                <input type="date" class="form-control" id="start_date" name="from_date" value="<?= ($start_date ?? '') ?>" />
               </div>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('to_date'); ?></label>
-                <input type="text" class="form-control date" id="end_date" name="to_date" value="<?= ($end_date ?? '') ?>" />
+                <input type="date" class="form-control" id="end_date" name="to_date" value="<?= ($end_date ?? '') ?>" />
               </div>
             </div>
           </div>

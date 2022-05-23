@@ -69,7 +69,8 @@ if ($group_by = $this->input->get('group_by')) {
       },
       'fnRowCallback': function(nRow, aData, iDisplayIndex) {
         nRow.id = aData[0];
-        nRow.className = "invoice_link " + aData[11];
+        // console.log(aData);
+        nRow.className = "invoice_link";
         return nRow;
       },
       "aoColumns": [{
@@ -274,14 +275,14 @@ if ($group_by = $this->input->get('group_by')) {
             <div class="col-sm-4">
               <div class="form-group">
                 <label><?= lang('created_by'); ?></label>
-                <select name="created_by" class="form-control select user" id="created_by" value="<?= ($created_by ?? ''); ?>" style="width:100%;">
+                <select name="created_by" class="select2 user" id="created_by" value="<?= ($created_by ?? ''); ?>" style="width:100%;">
                 </select>
               </div>
             </div>
             <div class="col-sm-4">
               <div class="form-group">
                 <label><?= lang('customer'); ?></label>
-                <select name="customer" class="form-control select" id="customer" value="<?= ($customer ?? ''); ?>" style="width:100%;">
+                <select name="customer" class="select2" id="customer" value="<?= ($customer ?? ''); ?>" style="width:100%;">
                 </select>
               </div>
             </div>
@@ -301,7 +302,7 @@ if ($group_by = $this->input->get('group_by')) {
                   'waiting_production' => lang('waiting_production')
                 ];
 
-                echo form_dropdown('status', $st, ($status ?? ''), 'class="form-control select" id="status" style="width:100%;"'); ?>
+                echo form_dropdown('status', $st, ($status ?? ''), 'class="select2" id="status" style="width:100%;"'); ?>
               </div>
             </div>
             <div class="col-sm-4">
@@ -319,7 +320,7 @@ if ($group_by = $this->input->get('group_by')) {
                   'waiting_transfer' => lang('waiting_transfer')
                 ];
 
-                echo form_dropdown('payment_status', $st, ($payment_status ?? ''), 'class="form-control select" id="payment_status" style="width:100%;"'); ?>
+                echo form_dropdown('payment_status', $st, ($payment_status ?? ''), 'class="select2" id="payment_status" style="width:100%;"'); ?>
               </div>
             </div>
             <div class="col-sm-4">
@@ -331,7 +332,7 @@ if ($group_by = $this->input->get('group_by')) {
                   '0' => 'No',
                   '1' => 'Yes'
                 ];
-                echo form_dropdown('tb_account', $tb, ($tb_account ?? ''), 'class="form-control select" id="tb_account" style="width:100%;"'); ?>
+                echo form_dropdown('tb_account', $tb, ($tb_account ?? ''), 'class="select2" id="tb_account" style="width:100%;"'); ?>
               </div>
             </div>
             <div class="col-sm-4">
@@ -346,7 +347,7 @@ if ($group_by = $this->input->get('group_by')) {
                   }
                 }
                 ?>
-                <?= form_multiselect('billers[]', $bl, ($billers ?? ''), 'class="form-control" id="billers" style="width:100%;"'); ?>
+                <?= form_multiselect('billers[]', $bl, ($billers ?? ''), 'class="select2" id="billers" style="width:100%;"'); ?>
               </div>
             </div>
             <div class="col-sm-4">
@@ -361,7 +362,7 @@ if ($group_by = $this->input->get('group_by')) {
                   }
                 }
                 ?>
-                <?= form_multiselect('warehouses[]', $wh, ($warehouses ?? ''), 'class="form-control" id="warehouses" style="width:100%;"'); ?>
+                <?= form_multiselect('warehouses[]', $wh, ($warehouses ?? ''), 'class="select2" id="warehouses" style="width:100%;"'); ?>
               </div>
             </div>
             <div class="col-sm-4">
@@ -379,21 +380,21 @@ if ($group_by = $this->input->get('group_by')) {
                   'warehouse'        => 'Warehouse',
                 ];
                 ?>
-                <?= form_dropdown('group_by', $groupBy, '', 'class="form-control" id="group_by" style="width:100%;"'); ?>
+                <?= form_dropdown('group_by', $groupBy, '', 'class="select2" id="group_by" style="width:100%;"'); ?>
               </div>
             </div>
           </div>
           <div class="row">
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('start_date'); ?></label>
-                <input type="text" class="form-control date" id="start_date" name="start_date" value="<?= ($start_date ?? '') ?>" />
+                <input type="date" class="form-control" id="start_date" name="start_date" value="<?= ($start_date ?? '') ?>" />
               </div>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('end_date'); ?></label>
-                <input type="text" class="form-control date" id="end_date" name="end_date" value="<?= ($end_date ?? '') ?>" />
+                <input type="date" class="form-control" id="end_date" name="end_date" value="<?= ($end_date ?? '') ?>" />
               </div>
             </div>
           </div>
@@ -401,7 +402,7 @@ if ($group_by = $this->input->get('group_by')) {
             <div class="col-sm-12">
               <div class="form-group">
                 <a href="#" name="submit" class="btn btn-primary" id="do_filter"><i class="fad fa-filter"></i> Filter</a>
-                <a href="<?= current_url(); ?>" class="btn btn-danger">Reset</a>
+                <a href="<?= currentUrl(); ?>" class="btn btn-danger">Reset</a>
               </div>
             </div>
           </div>

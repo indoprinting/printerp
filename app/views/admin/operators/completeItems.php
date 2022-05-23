@@ -17,7 +17,7 @@
           <div class="col-md-6">
             <div class="form-group">
               <label for="creator"><i class="fad fa-user-hard-hat"></i> Operator</label>
-              <select class="form-control select2" id="creator" style="width:100%;">
+              <select class="select2" id="creator" style="width:100%;">
                 <?php $users = $this->site->getUsers(); ?>
                 <?php foreach ($users as $user) : ?>
                   <?php if (!$this->Owner && !$this->Admin) {

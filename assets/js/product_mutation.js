@@ -65,9 +65,9 @@ $(function() {
       return false;
     }
 
-    if (parseFloat(this.value) < 0) {
+    if (parseFloat(this.value) < 0 || (lastValue > 0 && parseFloat(this.value) == 0)) {
       $(this).val(lastValue);
-      toastr.error('Tidak boleh ada stok minus.');
+      toastr.error('Tidak boleh ada stok kosong atau minus.');
       return false;
     }
   });

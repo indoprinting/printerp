@@ -10,9 +10,9 @@
         <div class="col-md-12">
           <div class="form-group">
             <label for="pic">Team Support</label>
-            <select class="form-control select2" id="pic" name="pic" data-placeholder="Pilih TS" style="width:100%;">
+            <select class="select2" id="pic" name="pic" data-placeholder="Pilih TS" style="width:100%;">
               <option value=""></option>
-              <?php $users = $this->site->getUsers(); ?>
+              <?php $users = $this->site->getUsers(['active' => 1]); ?>
               <?php foreach ($users as $user):
                 $userGroup = $this->site->getUserGroup($user->id);
                 
@@ -24,7 +24,7 @@
           </div>
         </div>
       </div>
-      <input type="hidden" name="<?= csrf_token_name() ?>" value="<?= csrf_hash() ?>">
+      <?= csrf_field() ?>
     </form>
   </div>
   <div class="modal-footer">

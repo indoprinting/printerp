@@ -190,7 +190,7 @@
 
                 $defBiller = $this->session->userdata('biller_id');
 
-                echo form_dropdown('biller', $bl, $defBiller, 'class="form-control" id="biller" data-placeholder="Select Biller" required="required"');
+                echo form_dropdown('biller', $bl, $defBiller, 'class="select2" id="biller" data-placeholder="Select Biller" required="required" style="width:100%"');
                 ?>
               </div>
             </div>
@@ -212,7 +212,7 @@
                           'from_warehouse',
                           $wh,
                           $Settings->default_warehouse,
-                          'id="from_warehouse" class="form-control input-tip select" data-placeholder="Select Warehouse From" required="required" style="width:100%;"'
+                          'id="from_warehouse" class="form-control input-tip select2" data-placeholder="Select Warehouse From" required="required" style="width:100%;"'
                         ); ?>
                       </div>
                     </div>
@@ -228,7 +228,7 @@
                           'to_warehouse',
                           $wh,
                           '',
-                          'id="to_warehouse" class="form-control input-tip select" data-placeholder="Select Warehouse To" required="required" style="width:100%;"'
+                          'id="to_warehouse" class="form-control input-tip select2" data-placeholder="Select Warehouse To" required="required" style="width:100%;"'
                         );
                         ?>
                       </div>
@@ -323,7 +323,7 @@
                 <?= lang('status', 'iustatus'); ?>
                 <?php
                 $post = ['need_approval' => lang('need_approval')];
-                echo form_dropdown('status', $post, 'need_approval', 'id="iustatus" class="form-control input-tip select" data-placeholder="' . lang('select') . ' ' . lang('status') . '" required="required" style="width:100%;" ');
+                echo form_dropdown('status', $post, 'need_approval', 'id="iustatus" class="form-control input-tip select2" data-placeholder="' . lang('select') . ' ' . lang('status') . '" required="required" style="width:100%;" ');
                 ?>
               </div>
             </div>

@@ -154,13 +154,16 @@ class Qms_model extends CI_Model
       $newTicket =  $this->getQueueTicketByID($insert_id);
 
       $estCallDate = date('d M y - H:i', strtotime($newTicket->est_call_date));
+      $expMinute = $this->SettingsJSON->qms_expired_time;
+      $expDate = date('d M y - H:i', strtotime("+{$expMinute} minute", strtotime($newTicket->est_call_date)));
 
       $msg = "Halo kak *{$newTicket->customer_name}* \u{1F48C}\n" .
       "Kaka telah berhasil Registrasi Pelayanan Outlet ".
       "Indoprinting {$newTicket->warehouse_name} \u{1F389}\n\n".
       "No. Antrian: *{$newTicket->token}* \u{1F3F7}\n".
-      "Estimasi pelayanan: *{$estCallDate}* (mohon datang 15 menit sebelum waktu pelayanan, ".
-      "jika terlewat, silakan tunjukkan tiket ini ke CS untuk segera dipanggil dan dilayani).\n\n".
+      "Estimasi pelayanan: *{$estCallDate}*\n".
+      "Tiket berlaku sampai: *{$expDate}*\n\n".
+      "*Jika terlewat di display antrian, silakan tunjukkan tiket ini ke CS untuk segera dipanggil dan dilayani.*\n\n".
       "\u{1F4DD} Registrasi Pelayanan Outlet bisa darimana aja sehingga *tidak perlu antri di Outlet*, ".
       "cukup datang ke Outlet sesuai jadwal yg terkirim ke WhatsApp kakak.. ".
       "https://indoprinting.co.id/antrian-online\n\n".
@@ -333,10 +336,7 @@ class Qms_model extends CI_Model
     $q = $this->db->get_where('queue_tickets', $clauses);
 
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -392,10 +392,7 @@ class Qms_model extends CI_Model
     $q = $this->db->get_where('queue_sessions', $clause);
 
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -415,10 +412,7 @@ class Qms_model extends CI_Model
     $q = $this->db->get_where('queue_tickets', $opt);
 
     if ($q && $q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     } else {
       die("Qms_model.php::getQueueUsers() {$this->db->error()['message']}");
     }
@@ -479,10 +473,7 @@ class Qms_model extends CI_Model
     $q = $this->db->get('users');
 
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
@@ -513,18 +504,15 @@ class Qms_model extends CI_Model
 
     $q = $this->db->get_where('queue_tickets', ['status' => self::STATUS_WAITING]); // status = 1 = Waiting.
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }
 
   public function getTodaySkippedQueueList($warehouse_id)
   {
-    $min = 15; // minutes
-    $date = date('Y-m-d H:i:s', strtotime("-{$min} minute"));
+    $expMinute = $this->SettingsJSON->qms_expired_time; // minutes
+    $date = date('Y-m-d H:i:s', strtotime("-{$expMinute} minute"));
 
     $this->db->like('date', date('Y-m-d'), 'right');
     $this->db->where("`est_call_date` > '{$date}'");
@@ -532,11 +520,9 @@ class Qms_model extends CI_Model
     $this->db->order_by('date', 'ASC');
 
     $q = $this->db->get_where('queue_tickets', ['status' => self::STATUS_SKIPPED]); // status = 1 = Waiting.
+
     if ($q->num_rows() > 0) {
-      foreach ($q->result() as $row) {
-        $data[] = $row;
-      }
-      return $data;
+      return $q->result();
     }
     return [];
   }

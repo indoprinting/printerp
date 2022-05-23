@@ -668,6 +668,7 @@ class Api extends MY_Controller
 
   private function sales_edit()
   {
+    $approved = $this->input->post('approved');
     $inv = $this->input->post('invoice');
     $note = $this->input->post('note');
     $bl_code = $this->input->post('biller');
@@ -681,8 +682,10 @@ class Api extends MY_Controller
     if (!empty($note)) $saleData['note'] = $note;
     if (!empty($estCompleteDate)) $saleData['est_complete_date'] = $estCompleteDate;
 
+    if ($approved == 0 || $approved == 1) $saleData['approved'] = $approved;
+
     if ($wh_code) {
-      $warehouse = $this->site->getWarehouseByCode($wh_code);
+      $warehouse = $this->site->getWarehouse(['code' => $wh_code]);
 
       if ($warehouse) {
         $saleData['warehouse_id'] = $warehouse->id;
@@ -692,9 +695,7 @@ class Api extends MY_Controller
     }
 
     if ($bl_code) {
-      $billerWarehouse = $this->site->getWarehouseByCode($bl_code); // Convert CODE to NAME only.
-
-      $biller = $this->site->getBillerByName($billerWarehouse->name);
+      $biller = $this->site->getBiller(['code' => $bl_code]);
 
       if ($biller) {
         $saleData['biller_id'] = $biller->id;
@@ -808,7 +809,7 @@ class Api extends MY_Controller
                 'name' => $pic->fullname
               ];
 
-              $warehouse = $this->site->getWarehousebyID($sale->warehouse_id);
+              $warehouse = $this->site->getWarehouse(['id' => $sale->warehouse_id]);
 
               $response['data']['sale'] = [
                 'no'                      => $sale->reference,
@@ -826,7 +827,8 @@ class Api extends MY_Controller
                 'outlet'                  => $sale->biller,
                 'note'                    => htmlDecode($sale->note),
                 'warehouse'               => $warehouse->name,
-                'warehouse_code'          => $warehouse->code
+                'warehouse_code'          => $warehouse->code,
+                'approved'                => ($saleJS->approved ?? 0)
               ];
 
               $response['data']['sale_items'] = [];
@@ -902,6 +904,7 @@ class Api extends MY_Controller
       $discount     = ($api->discount ?? 0);
       $items        = ($api->items ?? NULL); // [code, price, width, length, quantity, note]
       $use_transfer = ($api->use_transfer ?? 0);
+      $bl_code      = ($api->biller ?? 'ONL'); // Default ONL.
       $wh_code      = ($api->warehouse ?? 'DUR'); // Default DUR.
 
       if ($phone && $items) {
@@ -918,8 +921,8 @@ class Api extends MY_Controller
         }
 
         $user      = $this->site->getUserByUsername('w2p'); // Web2Print
-        $biller    = $this->site->getBillerByName('Online'); // Default Online.
-        $warehouse = $this->site->getWarehouseByCode($wh_code); // Default Durian.
+        $biller    = $this->site->getBiller(['code' => $bl_code]); // Default Online.
+        $warehouse = $this->site->getWarehouse(['code' => $wh_code]); // Default Durian.
 
         if (!$biller)    sendJSON(['error' => 1, 'message' => 'Biller is not found.']);
         if (!$warehouse) sendJSON(['error' => 1, 'message' => 'Warehouse is not found.']);

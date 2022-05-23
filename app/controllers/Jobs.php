@@ -2,9 +2,7 @@
 defined('BASEPATH') or exit('No direct script access allowed');
 
 /**
- * This Jobs controller is running as systemd service.
- *
- * To start or stop PrintERP Jobs service use "systemctl [ start | stop ] printerp" command.
+ * This Jobs controller is running by CRONJOB.
  */
 class Jobs extends MY_Controller
 {
@@ -18,48 +16,31 @@ class Jobs extends MY_Controller
   {
     if (!is_cli()) die('This program must be run under command line.');
 
-    $this->rdlog->info('PrintERP Jobs Service has been started.');
+    $this->rdlog->info('Jobs started.');
 
-    while (1) {
-      $this->wa_jobs();
-      sleep(10); // Interval 10s.
+    if ($job = $this->site->getJob(['status' => 'pending'])) {
+      if (empty($job->controller)) {
+        $this->site->updateJob($job->id, ['result' => 'Controller is missing.', 'status' => 'error']);
+        die;
+      }
+
+      if (empty($job->method)) {
+        $this->site->updateJob($job->id, ['result' => 'Method is missing.', 'status' => 'error']);
+        die;
+      }
+
+      $this->rdlog->info("Jobs process {$job->controller}::{$job->method}({$job->param})");
+      $this->site->updateJob($job->id, ['status' => 'processing']);
+      exec('/usr/local/bin/ea-php80 ' . FCPATH . "index.php {$job->controller} {$job->method} {$job->param}", $res);
+      $this->site->updateJob($job->id, ['result' => implode(' ', $res), 'status' => 'done']);
     }
+
+    $this->rdlog->info('Jobs finished.');
   }
 
-  private function wa_jobs()
+  public function test()
   {
-    try {
-      $pendingJobs = $this->site->getWAJobs(['status' => 'pending']);
-
-      foreach ($pendingJobs as $job) {
-        if ($job->send_date == '0000-00-00 00:00:00') continue; // Prevent invalid datetime.
-
-        if (strtotime(date('Y-m-d H:i:s')) > strtotime($job->send_date)) {
-
-          $res = sendWA($job->phone, $job->message);
-          // $res = '{"success": true, "description": "Sent successfully."}';
-
-          $json = json_decode($res);
-
-          if ($json && $json->status == TRUE) {
-            if (!empty($job->sale_id)) {
-              if ($sale = $this->site->getSaleByID($job->sale_id)) {
-                $msg = "WAJOBS [{$job->id}]: Sale {$sale->reference}, " .
-                  "customer {$sale->customer} has been notified.";
-
-                $this->rdlog->success($msg);
-              }
-            }
-            $this->site->updateWAJob($job->id, ['status' => 'sent']);
-          } else {
-            if ($json && $json->description) {
-              $this->rdlog->error("WAJOBS [{$job->id}]: {$json->description}");
-            }
-            $this->site->updateWAJob($job->id, ['status' => 'failed']);
-          }
-        }
-      }
-    } catch (Exception $e) {
-    }
+    $param = func_get_args();
+    die(json_encode($param));
   }
 }

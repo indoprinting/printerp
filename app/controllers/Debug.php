@@ -1,6 +1,8 @@
 <?php
 defined('BASEPATH') or exit('No direct script access allowed');
 
+use thiagoalessio\TesseractOCR\TesseractOCR;
+
 class Debug extends MY_Controller
 {
   public function __construct()
@@ -16,6 +18,116 @@ class Debug extends MY_Controller
     ];
 
     echo gettype($obj);
+  }
+
+  public function explode1()
+  {
+    $str = '';
+    $res = explode(',', $str);
+    var_dump($res);
+  }
+
+  public function payments()
+  {
+    $payments = $this->site->getPayments([
+      'start_date' => '2022-03-01',
+      'end_date'   => '2022-03-31',
+      'method' => 'Cash'
+    ]);
+
+    $total = 0;
+
+    foreach ($payments as $payment) {
+      if ($payment->type == 'received') $total += $payment->amount;
+      if ($payment->type == 'sent')     $total -= $payment->amount;
+    }
+
+    echo count($payments);
+  }
+
+  /**
+   * Check system executions.
+   */
+  public function exec()
+  {
+    $ex = [];
+
+    if (function_exists('exec')) {
+      $e = exec('echo "exec() OK"');
+      echo $e . '<br>';
+      $ex[] = 'exec';
+    }
+
+    if (function_exists('passthru')) {
+      passthru('echo "passthru() OK"');
+      echo '<br>';
+      $ex[] = 'passthru';
+    }
+
+    if (function_exists('shell_exec')) {
+      $e = exec('echo "shell_exec() OK"');
+      echo $e . '<br>';
+      $ex[] = 'shell_exec';
+    }
+
+    if (function_exists('system')) {
+      system('echo "system() OK"');
+      echo '<br>';
+      $ex[] = 'system';
+    }
+
+    echo '<br>';
+
+    if (count($ex)) {
+      echo "Available commands: " . implode(',', $ex);
+    } else {
+      echo "No commands available.";
+    }
+  }
+
+  public function ocr()
+  {
+    $target = FCPATH . 'files/trackingpod/attachments/sample.jpeg';
+
+    echo implode('<br>', ocr($target));
+  }
+
+  /**
+   * Mutex dengan delay.
+   */
+  public function mutex1()
+  {
+    $hMutex = mutexCreate('test');
+
+    sleep(10);
+
+    if ($hMutex && mutexRelease($hMutex)) {
+      echo "Success";
+    } else {
+      echo "Failed";
+    }
+  }
+
+  /**
+   * Mutex tanpa delay.
+   */
+  public function mutex2()
+  {
+    $hMutex = mutexCreate('test', FALSE);
+
+    if ($hMutex && mutexRelease($hMutex)) {
+      echo "Success";
+    } else {
+      echo "Failed";
+    }
+  }
+
+  public function productvalue()
+  {
+    $pvs = getProductStockValue(['warehouse_id' => 5]);
+
+    d($pvs);
+    die();
   }
 
   public function call_api()
@@ -98,6 +210,15 @@ class Debug extends MY_Controller
     }
   }
 
+  public function cli()
+  {
+    if (isCLI()) {
+      echo "Yes it's CLI.\r\n";
+    } else {
+      echo "It's not CLI.\r\n";
+    }
+  }
+
   public function complete_item()
   {
     $this->site->completeSaleItem(234293, ['quantity' => 1]);
@@ -123,6 +244,24 @@ class Debug extends MY_Controller
     } catch (Exception $err) {
       print_r($err->getMessage());
     }
+  }
+
+  public function datetime3()
+  {
+    for ($a = 24; $a >= 0; $a--) {
+      $dateMonth = date('Y-m', strtotime('-' . $a . ' month', strtotime(date('Y-m-') . '01')));
+      d($dateMonth);
+    }
+  }
+
+  public function datetime4()
+  {
+    $date = new DateTime('2022-04-15 23:00:00');
+    $inv  = new DateInterval('PT8H'); // 8 jam
+
+    $date->add($inv);
+
+    echo $date->format('Y-m-d H:i:s');
   }
 
   public function duration_time()
@@ -180,6 +319,11 @@ class Debug extends MY_Controller
 
     $r = getLongestDateTime($dates);
     d($r);
+  }
+
+  public function queue_datetime()
+  {
+    // $date = getQueueDateTime();
   }
 
   public function balance_stock()
@@ -266,6 +410,39 @@ class Debug extends MY_Controller
     foreach ($recorded as $rec) {
       echo "Stock [{$rec}] has been updated.<br>";
     }
+  }
+
+  public function fix_payments()
+  {
+    ini_set("memory_limit", "1024M"); // Required.
+
+    $payments = $this->site->getPayments(['nul' => 'biller_id']);
+    $counter = 0;
+    $processCount = 0;
+    $total   = count($payments);
+
+    foreach ($payments as $payment) {
+      if ($processCount >= 10) {
+        $processCount = 0;
+        sleep(2);
+      }
+
+      if (!$payment->biller_id) {
+        $bank = $this->site->getBankByID($payment->bank_id);
+
+        if ($bank) {
+          $rest = $total - $counter;
+          $donep = intval($counter / ($total / 100));
+          echo "\rTotal: {$total}, Processed: {$counter}, Rest: {$rest}, Done: {$donep}%, Payment ID: {$payment->id}";
+          $this->site->updatePayment($payment->id, ['biller_id' => $bank->biller_id]);
+        }
+
+        $counter++;
+        $processCount++;
+      }
+    }
+
+    echo "\r\nDone\r\n";
   }
 
   public function fix_sales_due_date()
@@ -561,6 +738,13 @@ class Debug extends MY_Controller
     rd_print($result);
   }
 
+  public function holidays()
+  {
+    $r = isTodayHoliday('2022-05-17');
+
+    echo ($r ? 'Holiday' : 'Not Holiday');
+  }
+
   public function memcached()
   {
     $cache = $this->ridintek->cache();
@@ -687,10 +871,10 @@ class Debug extends MY_Controller
       $url                = 'https://app.whacenter.com/api/send';
     } else if ($engine == 'watsap') {
       $query['api-key']   = 'a66d60ee436b0861c28353611d089dc872629d09';
-      $query['id_device'] = 612;
+      $query['id_device'] = 1163;
       $query['pesan']     = $text;
       $query['no_hp']     = $ph;
-      $url                = 'https://www.panel.watsap.id/api/send-message';
+      $url                = 'https://api.watsap.id/send-message';
       $query = json_encode($query);
     }
 
@@ -812,6 +996,11 @@ class Debug extends MY_Controller
         }
       }
     }
+  }
+
+  public function settings()
+  {
+    var_dump($this->SettingsJSON);
   }
 
   public function site_method()
@@ -1235,6 +1424,11 @@ class Debug extends MY_Controller
       die($r);
     }
     die('Sale is not valid.');
+  }
+
+  public function webinfo()
+  {
+    phpinfo();
   }
 
   public function week()

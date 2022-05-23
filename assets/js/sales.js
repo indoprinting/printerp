@@ -443,7 +443,7 @@ $(document).ready(function (e) {
 
     uopt = '<p style="margin: 12px 0 0 0;">n/a</p>';
     if (item.units) {
-      uopt = $('<select id="punit" name="punit" class="form-control select" />');
+      uopt = $('<select id="punit" name="punit" class="select2" style="width:100%">');
       $.each(item.units, function () {
         if (this.id == item.row.unit) {
           $('<option />', { value: this.id, text: this.name, selected: true }).appendTo(uopt);
@@ -955,7 +955,7 @@ function loadItems() {
       // OPERATOR & DUE DATE
       tr_html +=
         `<td class="text-center">
-          <select class="form-control operator operator-${item_operator}" style="width:100%;"
+          <select class="select2 operator operator-${item_operator}" style="width:100%;"
             name="operator[]" data-placeholder="Operator" value="${item_operator}">
             <option value=""></option>`;
 
@@ -964,7 +964,7 @@ function loadItems() {
         let group_name = '';
 
         for (let operator of item_operators) {
-          console.log(operator);
+          // console.log(operator);
           if (!operator) continue;
           if (operator.id === item_operator) selected = ' selected';
 

@@ -144,7 +144,7 @@ if ($verify_status) {
                     $bk[$bank->id] = $bank->name . ($bank->number ? ' (' . $bank->number . ')' : '');
                   }
                 }
-                echo form_dropdown('bank', $bk, ($bank_id ?? ''), 'class="form-control select" id="bank" style="width:100%;"'); ?>
+                echo form_dropdown('bank', $bk, ($bank_id ?? ''), 'class="form-control select2" id="bank" style="width:100%;"'); ?>
               </div>
             </div>
             <div class="col-sm-3">
@@ -171,21 +171,21 @@ if ($verify_status) {
                   'auto'   => 'Automatic',
                   'manual' => 'Manual'
                 ];
-                echo form_dropdown('verify_status', $opt, ($verify_status ?? ''), 'class="form-control select" id="verify_status" style="width:100%;"'); ?>
+                echo form_dropdown('verify_status', $opt, ($verify_status ?? ''), 'class="form-control select2" id="verify_status" style="width:100%;"'); ?>
               </div>
             </div>
           </div>
           <div class="row">
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('start_date'); ?></label>
-                <input type="text" class="form-control date" id="start_date" name="start_date" value="<?= ($start_date ?? '') ?>" />
+                <input type="date" class="form-control" id="start_date" name="start_date" value="<?= ($start_date ?? '') ?>" />
               </div>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('end_date'); ?></label>
-                <input type="text" class="form-control date" id="end_date" name="end_date" value="<?= ($end_date ?? '') ?>" />
+                <input type="date" class="form-control" id="end_date" name="end_date" value="<?= ($end_date ?? '') ?>" />
               </div>
             </div>
           </div>

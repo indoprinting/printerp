@@ -249,7 +249,7 @@ $(document).ready(function () {
 
     let opt = '<p style="margin: 12px 0 0 0;">n/a</p>';
 
-    uopt = $("<select id=\"punit\" name=\"punit\" class=\"form-control select\" />");
+    uopt = $("<select id=\"punit\" name=\"punit\" class=\"form-control select2\" />");
     $.each(item.units, function () {
       if(this.id == item.row.unit) {
         $("<option />", {value: this.id, text: this.name, selected:true}).appendTo(uopt);
@@ -379,7 +379,7 @@ $(document).ready(function () {
           opt_machines += `<option value="">All Machines</option>`;
 
           for (let x in machines) {
-            if (machines[x].warehouse_id != to_warehouse) continue;
+            if (machines[x].warehouse_id != to_warehouse) continue; // Filter machine by warehouse to.
 
             if (item_machine == machines[x].id) {
               opt_machines += `<option value="${machines[x].id}" selected>${machines[x].name}</option>`;
@@ -410,7 +410,7 @@ $(document).ready(function () {
 
         // Select Machine.
         tr_html += `<td>
-          <select class="form-control select machine-select" name="machines[]" value="${item_machine}" style="width:100%;">${opt_machines}</select>
+          <select class="form-control machine-select select2" name="machines[]" value="${item_machine}" style="width:100%;">${opt_machines}</select>
         </td>`;
 
         // Spec as Counter

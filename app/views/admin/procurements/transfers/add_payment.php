@@ -29,7 +29,7 @@
               }
             }
 
-            echo form_dropdown('created_by', $usr, $this->session->userdata('user_id'), 'id="created_by" class="form-control input-tip select" placeholder="Select Created By" required="required" style="width:100%"');
+            echo form_dropdown('created_by', $usr, $this->session->userdata('user_id'), 'id="created_by" class="select2" placeholder="Select Created By" required="required" style="width:100%"');
             ?>
           </div>
         </div>
@@ -43,7 +43,7 @@
               <?php
               $bk = [];
               $bk[''] = '';
-              $biller = $this->site->getBillerByName($transfer->to_warehouse_name);
+              $biller = $this->site->getBiller(['code' => $transfer->to_warehouse_code]);
               if ( ! empty($banks) && $biller) {
                 foreach ($banks as $bank) {
                   if ($biller->id == $bank->biller_id) {
@@ -52,7 +52,7 @@
                 }
               }
               ?>
-              <?= form_dropdown('from_bank_id', $bk, '', 'class="form-control tip" id="from_bank_id" placeholder="Select Account" required="required" style="width:100%"'); ?>
+              <?= form_dropdown('from_bank_id', $bk, '', 'class="select2" id="from_bank_id" data-placeholder="Select Account" required="required" style="width:100%"'); ?>
             </div>
             <div class="col-md-6">
               <?= lang('current_balance', 'balance_from'); ?>
@@ -68,7 +68,7 @@
               <?php
               $bk = [];
               $bk[''] = '';
-              $biller = $this->site->getBillerByName($transfer->from_warehouse_name);
+              $biller = $this->site->getBiller(['code' => $transfer->from_warehouse_code]);
               if ( ! empty($banks) && $biller) {
                 foreach ($banks as $bank) {
                   if ($biller->id == $bank->biller_id) {
@@ -77,7 +77,7 @@
                 }
               }
               ?>
-              <?= form_dropdown('to_bank_id', $bk, '', 'class="form-control tip" id="to_bank_id" placeholder="Select Account" required="required" style="width:100%"'); ?>
+              <?= form_dropdown('to_bank_id', $bk, '', 'class="select2" id="to_bank_id" data-placeholder="Select Account" required="required" style="width:100%"'); ?>
             </div>
             <div class="col-md-6">
               <?= lang('current_balance', 'balance_to'); ?>
@@ -110,9 +110,6 @@
   </div>
   <?php echo form_close(); ?>
 <script type="text/javascript" src="<?= $assets ?>js/custom.js"></script>
-<script type="text/javascript" charset="UTF-8">
-  $.fn.datetimepicker.dates['sma'] = <?=$dp_lang?>;
-</script>
 <script async src="<?= $assets ?>js/modal.js?v=<?= $res_hash ?>"></script>
 <script type="text/javascript" charset="UTF-8">
   $(document).ready(function () {
@@ -123,7 +120,7 @@
     <?php
         $bal = [];
         foreach ($banks as $bank) {
-          $bal[$bank->id] = $bank->balance;
+          $bal[$bank->id] = $bank->amount;
         }
     ?>
       let bal = JSON.parse('<?= json_encode($bal); ?>');
@@ -133,7 +130,7 @@
     <?php
         $bal = [];
         foreach ($banks as $bank) {
-          $bal[$bank->id] = $bank->balance;
+          $bal[$bank->id] = $bank->amount;
         }
     ?>
       let bal = JSON.parse('<?= json_encode($bal); ?>');
@@ -143,7 +140,6 @@
       $('#add_transfer_payment').prop('disabled', true);
     }
 
-    $.fn.datetimepicker.dates['sma'] = <?=$dp_lang?>;
     $("#date").datetimepicker({
       format: site.dateFormats.js_ldate,
       autoclose: true,

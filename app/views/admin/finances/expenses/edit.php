@@ -22,6 +22,9 @@
       <?php
       $ct[''] = lang('select') . ' ' . lang('category');
       foreach ($categories as $category) {
+        // Skip for asset purchase.
+        if ($category->id == 18 || $category->id == 19) continue;
+
         $ct[$category->id] = $category->name;
       }
       ?>
@@ -53,13 +56,11 @@
     </div>
     <div class="form-group">
       <?= lang('old_amount', 'old_amount'); ?>
-      <input name="old_amount" type="number" id="old_amount" value="<?= $this->sma->formatDecimal($expense->amount); ?>"
-           class="pa form-control kb-pad amount" required="required" readonly="readonly" />
+      <input name="old_amount" type="number" id="old_amount" value="<?= $this->sma->formatDecimal($expense->amount); ?>" class="pa form-control kb-pad amount" required="required" readonly="readonly" />
     </div>
     <div class="form-group">
       <?= lang('new_amount', 'new_amount'); ?>
-      <input name="new_amount" type="number" id="new_amount" value="<?= $this->sma->formatDecimal($expense->amount); ?>"
-           class="pa form-control kb-pad amount" required="required"/>
+      <input name="new_amount" type="number" id="new_amount" value="<?= $this->sma->formatDecimal($expense->amount); ?>" class="pa form-control kb-pad amount" required="required" />
     </div>
     <div class="form-group">
       <?= lang('supplier', 'supplier'); ?>
@@ -67,8 +68,7 @@
     </div>
     <div class="form-group">
       <?= lang('attachment', 'attachment') ?>
-      <input id="attachment" type="file" data-browse-label="<?= lang('browse'); ?>" name="userfile" data-show-upload="false" data-show-preview="false"
-           class="form-control file">
+      <input id="attachment" type="file" data-browse-label="<?= lang('browse'); ?>" name="userfile" data-show-upload="false" data-show-preview="false" class="form-control file">
     </div>
     <div class="form-group">
       <?= lang('note', 'note'); ?>
@@ -82,7 +82,7 @@
 <?php echo form_close(); ?>
 <script async src="<?= $assets ?>js/modal.js?v=<?= $res_hash ?>"></script>
 <script type="text/javascript" charset="UTF-8">
-  $(document).ready(function () {
+  $(document).ready(function() {
     let supplier_id = '<?= $expense->supplier_id; ?>';
 
     preSelectSupplier('#supplier', supplier_id);

@@ -2274,6 +2274,8 @@ abstract class CI_DB_query_builder extends CI_DB_driver {
 			return;
 		}
 
+		if (gettype($table) == 'NULL') return;
+
 		// Does the string contain a comma?  If so, we need to separate
 		// the string into discreet statements
 		if (strpos($table, ',') !== FALSE)

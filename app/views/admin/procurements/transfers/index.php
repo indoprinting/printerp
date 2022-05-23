@@ -209,7 +209,7 @@ if ($end_date = $this->input->get('end_date')) {
                     foreach ($warehouses as $wh) {
                       $whs[$wh->id] = $wh->name;
                     }
-                    echo form_multiselect('warehouse_from', $whs, ($warehouse_from ?? ''), 'class="form-control select" id="warehouse_from" style="width:100%;"');
+                    echo form_multiselect('warehouse_from', $whs, ($warehouse_from ?? ''), 'class="select2" id="warehouse_from" style="width:100%;"');
                   }
                 ?>
               </div>
@@ -223,7 +223,7 @@ if ($end_date = $this->input->get('end_date')) {
                     foreach ($warehouses as $wh) {
                       $whs[$wh->id] = $wh->name;
                     }
-                    echo form_multiselect('warehouse_to', $whs, ($warehouse_to ?? ''), 'class="form-control select" id="warehouse_to" style="width:100%;"');
+                    echo form_multiselect('warehouse_to', $whs, ($warehouse_to ?? ''), 'class="select2" id="warehouse_to" style="width:100%;"');
                   }
                 ?>
               </div>
@@ -241,7 +241,7 @@ if ($end_date = $this->input->get('end_date')) {
                     $stat[$st] = lang($st);
                   }
                 }
-                echo form_multiselect('status', $stat, ($status ?? ''), 'class="form-control select" id="status" style="width:100%;"'); ?>
+                echo form_multiselect('status', $stat, ($status ?? ''), 'class="select2" id="status" style="width:100%;"'); ?>
               </div>
             </div>
             <div class="col-sm-4">
@@ -254,21 +254,21 @@ if ($end_date = $this->input->get('end_date')) {
                     $stat[$status] = lang($status);
                   }
                 }
-                echo form_multiselect('paystatus', $stat, ($payment_status ?? ''), 'class="form-control select" id="payment_status" style="width:100%;"'); ?>
+                echo form_multiselect('paystatus', $stat, ($payment_status ?? ''), 'class="select2" id="payment_status" style="width:100%;"'); ?>
               </div>
             </div>
           </div>
           <div class="row">
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('start_date'); ?></label>
-                <input name="start_date" class="form-control date" id="start_date" type="text" value="<?= ($start_date ?? ''); ?>">
+                <input name="start_date" class="form-control" id="start_date" type="date" value="<?= ($start_date ?? ''); ?>">
               </div>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('end_date'); ?></label>
-                <input name="end_date" class="form-control date" id="end_date" type="text" value="<?= ($end_date ?? ''); ?>">
+                <input name="end_date" class="form-control" id="end_date" type="date" value="<?= ($end_date ?? ''); ?>">
               </div>
             </div>
           </div>

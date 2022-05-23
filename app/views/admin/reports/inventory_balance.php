@@ -218,7 +218,7 @@ if ($warehouse_id) $q .= '&warehouse=' . $warehouse_id;
                     $cat[$category->id] = '(' . $category->code . ') ' . $category->name;
                   }
                 }
-                echo form_dropdown('category', $cat, $category_id, 'class="form-control select" id="category" style="width:100%"')
+                echo form_dropdown('category', $cat, $category_id, 'class="select2" id="category" style="width:100%"')
                 ?>
               </div>
             </div>
@@ -227,7 +227,7 @@ if ($warehouse_id) $q .= '&warehouse=' . $warehouse_id;
               <div class="form-group">
                 <?= lang('subcategory', 'subcategory') ?>
                 <div class="controls" id="subcat_data">
-                  <?= form_input('subcategory', (isset($_POST['subcategory']) ? $_POST['subcategory'] : ''), 'class="form-control select" id="subcategory" style="width:100%;"'); ?>
+                  <?= form_input('subcategory', (isset($_POST['subcategory']) ? $_POST['subcategory'] : ''), 'class="select2" id="subcategory" style="width:100%;"'); ?>
                 </div>
               </div>
             </div>
@@ -244,23 +244,25 @@ if ($warehouse_id) $q .= '&warehouse=' . $warehouse_id;
                     $wh[$warehouse->id] = $warehouse->name;
                   }
                 }
-                echo form_dropdown('warehouse', $wh, $warehouse_id, 'class="form-control select" id="warehouse" style="width:100%;"');
+                echo form_dropdown('warehouse', $wh, $warehouse_id, 'class="select2" id="warehouse" style="width:100%;"');
                 ?>
               </div>
             </div>
           </div>
           <div class="row">
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <?= lang('start_date', 'start_date'); ?>
-                <?php echo form_input('start_date', $start_date, 'class="form-control date" id="start_date"'); ?>
+                <input type="date" id="start_date" name="start_date" class="form-control" value="<?= $start_date ?>">
+                
               </div>
             </div>
 
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <?= lang('end_date', 'end_date'); ?>
                 <?php echo form_input('end_date', $end_date, 'class="form-control date" id="end_date"'); ?>
+                <input type="date" id="end_date" name="end_date" class="form-control" value="<?= $end_date ?>">
               </div>
             </div>
           </div>

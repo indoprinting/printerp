@@ -13,7 +13,7 @@
           <div class="col-md-6">
             <div class="form-group">
               <label for="bank">Bank</label>
-              <select id="bank" class="form-control select2" name="bank" style="width:100%;">
+              <select id="bank" class="select2" name="bank" style="width:100%;">
                 <?php $banks = $this->site->getBanks(['active' => 1]);
                 foreach ($banks as $bank) : ?>
                   <option value="<?= $bank->id ?>"><?= $bank->name ?></option>

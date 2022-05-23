@@ -10,6 +10,10 @@ if ($warehouses = $this->input->get('warehouse')) {
   }
 }
 
+if ($cond = $this->input->get('condition')) {
+  $q .= '&condition=' . $cond;
+}
+
 if ($startDate = $this->input->get('start_date')) {
   $q .= '&start_date=' . $startDate;
 }
@@ -139,18 +143,26 @@ if ($endDate = $this->input->get('end_date')) {
                 <?= form_multiselect('warehouses[]', $bl, ($warehouses ?? ''), 'class="form-control select2" id="warehouses" data-placeholder="Select warehouse" style="width:100%;"'); ?>
               </div>
             </div>
+            <div class="col-sm-4">
+              <label for="condition">Condition</label>
+              <select class="select2" id="condition" name="condition" style="width:100%">
+                <option value="good">Good</option>
+                <option value="off">Off</option>
+                <option value="trouble">Trouble</option>
+              </select>
+            </div>
           </div>
           <div class="row">
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label for="startDate"><i class="fad fa-clock"></i> Start Date</label>
-                <input class="form-control date" id="startDate" name="start_date" type="text">
+                <input class="form-control" id="startDate" name="start_date" type="date">
               </div>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label for="endDate"><i class="fad fa-clock"></i> End Date</label>
-                <input class="form-control date" id="endDate" name="end_date" type="text">
+                <input class="form-control" id="endDate" name="end_date" type="date">
               </div>
             </div>
           </div>
@@ -221,10 +233,13 @@ if ($endDate = $this->input->get('end_date')) {
 </div>
 <script>
   $(document).ready(function() {
+    $('#condition').val('<?= $cond ?>').trigger('change');
+
     $('#btn_filter').click(function() {
       let created_by = $('#created_by').val();
       let startDate = $('#startDate').val();
       let endDate = $('#endDate').val();
+      let condition = $('#condition').val();
       let warehouses = $('#warehouses').val();
       let q = '?';
 
@@ -236,6 +251,9 @@ if ($endDate = $this->input->get('end_date')) {
       }
       if (endDate) {
         q += '&end_date=' + endDate;
+      }
+      if (condition) {
+        q += '&condition=' + condition;
       }
       if (warehouses) {
         for (let x in warehouses) {

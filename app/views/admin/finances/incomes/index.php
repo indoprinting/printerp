@@ -150,7 +150,7 @@ if ($this->input->post('to_date')) {
                     $cat[$category->id] = $category->name;
                   }
                 }
-                echo form_dropdown('category', $cat, ($this->input->post('category') ?? ''), 'class="form-control select" id="category" style="width:100%;"'); ?>
+                echo form_dropdown('category', $cat, ($this->input->post('category') ?? ''), 'class="form-control select2" id="category" style="width:100%;"'); ?>
               </div>
             </div>
             <div class="col-sm-4">
@@ -172,21 +172,21 @@ if ($this->input->post('to_date')) {
                     }
                   }
                 }
-                echo form_dropdown('paid_by', $bk, ($this->input->post('paid_by') ?? ''), 'class="form-control select" id="paid_by" style="width:100%;"'); ?>
+                echo form_dropdown('paid_by', $bk, ($this->input->post('paid_by') ?? ''), 'class="form-control select2" id="paid_by" style="width:100%;"'); ?>
               </div>
             </div>
           </div>
           <div class="row">
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('from_date'); ?></label>
-                <input name="from_date" class="form-control date" type="text" value="<?= ($this->input->post('from_date') ?? ''); ?>">
+                <input name="from_date" class="form-control" type="date" value="<?= ($this->input->post('from_date') ?? ''); ?>">
               </div>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('to_date'); ?></label>
-                <input name="to_date" class="form-control date" type="text" value="<?= ($this->input->post('to_date') ?? ''); ?>">
+                <input name="to_date" class="form-control" type="date" value="<?= ($this->input->post('to_date') ?? ''); ?>">
               </div>
             </div>
           </div>

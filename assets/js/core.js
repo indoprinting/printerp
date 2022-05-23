@@ -424,9 +424,15 @@ jQuery(document).ready(function (e) {
 
 $(document).ready(function () {
   cssStyle();
-  $('select, .select')
+  $('select.select2')
     .not('.skip')
-    .select2({ minimumResultsForSearch: 7, theme: 'classic' });
+    .select2({ theme: 'classic' });
+  
+  $('select.select2-tags')
+    .not('.skip')
+    .select2({ tags: true, theme: 'classic' });
+
+  $('select[name$="_length"]').not('.skip').select2({ theme: 'classic' }); // Datatables.
 
   $('#customer, #rcustomer, .rcustomer, select.ssr-customer').select2({
     minimumInputLength: 1,
@@ -1593,15 +1599,6 @@ function formatQuantityNumber(x, d) {
 }
 function formatQty(x) {
   return x != null ? formatNumber(x, site.settings.qty_decimals) : '';
-}
-function formatNumber(x, d) {
-  if (!d && d != 0) {
-    d = site.settings.decimals;
-  }
-  if (site.settings.sac == 1) {
-    return formatSA(parseFloat(x).toFixed(d));
-  }
-  return accounting.formatNumber(x, d, site.settings.thousands_sep == 0 ? ' ' : site.settings.thousands_sep, site.settings.decimals_sep);
 }
 function formatMoney(x, symbol) {
   if (!symbol) {

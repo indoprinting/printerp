@@ -19,7 +19,7 @@
                   <?php
                   $opt = ['standard' => 'Standard', 'combo' => 'Combo', 'service' => 'Service'];
 
-                  echo form_dropdown('type', $opt, $product->type, 'class="form-control select" id="type" style="width:100%;" required="required"')
+                  echo form_dropdown('type', $opt, $product->type, 'class="select2" id="type" style="width:100%;" required="required"')
                   ?>
                 </div>
               </div>
@@ -149,7 +149,7 @@
 
                   $category = $this->site->getProductCategoryByID($product->category_id);
 
-                  echo form_dropdown('category', $opt, ($category ? $category->code : ''), 'class="form-control select" id="category" style="width:100%;" required="required"')
+                  echo form_dropdown('category', $opt, ($category ? $category->code : ''), 'class="select2" id="category" style="width:100%;" required="required"')
                   ?>
                 </div>
               </div>
@@ -161,7 +161,7 @@
                   <?php
                   $opt = [];
 
-                  echo form_dropdown('subcategory', $opt, '', 'class="form-control select" id="subcategory" style="width:100%;"')
+                  echo form_dropdown('subcategory', $opt, '', 'class="select2" id="subcategory" style="width:100%;"')
                   ?>
                 </div>
               </div>
@@ -176,7 +176,7 @@
                 <?= lang('internal_use_type', 'iuse_type'); ?>
                 <?php
                 $opt = ['' => 'Select internal use type', 'consumable' => 'Consumable', 'report' => 'Combo Report', 'sparepart' => 'Sparepart'];
-                echo form_dropdown('iuse_type', $opt, $product->iuse_type, 'class="form-control select" id="iuse_type" style="width:100%;"');
+                echo form_dropdown('iuse_type', $opt, $product->iuse_type, 'class="select2" id="iuse_type" style="width:100%;"');
                 ?>
               </div>
             </div>
@@ -205,7 +205,7 @@
             <div class="row">
               <div class="col-sm-12">
                 <div class="form-group">
-                  <?= form_dropdown('item', [], '', 'class="form-control product-service-standard" id="item" data-placeholder="Select Items" style="width:100%;"'); ?>
+                  <?= form_dropdown('item', [], '', 'class="product-service-standard" id="item" data-placeholder="Select Items" style="width:100%;"'); ?>
                 </div>
               </div>
             </div>
@@ -278,7 +278,7 @@
                     <div class="input-group">
                       <?php
                       $opt = [];
-                      echo form_dropdown('supplier', $opt, '', 'class="form-control supplier" id="supplier" data-placeholder="Select Supplier" style="width:100%;"');
+                      echo form_dropdown('supplier', $opt, '', 'class="supplier" id="supplier" data-placeholder="Select Supplier" style="width:100%;"');
                       ?>
                       <div class="input-group-addon" style="padding:0 10px;">
                         <a href="#" class="tip" id="clearSupplier" title="Clear Supplier"><i class="fad fa-trash-alt"></i></a>
@@ -307,7 +307,7 @@
                     }
                   }
 
-                  echo form_dropdown('unit', $opt, $product->unit, 'class="form-control select" id="unit" style="width:100%;"')
+                  echo form_dropdown('unit', $opt, $product->unit, 'class="select2" id="unit" style="width:100%;"')
                   ?>
                 </div>
               </div>
@@ -318,7 +318,7 @@
                   <?= lang('sale_unit', 'sale_unit'); ?>
                   <?php
                   $opt = [];
-                  echo form_dropdown('sale_unit', $opt, $product->sale_unit, 'class="form-control select" id="sale_unit" style="width:100%;"')
+                  echo form_dropdown('sale_unit', $opt, $product->sale_unit, 'class="select2" id="sale_unit" style="width:100%;"')
                   ?>
                 </div>
               </div>
@@ -329,7 +329,7 @@
                   <?= lang('purchase_unit', 'purchase_unit'); ?>
                   <?php
                   $opt = [];
-                  echo form_dropdown('purchase_unit', $opt, $product->purchase_unit, 'class="form-control select" id="purchase_unit" style="width:100%;"')
+                  echo form_dropdown('purchase_unit', $opt, $product->purchase_unit, 'class="select2" id="purchase_unit" style="width:100%;"')
                   ?>
                 </div>
               </div>
@@ -503,7 +503,7 @@
                         <div class="input-group">
                           <?php
                           $opt = [];
-                          echo form_dropdown('pic_' . $warehouse->id, $opt, '', 'class="form-control user" id="pic_' . $warehouse->id . '" data-placeholder="Select PIC" style="width:100%;"');
+                          echo form_dropdown('pic_' . $warehouse->id, $opt, '', 'class="user" id="pic_' . $warehouse->id . '" data-placeholder="Select PIC" style="width:100%;"');
                           ?>
                           <div class="input-group-addon" style="padding:0 10px;">
                             <a href="#" class="tip clear-pic" title="Clear PIC"><i class="fad fa-trash-alt"></i></a>

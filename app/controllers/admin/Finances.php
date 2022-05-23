@@ -1864,7 +1864,7 @@ class Finances extends MY_Controller
     $accNo  = $this->input->get('no');
 
     $this->data['module']   = $module;
-    $this->data['payments'] = NULL;
+    $this->data['payments'] = [];
 
     if ($module == 'erp') {
       $payments = $this->site->getPaymentsByBankAccountNumber($accNo);
@@ -1882,13 +1882,32 @@ class Finances extends MY_Controller
    */
   public function validations()
   {
-    $params = func_get_args();
-    $method = __FUNCTION__ . '_' . (empty($params) || $params[0] == 'biller' ? 'index' : $params[0]); // If not param or param[0] == biller then index
+    if ($argv = func_get_args()) {
+      $method = __FUNCTION__ . '_' . $argv[0];
 
-    if (method_exists($this, $method)) {
-      if (!empty($params)) array_shift($params); // Remove original method as param.
-      call_user_func_array([$this, $method], $params);
+      if (method_exists($this, $method)) {
+        array_shift($argv);
+        return call_user_func_array([$this, $method], $argv);
+      }
     }
+
+    $this->sma->checkPermissions('index', NULL, 'validations');
+    $biller_id = ($this->input->get('biller') ?? $this->session->userdata('biller_id'));
+    $this->site->syncPaymentValidations(); // Sync all payment validations.
+    $this->data['billers']   = (!$this->session->userdata('biller_id') ? $this->site->getAllbillers() : NULL);
+    $this->data['biller']    = $this->site->getbillerByID($biller_id);
+    $this->data['biller_id'] = $biller_id;
+
+    $bc   = [ // Breadcrumbs
+      ['link' => base_url(), 'page' => lang('home')],
+      ['link' => '#', 'page' => lang('finances')],
+      ['link' => '#', 'page' => lang('payment_validations')]
+    ];
+
+    $meta = ['page_title' => lang('payment_validations'), 'bc' => $bc];
+    $this->data = array_merge($this->data, $meta);
+
+    $this->page_construct('finances/validations/index', $this->data);
   }
 
   private function validations_add($biller_id = NULL)

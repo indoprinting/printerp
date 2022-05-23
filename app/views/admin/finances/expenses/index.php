@@ -175,7 +175,7 @@ if ($end_payment_date = $this->input->get('end_payment_date')) {
                     }
                   }
                 }
-                echo form_multiselect('status', $stat, ($status ?? ''), 'class="form-control select" id="status" style="width:100%;"'); ?>
+                echo form_multiselect('status', $stat, ($status ?? ''), 'class="form-control select2" id="status" style="width:100%;"'); ?>
               </div>
             </div>
             <div class="col-sm-4">
@@ -190,35 +190,35 @@ if ($end_payment_date = $this->input->get('end_payment_date')) {
                     }
                   }
                 }
-                echo form_multiselect('payment_status', $stat, ($payment_status ?? ''), 'class="form-control select" id="payment_status" style="width:100%;"'); ?>
+                echo form_multiselect('payment_status', $stat, ($payment_status ?? ''), 'class="form-control select2" id="payment_status" style="width:100%;"'); ?>
               </div>
             </div>
           </div>
           <div class="row">
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('start_date'); ?></label>
-                <input name="start_date" class="form-control date" id="start_date" type="text" value="<?= ($start_date ?? ''); ?>">
+                <input name="start_date" class="form-control" id="start_date" type="date" value="<?= ($start_date ?? ''); ?>">
               </div>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('end_date'); ?></label>
-                <input name="end_date" class="form-control date" id="end_date" type="text" value="<?= ($end_date ?? ''); ?>">
+                <input name="end_date" class="form-control" id="end_date" type="date" value="<?= ($end_date ?? ''); ?>">
               </div>
             </div>
           </div>
           <div class="row">
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('start_payment_date'); ?></label>
-                <input name="start_payment_date" class="form-control date" id="start_payment_date" type="text" value="<?= ($start_payment_date ?? ''); ?>">
+                <input name="start_payment_date" class="form-control" id="start_payment_date" type="date" value="<?= ($start_payment_date ?? ''); ?>">
               </div>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <label><?= lang('end_payment_date'); ?></label>
-                <input name="end_payment_date" class="form-control date" id="end_payment_date" type="text" value="<?= ($end_payment_date ?? ''); ?>">
+                <input name="end_payment_date" class="form-control" id="end_payment_date" type="date" value="<?= ($end_payment_date ?? ''); ?>">
               </div>
             </div>
           </div>

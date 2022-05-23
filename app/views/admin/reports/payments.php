@@ -234,7 +234,7 @@ if ($gend_date = $this->input->get('end_date')) {
                 foreach ($all_banks as $bank) {
                   $bk[$bank->id] = $bank->name . ($bank->type != 'Cash' ? ' (' . $bank->number . ')' : '');
                 }
-                echo form_multiselect('bank[]', $bk, $gbanks, 'class="form-control select" id="bank" data-placeholder="Select Bank" style="width:100%;"');
+                echo form_multiselect('bank[]', $bk, $gbanks, 'class="select2" id="bank" data-placeholder="Select Bank" style="width:100%;"');
                 ?>
               </div>
             </div>
@@ -249,7 +249,7 @@ if ($gend_date = $this->input->get('end_date')) {
                 foreach ($billers as $biller) {
                   $bl[$biller->id] = $biller->name;
                 }
-                echo form_multiselect('biller[]', $bl, $gbillers, 'class="form-control select" id="biller" data-placeholder="Select Biller" style="width:100%;"');
+                echo form_multiselect('biller[]', $bl, $gbillers, 'class="select2" id="biller" data-placeholder="Select Biller" style="width:100%;"');
                 ?>
               </div>
             </div>
@@ -265,30 +265,30 @@ if ($gend_date = $this->input->get('end_date')) {
                   $us[$user->id] = $user->first_name . ' ' . $user->last_name;
                 }
 
-                echo form_multiselect('user[]', '', $gusers, 'class="form-control select" id="user" data-placeholder="Select User" style="width:100%;"');
+                echo form_multiselect('user[]', '', $gusers, 'class="select2" id="user" data-placeholder="Select User" style="width:100%;"');
                 ?>
               </div>
             </div>
             <div class="col-sm-4">
               <div class="form-group">
               <?=lang('paid_by', 'paid_by');?>
-                <select name="paid_by" id="paid_by" class="form-control paid_by select" style="width:100%;">
+                <select name="paid_by" id="paid_by" class="paid_by select2" style="width:100%;">
                   <?= $this->sma->paid_opts(NULL, NULL, TRUE); ?>
                 </select>
               </div>
             </div>
           </div>
           <div class="row">
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
-                <?= lang('start_date', 'start_date'); ?>
-                <?php echo form_input('start_date', $gstart_date, 'class="form-control date" id="start_date"'); ?>
+                <?= lang('start_date', 'start_date'); ?>                
+                <input type="date" id="start_date" name="start_date" class="form-control" value="<?= $gstart_date ?>">
               </div>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-2">
               <div class="form-group">
                 <?= lang('end_date', 'end_date'); ?>
-                <?php echo form_input('end_date', $gend_date, 'class="form-control date" id="end_date"'); ?>
+                <input type="date" id="end_date" name="end_date" class="form-control" value="<?= $gend_date ?>">
               </div>
             </div>
           </div>

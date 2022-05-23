@@ -53,10 +53,10 @@ function loadItems () {
           <td class="text-center">${item.unit_name}</td>
           <td>
             <input type="hidden" name="real_qty[]" value="${itemQty}">
-            <input type="number" name="first_qty[]" class="form-control editor text-center" step="0.1" value="${item.first_qty}">
+            <input type="number" name="first_qty[]" class="form-control so-formula text-center" step="0.1" value="${item.first_qty}">
           </td>
           <td>
-            <input type="number" name="reject_qty[]" class="form-control editor text-center" step="0.1" value="${item.reject_qty}">
+            <input type="number" name="reject_qty[]" class="form-control text-center" step="0.1" value="${item.reject_qty}">
           </td>
           <td class="text-center">${deleteButton}</td>
         </tr>`;
@@ -69,6 +69,10 @@ function loadItems () {
 
   return false;
 }
+
+$(document).on('dblclick', '.so-formula', function() {
+  showModal(site.base_url + 'products/stock_opname/formula', 'modal-lg')
+});
 
 $(document).on('change', '[name="first_qty[]"], [name="reject_qty[]"]', function (e) {
   console.log('changed');

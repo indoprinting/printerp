@@ -52,7 +52,7 @@ function row_status($status, $elm = NULL)
     </div>
   </div>
 <?php endif; ?>
-<?php if ($Owner || $Admin) :
+<?php if ($isAdmin) :
 ?>
   <div class="row" style="margin-bottom: 15px;">
     <div class="col-lg-12">
@@ -214,19 +214,19 @@ function row_status($status, $elm = NULL)
           <div class="col-md-12">
 
             <ul id="dbTab" class="nav nav-tabs">
-              <?php if ($Owner || $Admin || getPermission('sales-index')) : ?>
+              <?php if ($isAdmin || getPermission('sales-index')) : ?>
                 <li class=""><a href="#sales" class="tab-sales"><?= lang('sales') ?></a></li>
               <?php endif; ?>
-              <?php if ($Owner || $Admin || getPermission('purchases-index')) : ?>
+              <?php if ($isAdmin || getPermission('purchases-index')) : ?>
                 <li class=""><a href="#purchases" class="tab-purchases"><?= lang('purchases') ?></a></li>
               <?php endif; ?>
-              <?php if ($Owner || $Admin || getPermission('transfers-index')) : ?>
+              <?php if ($isAdmin || getPermission('transfers-index')) : ?>
                 <li class=""><a href="#transfers" class="tab-transfers"><?= lang('transfers') ?></a></li>
               <?php endif; ?>
-              <?php if ($Owner || $Admin || getPermission('customers-index')) : ?>
+              <?php if ($isAdmin || getPermission('customers-index')) : ?>
                 <li class=""><a href="#customers"><?= lang('customers') ?></a></li>
               <?php endif; ?>
-              <?php if ($Owner || $Admin || getPermission('suppliers-index')) : ?>
+              <?php if ($isAdmin || getPermission('suppliers-index')) : ?>
                 <li class=""><a href="#suppliers"><?= lang('suppliers') ?></a></li>
               <?php endif; ?>
             </ul>

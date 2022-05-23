@@ -27,30 +27,112 @@ class Reports extends MY_Controller
    */
   public function balancesheet()
   {
-    $startDate = ($this->input->get('start_date') ?? date('Y-m-') . '01');
-    $endDate   = ($this->input->get('end_date') ?? date('Y-m-d'));
+    $startDate = ($this->input->get('start_date') ?? NULL);
+    $endDate   = ($this->input->get('end_date') ?? date('Y-m-d')); // Default current date
 
     $billerId    = ($this->input->get('biller') ?? NULL);
     $warehouseId = ($this->input->get('warehouse') ?? NULL);
 
-    $clause = [
-      'start_date' => $startDate,
-      'end_date'   => $endDate
-    ];
+    $clause = [];
+    if ($billerId)  $clause['biller_id']  = $billerId;
+    if ($startDate) $clause['start_date'] = $startDate;
+    $clause['end_date'] = $endDate;
 
-    // SALES (biller && warehouse)
-    if ($billerId)    $clause['biller_id']    = $billerId;
-    if ($warehouseId) $clause['warehouse_id'] = $warehouseId;
-    $sales = $this->site->getSales($clause);
-    $paidSales = 0;
-    $piutang = 0;
-    foreach ($sales as $sale) {
-      $paidSales += $sale->paid;
-      $piutang += $sale->balance;
+    $payments = $this->site->getPayments($clause); // Global Payments. start_date & end_date
+
+    // INVESTASI [Done]
+    $invBCAAmount  = 0;
+    $invBNIAmount  = 0;
+    $invBRIAmount  = 0;
+    $invBRI2Amount = 0;
+    $invMANAmount  = 0;
+    $invMAN2Amount  = 0;
+
+    $bank = $this->site->getBank(['code' => 'B6BCALUC']);
+
+    foreach ($payments as $payment) {
+      if ($payment->bank_id == $bank->id) {
+        if ($payment->type == 'received') $invBCAAmount += $payment->amount;
+        if ($payment->type == 'sent')     $invBCAAmount -= $payment->amount;
+      }
     }
-    unset($clause['biller_id'], $clause['warehouse_id']);
 
-    // EXPENSES (biller)
+    $bank = $this->site->getBank(['code' => 'B3BNILUC']);
+
+    foreach ($payments as $payment) {
+      if ($payment->bank_id == $bank->id) {
+        if ($payment->type == 'received') $invBNIAmount += $payment->amount;
+        if ($payment->type == 'sent')     $invBNIAmount -= $payment->amount;
+      }
+    }
+
+    $bank = $this->site->getBank(['code' => 'B2BRILUC']);
+
+    foreach ($payments as $payment) {
+      if ($payment->bank_id == $bank->id) {
+        if ($payment->type == 'received') $invBRIAmount += $payment->amount;
+        if ($payment->type == 'sent')     $invBRIAmount -= $payment->amount;
+      }
+    }
+
+    $bank = $this->site->getBank(['code' => 'B3BRILUC']);
+
+    foreach ($payments as $payment) {
+      if ($payment->bank_id == $bank->id) {
+        if ($payment->type == 'received') $invBRI2Amount += $payment->amount;
+        if ($payment->type == 'sent')     $invBRI2Amount -= $payment->amount;
+      }
+    }
+
+    $bank = $this->site->getBank(['code' => 'B2MANLUC']);
+
+    foreach ($payments as $payment) {
+      if ($payment->bank_id == $bank->id) {
+        if ($payment->type == 'received') $invMANAmount += $payment->amount;
+        if ($payment->type == 'sent')     $invMANAmount -= $payment->amount;
+      }
+    }
+
+    $bank = $this->site->getBank(['code' => 'B3MANLUC']);
+
+    foreach ($payments as $payment) {
+      if ($payment->bank_id == $bank->id) {
+        if ($payment->type == 'received') $invMAN2Amount += $payment->amount;
+        if ($payment->type == 'sent')     $invMAN2Amount -= $payment->amount;
+      }
+    }
+
+    // CASH BANK [Done]
+    $cashBank = 0;
+    $cashCOH  = 0;
+
+    foreach ($payments as $payment) {
+      if ($payment->method == 'Cash') {
+        if ($payment->type == 'received') $cashCOH += $payment->amount;
+        if ($payment->type == 'sent')     $cashCOH -= $payment->amount;
+      }
+
+      if ($payment->method == 'Transfer' || $payment->method == 'EDC') {
+        if ($payment->type == 'received') $cashBank += $payment->amount;
+        if ($payment->type == 'sent')     $cashBank -= $payment->amount;
+      }
+    }
+
+    // SALES [Done]
+    $piutangSales = $this->site->getSales($clause);
+
+    $salesPaid = 0;
+    $salesBalance = 0;
+
+    foreach ($payments as $payment) { // Uang pelanggan yg sdh masuk.
+      if ($payment->sale_id) $salesPaid += $payment->amount;
+    }
+
+    foreach ($piutangSales as $sale) { // Uang pelanggan yg blm masuk.
+      $salesBalance += $sale->balance;
+    }
+
+    // EXPENSES [Clear]
     $exCategory = [
       'K001' => 0,
       'K002' => 0,
@@ -69,8 +151,8 @@ class Reports extends MY_Controller
       'K015' => 0,
       'K016' => 0,
       'K017' => 0,
-      'K018' => 0,
-      'K019' => 0,
+      // 'K018' => 0,
+      // 'K019' => 0,
       'K020' => 0,
       'K021' => 0,
       'K022' => 0,
@@ -96,7 +178,6 @@ class Reports extends MY_Controller
       'K042' => 0
     ];
 
-    if ($billerId) $clause['biller_id'] = $billerId;
     $expenses = $this->site->getExpenses($clause);
 
     foreach ($expenses as $expense) {
@@ -121,8 +202,8 @@ class Reports extends MY_Controller
       if ($expenseCategory->code == 'K015') $exCategory['K015'] += $expense->amount;
       if ($expenseCategory->code == 'K016') $exCategory['K016'] += $expense->amount;
       if ($expenseCategory->code == 'K017') $exCategory['K017'] += $expense->amount;
-      if ($expenseCategory->code == 'K018') $exCategory['K018'] += $expense->amount;
-      if ($expenseCategory->code == 'K019') $exCategory['K019'] += $expense->amount;
+      // if ($expenseCategory->code == 'K018') $exCategory['K018'] += $expense->amount;
+      // if ($expenseCategory->code == 'K019') $exCategory['K019'] += $expense->amount;
       if ($expenseCategory->code == 'K020') $exCategory['K020'] += $expense->amount;
       if ($expenseCategory->code == 'K021') $exCategory['K021'] += $expense->amount;
       if ($expenseCategory->code == 'K022') $exCategory['K022'] += $expense->amount;
@@ -147,9 +228,8 @@ class Reports extends MY_Controller
       if ($expenseCategory->code == 'K041') $exCategory['K041'] += $expense->amount;
       if ($expenseCategory->code == 'K042') $exCategory['K042'] += $expense->amount;
     }
-    unset($clause['biller_id']);
 
-    // INCOMES (biller)
+    // INCOMES [Clear]
     $inCategory = [
       'M001' => 0,
       'M002' => 0,
@@ -162,7 +242,6 @@ class Reports extends MY_Controller
       'M009' => 0,
     ];
 
-    if ($billerId) $clause['biller_id'] = $billerId;
     $incomes = $this->site->getIncomes($clause);
 
     foreach ($incomes as $income) {
@@ -178,44 +257,56 @@ class Reports extends MY_Controller
       if ($category->code == 'M008') $inCategory['M008'] += $income->amount;
       if ($category->code == 'M009') $inCategory['M009'] += $income->amount;
     }
-    unset($clause['biller_id']);
 
-    // PAYMENTS (biller)
-    if ($billerId) $clause['biller_id'] = $billerId;
-    $hutangVendor = 0;
-    $payments = $this->site->getPayments($clause);
-    $cashAmount = 0;
+    // PAYMENTS [Clear]
+    $pembayaranVendor = 0;
+
     foreach ($payments as $payment) {
-      if ($payment->type == 'received') $cashAmount += $payment->amount;
-      if ($payment->type == 'sent')     $cashAmount -= $payment->amount;
-
-      if ($payment->purchase_id) {
-        $hutangVendor += $payment->amount;
-      }
+      if ($payment->purchase_id) $pembayaranVendor += $payment->amount;
     }
-    unset($clause['biller_id']);
 
-    // STOCKS (warehouse)
+    // STOCKS [Clear]
     if ($warehouseId) $clause['warehouse_id'] = $warehouseId;
-    $stocks = $this->site->getStocks($clause);
-    $stockValue = 0;
-    foreach ($stocks as $stock) {
-      if ($stock->purchase_id) {
-        if ($stock->status == 'received') $stockValue += $stock->cost;
-      }
-    }
+
+    $productStocks = getProductStockValue($clause);
     unset($clause['warehouse_id']);
 
+    $stockValue = 0;
+
+    foreach ($productStocks as $stock) {
+      $stockValue += filterDecimal($stock->value);
+    }
+
     // PURCHASES (warehouse)
-    // if ($warehouseId) $clause['warehouse_id'] = $warehouseId;
-    // $purchases = $this->site->getStockPurchases($clause);
-    // $hutangVendor = 0;
-    // foreach ($purchases as $purchase) {
-    //   if ($purchase->balance > 0) {
-    //     $hutangVendor += $purchase->balance;
-    //   }
-    // }
-    // unset($clause['warehouse_id']);
+    $clause = [];
+    if ($billerId)    $clause['biller_id']    = $billerId;
+    if ($warehouseId) $clause['warehouse_id'] = $warehouseId;
+
+    $purchases = $this->site->getStockPurchases($clause);
+    unset($clause);
+
+    $hutangSupplier = 0;
+    $purchaseOfBuilding = 0;
+    $purchaseOfVehicle  = 0;
+
+    foreach ($purchases as $purchase) {
+      if ($purchase->balance > 0) {
+        $hutangSupplier += $purchase->balance;
+      }
+    }
+
+    foreach ($payments as $payment) {
+      if ($payment->purchase_id) {
+        $purchase = $this->site->getPurchase(['id' => $payment->purchase_id]);
+
+        if ($purchase->category_id == 18) {
+          $purchaseOfVehicle += $payment->amount;
+        }
+        if ($purchase->category_id == 19) {
+          $purchaseOfBuilding += $payment->amount;
+        }
+      }
+    }
 
     $sheet = $this->ridintek->spreadsheet();
 
@@ -227,26 +318,30 @@ class Reports extends MY_Controller
 
     // NERACA
     // Activa Lancar
-    $sheet->setCellValue('B5', $cashAmount); // Cash
-    $sheet->setCellValue('B6', $stockValue); // Stok Bahan
-    $sheet->setCellValue('B7', $piutang); // Piutang Indoprinting
+    $sheet->setCellValue('B5', $cashBank); // Cash Bank
+    $sheet->setCellValue('B6', $cashCOH); // Cash COH
+    $sheet->setCellValue('B7', $stockValue); // Stok Bahan
+    $sheet->setCellValue('B8', $salesBalance); // Piutang Indoprinting/Hutang pelanggan.
 
     // Activa Tetap
-    $sheet->setCellValue('B10', 0); // Bangunan
-    $sheet->setCellValue('B11', 0); // Mobil
+    $sheet->setCellValue('B11', $purchaseOfVehicle); // Vehicle
+    $sheet->setCellValue('B12', $purchaseOfBuilding); // Building
 
     // Hutang
-    $sheet->setCellValue('B16', 0); // Hutang supplier
-    $sheet->setCellValue('B17', 0); // Hutang Bank BNI
-    $sheet->setCellValue('B18', 0); // Hutang Bank BRI
+    $sheet->setCellValue('B17', $hutangSupplier); // Hutang supplier
+    $sheet->setCellValue('B18', ($invBNIAmount * -1)); // Hutang Bank BNI
+    $sheet->setCellValue('B19', ($invBRIAmount * -1)); // Hutang Bank BRI
+    $sheet->setCellValue('B20', ($invBRI2Amount * -1)); // Hutang Bank BRI 2
+    $sheet->setCellValue('B21', ($invMANAmount * -1)); // Hutang Bank Mandiri
+    $sheet->setCellValue('B22', ($invMAN2Amount * -1)); // Hutang Bank Mandiri 2
 
     // Tambahan Modal
-    $sheet->setCellValue('B21', 0); // Modal
-    $sheet->setCellValue('B22', 0); // Laba
+    $sheet->setCellValue('B24', 0); // Modal
+    $sheet->setCellValue('B25', 0); // Laba
 
     // ARUS KAS
     // Kas Masuk
-    $sheet->setCellValue('E5', $paidSales); // Penjualan outlet (total uang diterima)
+    $sheet->setCellValue('E5', $salesPaid); // Penjualan outlet (total uang diterima)
     $sheet->setCellValue('E6', 0); // Penjualan asset
     $sheet->setCellValue('E7', $inCategory['M002']); // Peminjaman dari Bank
     $sheet->setCellValue('E8', $inCategory['M003']); // Terace Rent
@@ -255,43 +350,43 @@ class Reports extends MY_Controller
     $sheet->setCellValue('E11', $inCategory['M006']); // Pendapatan Baltis Inn
 
     // Kas Keluar
-    $sheet->setCellValue('E16', $exCategory['K009']); // Salary & Wage
-    $sheet->setCellValue('E17', $exCategory['K008']); // Interest Investation
-    $sheet->setCellValue('E18', $exCategory['K001']); // Bank Administration
-    $sheet->setCellValue('E19', $exCategory['K026']); // Biaya PPH
-    $sheet->setCellValue('E20', $exCategory['K027']); // Biaya PPN
-    $sheet->setCellValue('E21', $exCategory['K014']); // PLN
-    $sheet->setCellValue('E22', $exCategory['K011']); // Internet & Telepon
-    $sheet->setCellValue('E23', $exCategory['K017']); // PDAM
-    $sheet->setCellValue('E24', $exCategory['K006']); // Office Stationery
-    $sheet->setCellValue('E25', $exCategory['K002']); // Drink Water
-    $sheet->setCellValue('E26', $exCategory['K007']); // BBM, Tol & Parkir
-    $sheet->setCellValue('E27', $exCategory['K024']); // Maintenance of Production Machine
-    $sheet->setCellValue('E28', $exCategory['K025']); // Maintenance of Finishing Machine
-    $sheet->setCellValue('E29', $exCategory['K041']); // Maintenance of AC & Sparepart
-    $sheet->setCellValue('E30', $exCategory['K016']); // Maintenance of Vehicle & Sparepart
-    $sheet->setCellValue('E31', $exCategory['K023']); // Maintenance of Building
-    $sheet->setCellValue('E32', $exCategory['K029']); // Promotion, Advertisement, SMS Blast, Wreaths
-    $sheet->setCellValue('E33', $exCategory['K032']); // Outlet Rent
-    $sheet->setCellValue('E34', $exCategory['K037']); // Expedition Cost
-    $sheet->setCellValue('E35', $exCategory['K038']); // Import Cost (Shiping, Bank, PPH, PPN, Denda, Penumpukan, Kb2)
-    $sheet->setCellValue('E36', $exCategory['K005']); // Insurance of Health and Labor
-    $sheet->setCellValue('E37', $exCategory['K003']); // Insurance and Building Tax
-    $sheet->setCellValue('E38', $exCategory['K004']); // Insurance and Vehicle Tax
-    $sheet->setCellValue('E39', $exCategory['K010']); // Application, Hosting and Web
-    $sheet->setCellValue('E40', $exCategory['K012']); // RT Fee, Security & Garbage Disposal
-    $sheet->setCellValue('E41', $exCategory['K042']); // Advertising Vendor
-    $sheet->setCellValue('E42', $exCategory['K033']); // CSR (Corporate Social Resposibility)
-    $sheet->setCellValue('E43', $exCategory['K013']); // Another Cost
-    $sheet->setCellValue('E44', $exCategory['K018']); // Purchase of Vehicle
-    $sheet->setCellValue('E45', $exCategory['K019']); // Purchase of Land and Building
-    $sheet->setCellValue('E46', $exCategory['K020']); // Purchase of Production Machine
-    $sheet->setCellValue('E47', $exCategory['K022']); // Purchase of Finishing Machine
-    $sheet->setCellValue('E48', $exCategory['K021']); // Purchase of Computers and Supporting Equipment
-    $sheet->setCellValue('E49', $exCategory['K030']); // Purchase of Building Construction
-    $sheet->setCellValue('E50', $exCategory['K040']); // Purchase of Another Investation Cost
-    $sheet->setCellValue('E51', $exCategory['K028']); // Prive
-    $sheet->setCellValue('E52', $hutangVendor); // Pembayaran Hutang Vendor (IDP bayar hutang ke vendor)
+    $sheet->setCellValue('E17', $exCategory['K009']); // Salary & Wage
+    $sheet->setCellValue('E18', $exCategory['K008']); // Interest Investation
+    $sheet->setCellValue('E19', $exCategory['K001']); // Bank Administration
+    $sheet->setCellValue('E20', $exCategory['K026']); // Biaya PPH
+    $sheet->setCellValue('E21', $exCategory['K027']); // Biaya PPN
+    $sheet->setCellValue('E22', $exCategory['K014']); // PLN
+    $sheet->setCellValue('E23', $exCategory['K011']); // Internet & Telepon
+    $sheet->setCellValue('E24', $exCategory['K017']); // PDAM
+    $sheet->setCellValue('E25', $exCategory['K006']); // Office Stationery
+    $sheet->setCellValue('E26', $exCategory['K002']); // Drink Water
+    $sheet->setCellValue('E27', $exCategory['K007']); // BBM, Tol & Parkir
+    $sheet->setCellValue('E28', $exCategory['K024']); // Maintenance of Production Machine
+    $sheet->setCellValue('E29', $exCategory['K025']); // Maintenance of Finishing Machine
+    $sheet->setCellValue('E30', $exCategory['K041']); // Maintenance of AC & Sparepart
+    $sheet->setCellValue('E31', $exCategory['K016']); // Maintenance of Vehicle & Sparepart
+    $sheet->setCellValue('E32', $exCategory['K023']); // Maintenance of Building
+    $sheet->setCellValue('E33', $exCategory['K029']); // Promotion, Advertisement, SMS Blast, Wreaths
+    $sheet->setCellValue('E34', $exCategory['K032']); // Outlet Rent
+    $sheet->setCellValue('E35', $exCategory['K037']); // Expedition Cost
+    $sheet->setCellValue('E36', $exCategory['K038']); // Import Cost (Shiping, Bank, PPH, PPN, Denda, Penumpukan, Kb2)
+    $sheet->setCellValue('E37', $exCategory['K005']); // Insurance of Health and Labor
+    $sheet->setCellValue('E38', $exCategory['K003']); // Insurance and Building Tax
+    $sheet->setCellValue('E39', $exCategory['K004']); // Insurance and Vehicle Tax
+    $sheet->setCellValue('E40', $exCategory['K010']); // Application, Hosting and Web
+    $sheet->setCellValue('E41', $exCategory['K012']); // RT Fee, Security & Garbage Disposal
+    $sheet->setCellValue('E42', $exCategory['K042']); // Advertising Vendor
+    $sheet->setCellValue('E43', $exCategory['K033']); // CSR (Corporate Social Resposibility)
+    $sheet->setCellValue('E44', $exCategory['K013']); // Another Cost
+    // $sheet->setCellValue('E45', $exCategory['K018']); // Purchase of Vehicle
+    // $sheet->setCellValue('E46', $exCategory['K019']); // Purchase of Land and Building
+    $sheet->setCellValue('E45', $exCategory['K020']); // Purchase of Production Machine
+    $sheet->setCellValue('E46', $exCategory['K022']); // Purchase of Finishing Machine
+    $sheet->setCellValue('E47', $exCategory['K021']); // Purchase of Computers and Supporting Equipment
+    $sheet->setCellValue('E48', $exCategory['K030']); // Purchase of Building Construction
+    $sheet->setCellValue('E49', $exCategory['K040']); // Purchase of Another Investation Cost
+    $sheet->setCellValue('E50', $exCategory['K028']); // Prive
+    $sheet->setCellValue('E51', $pembayaranVendor); // Pembayaran hutang ke vendor.
 
     $name = $this->session->userdata('fullname');
 
@@ -497,7 +592,7 @@ class Reports extends MY_Controller
 
         if ($sale->status == 'preparing') {
           if ($payments) {
-            if (strtotime(date('Y-m-d H:i:s')) > strtotime('+1.5 hours', strtotime($payments[0]->date))) {
+            if (strtotime(date('Y-m-d H:i:s')) > strtotime('+24 hours', strtotime($payments[0]->date))) {
               $getStatus = 'over_get';
               $overGet++;
             }
@@ -507,7 +602,7 @@ class Reports extends MY_Controller
 
           if (!empty($saleJS->waiting_production_date)) {
             if ($payments) {
-              if (strtotime($saleJS->waiting_production_date) > strtotime('+1.5 hours', strtotime($payments[0]->date))) {
+              if (strtotime($saleJS->waiting_production_date) > strtotime('+24 hours', strtotime($payments[0]->date))) {
                 $getStatus = 'over_get';
                 $overGet++;
               }
@@ -723,7 +818,7 @@ class Reports extends MY_Controller
     $r1 = 3;
 
     foreach ($sales as $sale) {
-      if ($sale->balance <= 0) continue;
+      if ($sale->payment_status == 'paid') continue;
 
       $customer = $this->site->getCustomerByID($sale->customer_id);
       $customerGroup = $this->site->getCustomerGroupByID($customer->customer_group_id);
@@ -739,7 +834,7 @@ class Reports extends MY_Controller
       $sheet->setCellValue("H{$r1}", lang($sale->payment_status));
       $sheet->setCellValue("I{$r1}", $sale->paid);
       $sheet->setCellValue("J{$r1}", $sale->grand_total);
-      $sheet->setCellValue("K{$r1}", $sale->balance);
+      $sheet->setCellValue("K{$r1}", ($sale->grand_total - $sale->paid)); // $sale->balance for privilege only no for reguler need payment.
       $sheet->setCellValue("L{$r1}", $pic->fullname);
 
       $r1++;
@@ -1067,25 +1162,25 @@ class Reports extends MY_Controller
     $biller_ids = (!empty($biller_ids) && !is_array($biller_ids) ? explode(',', $biller_ids) : $biller_ids);
 
     if ($biller_ids) { // $biller_ids MUST BE ARRAY DATATYPE.
-      $billerLucretai = $this->site->getBillerByName('Lucretia Enterprise');
+      $billerLucretai = $this->site->getBiller(['code' => 'LUC']);
 
       if (gettype($biller_ids) !== 'array' && $biller_ids == $billerLucretai->id) {
         $lucretaiMode = TRUE;
       } else if (is_array($biller_ids)) {
         foreach ($biller_ids as $biller_id) {
-          if ($biller_id == $billerLucretai->id) $lucretaiMode = TRUE;
+          if ($biller_id == $billerLucretai->id) $lucretaiMode = TRUE; // Find biller LUC
         }
       }
 
-      $opt['biller_id'] = $biller_ids;
+      $opt['biller_id'] = $biller_ids; // Array
     } else {
       $lucretaiMode = FALSE;
-      $billers = $this->site->getAllBillers();
+      $billers = $this->site->getBillers();
       $opt['biller_id'] = [];
 
       foreach ($billers as $biller) {
         if (!$xls) {
-          if (strcasecmp($biller->name, 'Lucretia Enterprise') == 0) continue; // Ignore Lucretia.
+          if (strcasecmp($biller->code, 'LUC') == 0) continue; // Ignore Lucretia.
         }
 
         $opt['biller_id'][] = $biller->id;
@@ -1103,7 +1198,7 @@ class Reports extends MY_Controller
         ],
         'data' => getIncomeStatementReport($opt) // Helper
       ]);
-    } else {
+    } else { // Save as Excel
       $incomeStatementSheet = [];
 
       foreach ($opt['biller_id'] as $biller_id) {
@@ -1294,15 +1389,17 @@ class Reports extends MY_Controller
       $this->datatables->where("products.category_id", $categoryId);
     }
 
-    $this->datatables->group_start();
-    $this->datatables->like('products.type', 'standard', 'none'); // RAW Material/Standard only.
-    $this->datatables->or_like('products.type', 'service', 'none'); // or Service only.
-    $this->datatables->group_end();
+    $this->datatables
+      ->where_in('products.type', ['standard']) // Standard only
+      ->where_not_in('products.category_id', [2, 14, 16, 17, 18]); // Not Assets and Sub-Assets.
 
     // echo $this->datatables->generate(['returnCompiled' => TRUE]);
     echo $this->datatables->generate();
   }
 
+  /**
+   * Get Inventory Balance for Excel.
+   */
   public function getInventoryBalanceReport()
   {
     $this->sma->checkUserPermissions('reports-inventory_balance', 0, ['datatables' => TRUE]);
@@ -1335,7 +1432,7 @@ class Reports extends MY_Controller
       $begin_clauses .= "AND date < '{$current_date}'";
     }
 
-    if ($warehouse_id) {
+    if ($warehouse_id) { // Lucretia or selected warehouse
       $begin_clauses .= " AND warehouse_id = {$warehouse_id}";
       $clauses .= " AND warehouse_id = {$warehouse_id}";
     }
@@ -1424,10 +1521,9 @@ class Reports extends MY_Controller
         $this->datatables->where("products.category_id", $category_id);
       }
 
-      $this->datatables->group_start();
-      $this->datatables->like('products.type', 'standard', 'none'); // RAW Material/Standard only.
-      $this->datatables->or_like('products.type', 'service', 'none'); // or Service only.
-      $this->datatables->group_end();
+      $this->datatables
+        ->where_in('products.type', ['standard'])
+        ->where_not_in('products.category_id', [2, 14, 16, 17, 18]); // Not Assets and Sub-Assets.
 
       echo $this->datatables->generate();
     } else if ($xls == 1) { // Export Item Details.
@@ -1514,10 +1610,9 @@ class Reports extends MY_Controller
         $this->db->where('products.category_id', $category_id);
       }
 
-      $this->db->group_start();
-      $this->db->like('products.type', 'standard', 'none'); // RAW Material/Standard only.
-      $this->db->or_like('products.type', 'service', 'none'); // or Service only.
-      $this->db->group_end();
+      $this->db
+        ->where_in('products.type', ['standard'])
+        ->where_not_in('products.category_id', [2, 14, 16, 17, 18]); // No Assets and Sub-Assets.
 
       $q = $this->db->get();
 
@@ -1561,21 +1656,20 @@ class Reports extends MY_Controller
       $name = $this->session->userdata('fullname');
 
       $excel->export('PrintERP-InventoryBalance-ByItem-' . date('Ymd_His') . "-($name)");
-    } else if ($xls == 2) { //! Export Warehouse Details.
+    } else if ($xls == 2) { //! Export Warehouse Summary Details.
       $data = [];
-      $warehouses = $this->site->getAllWarehouses();
-      $limiter = 200;
-      $counter = 0;
+      $warehouses = $this->site->getWarehouses();
 
-      // NEXT WORK
+      $products = $this->site->getProducts(['type' => 'standard']); // Standard only.
+
       foreach ($warehouses as $warehouse) {
         if ($warehouse->code == 'ADV') continue;
 
-        $products = $this->site->getProducts(['type' => 'standard']);
         $totalCost = 0;
 
         foreach ($products as $product) {
-          // if ($counter >= $limiter) break;
+          if ($product->category_id == 2) continue; // No asset(2).
+
           $incQty = 0;
           $decQty = 0;
           $itemCost = 0;
@@ -1599,17 +1693,12 @@ class Reports extends MY_Controller
           }
 
           $totalCost += $itemCost;
-
-          unset($itemCost, $decQty, $incQty, $stocks, $totalQty);
-          $counter++;
         }
 
         $data[] = [
           'warehouse_name' => $warehouse->name,
           'cost' => round($totalCost)
         ];
-
-        unset($products);
       }
 
       if ($data) {

@@ -46,7 +46,7 @@
                 '4' => 'Counter 4',
                 '5' => 'Counter 5',
               ];
-              echo form_dropdown('counter', $opt, '', 'class="form-control" id="cb-counter"'); ?>
+              echo form_dropdown('counter', $opt, '', 'class="select2" id="cb-counter"'); ?>
             </div>
           </div>
         </div>

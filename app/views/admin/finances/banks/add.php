@@ -35,7 +35,7 @@
           foreach ($types as $type) {
             $ty[$type] = $type;
           }
-          echo form_dropdown('type', $ty, '', 'class="form-control select-tags" id="bank_type" data-placeholder="Select Bank Type" required="required" style="width:100%;"'); ?>
+          echo form_dropdown('type', $ty, '', 'class="form-control select2-tags" id="bank_type" data-placeholder="Select Bank Type" required="required" style="width:100%;"'); ?>
         </div>
       </div>
       <div class="col-md-6">

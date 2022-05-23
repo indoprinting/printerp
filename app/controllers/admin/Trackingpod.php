@@ -92,6 +92,31 @@ class Trackingpod extends MY_Controller
       if ($uploader->has('attachment') && !$uploader->isMoved()) {
         checkPath($this->upload_trackingpod_path);
 
+        if ($uploader->getSize('mb') > 2) {
+          sendJSON([
+            'success' => 0,
+            'message' => "Ukuran Attachment tidak boleh lebih dari 2MB."
+          ]);
+        }
+
+        $ocr = ocr($uploader->getTempName());
+        $fullColor = 0;
+
+        if ($ocr) {
+          for ($x = 0; $x < count($ocr); $x++) {
+            if (strcasecmp($ocr[$x], 'Full Color Counter') === 0) {
+              $fullColor += filterDecimal($ocr[$x + 1]);
+            }
+          }
+        }
+
+        if ($endClick != $fullColor) {
+          sendJSON([
+            'success' => 0,
+            'message' => "End Click ($endClick) tidak sesuai attachment Full Color Counter ($fullColor)."
+          ]);
+        }
+
         $attachment = $uploader->getRandomName();
 
         if ($uploader->move($this->upload_trackingpod_path, $attachment)) {

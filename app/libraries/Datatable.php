@@ -97,7 +97,7 @@ class Datatable
    * @param string $type Filter type [like, or_like, where, or_where]. Default 'like'.
    * @param mixed $clauses Filter clauses.
    * @param string $val Filter value to search.
-   * @param string $wildcard Wildcard only available for 'like' or 'or_like'.
+   * @param string $wildcard Wildcard only available for 'like', 'not_like' and 'or_like'.
    */
   public function filter($type, $clauses, $val = NULL, $wildcard = 'none')
   {
@@ -117,6 +117,12 @@ class Datatable
     }
     if ($type == 'where') {
       $this->where($clauses, $val, FALSE);
+    }
+    if ($type == 'where_in') {
+      $this->where_in($clauses, $val, FALSE);
+    }
+    if ($type == 'where_not_in') {
+      $this->where_not_in($clauses, $val, FALSE);
     }
     return $this;
   }
@@ -359,9 +365,15 @@ class Datatable
     return $this;
   }
 
-  public function where_in($column, $items = [])
+  public function where_in($column, $items = [], $escape = TRUE)
   {
-    $this->ci->db->where_in($column, $items);
+    $this->ci->db->where_in($column, $items, $escape);
+    return $this;
+  }
+
+  public function where_not_in($column, $items = [], $escape = TRUE)
+  {
+    $this->ci->db->where_not_in($column, $items, $escape);
     return $this;
   }
 }

@@ -48,7 +48,7 @@ class Cron extends MY_Controller
   { // interval 1 minutes
     $filename = FCPATH . 'cron1.sqlite';
 
-    $hMutex = mutexCreate('cron1');
+    $hMutex = mutexCreate('cron1', TRUE);
 
     $hSQL = new SQLite3($filename);
 

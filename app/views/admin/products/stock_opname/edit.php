@@ -48,7 +48,7 @@
               <div class="form-group">
                 <?= lang('pic', 'so_pic'); ?>
                 <?php
-                $allUsers = $this->site->getAllUsers();
+                $allUsers = $this->site->getUsers(['active' => 1]);
 
                 if ($allUsers) {
                   foreach ($allUsers as $user) {
@@ -56,7 +56,7 @@
                     $users[$user->id] = $user->first_name . ' ' . $user->last_name;
                   }
                 }
-                echo form_dropdown('pic', $users, $opname->created_by, 'class="form-control" id="so_pic" style="width:100%;" required="required"'); ?>
+                echo form_dropdown('pic', $users, $opname->created_by, 'class="select2" id="so_pic" style="width:100%;" required="required"'); ?>
               </div>
             </div>
 
@@ -66,12 +66,12 @@
                   <?= lang('warehouse', 'so_warehouse'); ?>
                   <?php
                   $wh[''] = '';
-                  $warehouses = $this->site->getAllWarehouses();
+                  $warehouses = $this->site->getWarehouses();
                   foreach ($warehouses as $warehouse) {
                     if ($mode == 'confirm' && $warehouse->id != $opname->warehouse_id) continue;
                     $wh[$warehouse->id] = $warehouse->name;
                   }
-                  echo form_dropdown('warehouse', $wh, $opname->warehouse_id, 'id="so_warehouse" class="form-control input-tip select" data-placeholder="Select Warehouse" required="required" style="width:100%;"'); ?>
+                  echo form_dropdown('warehouse', $wh, $opname->warehouse_id, 'id="so_warehouse" class="select2" data-placeholder="Select Warehouse" required="required" style="width:100%;"'); ?>
                 </div>
               </div>
             <?php } else { ?>

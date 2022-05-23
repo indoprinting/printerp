@@ -167,7 +167,7 @@
             <div class="col-md-4">
               <div class="form-group">
                 <?= lang('date', 'podate'); ?>
-                <?php echo form_input('date', (isset($_POST['date']) ? $_POST['date'] : ''), 'class="form-control input-tip" id="podate" required="required"'); ?>
+                <?php echo form_input('date', (isset($_POST['date']) ? $_POST['date'] : ''), 'class="form-control datetime" id="podate" required="required"'); ?>
               </div>
             </div>
             <div class="col-md-4">
@@ -187,7 +187,7 @@
                     $wh[$warehouse->id] = $warehouse->name;
                   }
                 }
-                echo form_dropdown('warehouse', $wh, (isset($_POST['warehouse']) ? $_POST['warehouse'] : $Settings->default_warehouse), 'id="powarehouse" class="form-control input-tip select2" data-placeholder="' . lang('select') . ' ' . lang('warehouse') . '" required="required" style="width:100%;"'); ?>
+                echo form_dropdown('warehouse', $wh, (isset($_POST['warehouse']) ? $_POST['warehouse'] : $Settings->default_warehouse), 'id="powarehouse" class="select2" data-placeholder="' . lang('select') . ' ' . lang('warehouse') . '" required="required" style="width:100%;"'); ?>
               </div>
             </div>
             <?php } else {
@@ -209,7 +209,7 @@
                       <?= lang('supplier', 'posupplier'); ?>
                       <?php if ($Owner || $Admin || $GP['suppliers-add'] || $GP['suppliers-index']) { ?>
                       <div class="input-group"><?php } ?>
-                        <select name="supplier" id="posupplier" class="form-control" data-placeholder="Select Supplier" style="width: 100%;">
+                        <select name="supplier" id="posupplier" class="select2" data-placeholder="Select Supplier" style="width: 100%;">
                         <input type="hidden" name="supplier_id" value="" id="supplier_id" class="form-control">
                         <?php if ($Owner || $Admin || $GP['suppliers-index']) { ?>
                         <div class="input-group-addon no-print" style="padding: 2px 5px; border-left: 0;">
@@ -322,7 +322,7 @@
                     }
                   }
                 }
-                echo form_dropdown('status', $post, $purchase->status, 'id="postatus" class="form-control input-tip select2" data-placeholder="Select Status" required="required" style="width:100%;"');
+                echo form_dropdown('status', $post, $purchase->status, 'id="postatus" class="select2" data-placeholder="Select Status" required="required" style="width:100%;"');
                 ?>
               </div>
             </div>
@@ -477,7 +477,7 @@
               foreach ($categories as $category) {
                 $cat[$category->id] = $category->name;
               }
-              echo form_dropdown('category', $cat, '', 'class="form-control select2" id="mcategory" placeholder="' . lang('select') . ' ' . lang('category') . '" style="width:100%"')
+              echo form_dropdown('category', $cat, '', 'class="select2" id="mcategory" placeholder="' . lang('select') . ' ' . lang('category') . '" style="width:100%"')
               ?>
             </div>
             <div class="form-group">

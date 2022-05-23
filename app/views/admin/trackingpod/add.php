@@ -10,7 +10,7 @@
         <div class="col-md-6">
           <div class="form-group">
             <label for="podcreated_by">Created By</label>
-            <select class="form-control select2" id="podcreated_by" name="created_by" style="width:100%;">
+            <select class="select2" id="podcreated_by" name="created_by" style="width:100%;">
               <?php $users = $this->site->getUsers(); ?>
               <?php foreach ($users as $user) :
                 if (!$isAdmin) {
@@ -33,7 +33,7 @@
         <div class="col-md-6">
           <div class="form-group">
             <label for="warehouse_id">Warehouse</label>
-            <select class="form-control select2" id="warehouse_id" name="warehouse" style="width:100%;">
+            <select class="select2" id="warehouse_id" name="warehouse" style="width:100%;">
               <?php $warehouses = $this->site->getAllWarehouses(); ?>
               <?php foreach ($warehouses as $warehouse) :
                 $selected = '';
@@ -55,7 +55,7 @@
         <div class="col-md-6">
           <div class="form-group">
             <label for="podcategory">POD Category</label>
-            <select class="form-control select2" id="podcategory" name="category" data-placeholder="Select Category" style="width:100%;">
+            <select class="select2" id="podcategory" name="category" data-placeholder="Select Category" style="width:100%;">
               <option value=""></option>
               <option value="klikpod">KLIKPOD FULL COLOR</option>
               <option value="klikpodbw">KLIKPOD BW</option>
@@ -123,7 +123,7 @@
       </div>
 
       <div class="row">
-        <div class="col-md-12">
+        <div class="col-md-12 overflow-x">
           <div class="form-group">
             <label for="attachment">Attachment</label>
             <input type="file" class="form-control file" name="attachment" data-browse-label="Browse" data-show-upload="false" data-show-preview="false">

@@ -19,7 +19,7 @@
           foreach ($logos as $key => $value) {
             $biller_logos[$value] = $value;
           }
-          echo form_dropdown('logo', $biller_logos, $biller->logo, 'class="form-control select" id="biller_logo" required="required" '); ?>
+          echo form_dropdown('logo', $biller_logos, $biller->logo, 'class="form-control select2" id="biller_logo" required="required" '); ?>
         </div>
       </div>
       <div class="col-md-6">

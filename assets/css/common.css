@@ -54,6 +54,15 @@
 .navbar-brand {
   height: 35px;
 }
+.overflow {
+  overflow: auto;
+}
+.overflow-x {
+  overflow-x: auto;
+}
+.overflow-y {
+  overflow-y: auto;
+}
 .filemanager > li {
   list-style: none;
 }

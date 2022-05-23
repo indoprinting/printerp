@@ -45,7 +45,7 @@
             $cat[$pcat->id] = $pcat->name;
           }
         }
-        echo form_dropdown('parent', $cat, (isset($_POST['parent']) ? $_POST['parent'] : ''), 'class="form-control select" id="parent" style="width:100%"')
+        echo form_dropdown('parent', $cat, (isset($_POST['parent']) ? $_POST['parent'] : ''), 'class="select2" id="parent" style="width:100%"')
         ?>
       </div>
 

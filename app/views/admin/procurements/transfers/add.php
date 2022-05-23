@@ -191,7 +191,7 @@
                       foreach ($warehouses as $warehouse) {
                         $wh[$warehouse->id] = $warehouse->name;
                       }
-                      echo form_dropdown('from_warehouse', $wh, (isset($_POST['from_warehouse']) ? $_POST['from_warehouse'] : $Settings->default_warehouse), 'id="from_warehouse" class="form-control input-tip select" data-placeholder="' . lang('select') . ' ' . lang('from_warehouse') . '" required="required" style="width:100%;" '); ?>
+                      echo form_dropdown('from_warehouse', $wh, (isset($_POST['from_warehouse']) ? $_POST['from_warehouse'] : $Settings->default_warehouse), 'id="from_warehouse" class="select2" data-placeholder="' . lang('select') . ' ' . lang('from_warehouse') . '" required="required" style="width:100%;" '); ?>
                     </div>
                   </div>
                   <div class="col-md-4">
@@ -202,7 +202,7 @@
                       foreach ($warehouses as $warehouse) {
                         $wh[$warehouse->id] = $warehouse->name;
                       }
-                      echo form_dropdown('to_warehouse', $wh, (isset($_POST['to_warehouse']) ? $_POST['to_warehouse'] : ''), 'id="to_warehouse" class="form-control input-tip select" data-placeholder="' . lang('select') . ' ' . lang('to_warehouse') . '" required="required" style="width:100%;" ');
+                      echo form_dropdown('to_warehouse', $wh, (isset($_POST['to_warehouse']) ? $_POST['to_warehouse'] : ''), 'id="to_warehouse" class="select2" data-placeholder="' . lang('select') . ' ' . lang('to_warehouse') . '" required="required" style="width:100%;" ');
                       ?>
                     </div>
                   </div>
@@ -271,7 +271,7 @@
                 <?= lang('status', 'tostatus'); ?>
                 <?php
                 $post = ['packing' => lang('packing')];
-                echo form_dropdown('status', $post, (isset($_POST['status']) ? $_POST['status'] : 'packing'), 'id="tostatus" class="form-control input-tip select" data-placeholder="' . lang('select') . ' ' . lang('status') . '" required="required" style="width:100%;" ');
+                echo form_dropdown('status', $post, (isset($_POST['status']) ? $_POST['status'] : 'packing'), 'id="tostatus" class="select2" data-placeholder="' . lang('select') . ' ' . lang('status') . '" required="required" style="width:100%;" ');
                 ?>
               </div>
             </div>

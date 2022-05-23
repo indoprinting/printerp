@@ -85,11 +85,38 @@ class Welcome extends MY_Controller
     }
   }
 
+  /**
+   * Load datatables data asynchronously
+   */
+  public function getTables()
+  {
+    if ($mode = $this->input->get('mode')) {
+      if ($mode == 'sales') {
+        $this->data['sales'] = $this->db_model->getLatestSales();
+
+        if ($sync = $this->input->get('sync')) {
+          if ($sync == 'sales') {
+            foreach ($this->data['sales'] as $sale) {
+              $this->site->syncSales(['sale_id' => $sale->id]);
+            }
+
+            $this->data['sales'] = $this->db_model->getLatestSales();
+          }
+        }
+      } else if ($mode == 'purchases') {
+        $this->data['purchases'] = $this->db_model->getLatestPurchases();
+      } else if ($mode == 'transfers') {
+        $this->data['transfers'] = $this->db_model->getLatestTransfers();
+      }
+    }
+  }
+
   public function index()
   {
     // if ($this->Owner) die('NOP');
 
-    $this->data['sales'] = $this->db_model->getLatestSales();
+    if (!$this->isLocal)
+      $this->data['sales'] = $this->db_model->getLatestSales();
 
     if ($sync = $this->input->get('sync')) {
       if ($sync == 'sales') {
@@ -97,18 +124,32 @@ class Welcome extends MY_Controller
           $this->site->syncSales(['sale_id' => $sale->id]);
         }
 
-        $this->data['sales'] = $this->db_model->getLatestSales();
+        if (!$this->isLocal)
+          $this->data['sales'] = $this->db_model->getLatestSales();
       }
     }
 
     $this->data['error']     = (validation_errors() ? validation_errors() : $this->session->flashdata('error'));
     $this->data['quotes']    = NULL;
-    $this->data['purchases'] = $this->db_model->getLatestPurchases();
-    $this->data['transfers'] = $this->db_model->getLatestTransfers();
     $this->data['customers'] = $this->db_model->getLatestCustomers();
-    $this->data['suppliers'] = $this->db_model->getLatestSuppliers();
-    $this->data['chartData']  = $this->db_model->getChartData();
-    $this->data['stock']     = $this->db_model->getStockValue();
+
+    if ($this->isAdmin) {
+      $this->data['chartData'] = $this->db_model->getChartData();
+      $this->data['stock']     = $this->db_model->getStockValue();
+    }
+    if ($this->Admin || getPermission('suppliers-index')) {
+      if (!$this->isLocal)
+        $this->data['suppliers'] = $this->db_model->getLatestSuppliers();
+    }
+    if ($this->Admin || getPermission('purchases-index')) {
+      if (!$this->isLocal)
+        $this->data['purchases'] = $this->db_model->getLatestPurchases();
+    }
+    if ($this->Admin || getPermission('transfers-index')) {
+      if (!$this->isLocal)
+        $this->data['transfers'] = $this->db_model->getLatestTransfers();
+    }
+
     $this->data['bs']        = $this->db_model->getBestSeller();
     $lmsdate                 = date('Y-m-d', strtotime('first day of last month')) . ' 00:00:00';
     $lmedate                 = date('Y-m-d', strtotime('last day of last month')) . ' 23:59:59';
