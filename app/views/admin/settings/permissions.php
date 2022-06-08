@@ -311,6 +311,10 @@
                   </td>
                   <td>
                     <span style="display:inline-block;">
+                      <input type="checkbox" value="1" id="products-categories" class="checkbox" name="products-categories" <?php echo (($gp->{'products-categories'} ?? FALSE) ? 'checked' : ''); ?>>
+                      <label for="products-categories" class="padding05"><?= lang('product_categories') ?></label>
+                    </span>
+                    <span style="display:inline-block;">
                       <input type="checkbox" value="1" id="products-cost" class="checkbox" name="products-cost" <?php echo $gp->{'products-cost'} ? 'checked' : ''; ?>>
                       <label for="products-cost" class="padding05"><?= lang('product_cost') ?></label>
                     </span>
@@ -351,8 +355,24 @@
                       <label for="products-so_quantity" class="padding05"><?= lang('stock_opname_quantity') ?></label>
                     </span>
                     <span style="display:inline-block;">
-                      <input type="checkbox" value="1" id="products-categories" class="checkbox" name="products-categories" <?php echo (($gp->{'products-categories'} ?? FALSE) ? 'checked' : ''); ?>>
-                      <label for="products-categories" class="padding05"><?= lang('product_categories') ?></label>
+                      <input type="checkbox" value="1" id="products-transfer_view" class="checkbox" name="products-transfer_view" <?php echo (($gp->{'products-transfer_view'} ?? FALSE) ? 'checked' : ''); ?>>
+                      <label for="products-transfer_view" class="padding05"><?= lang('transfer_view') ?></label>
+                    </span>
+                    <span style="display:inline-block;">
+                      <input type="checkbox" value="1" id="products-transfer_add" class="checkbox" name="products-transfer_add" <?php echo (($gp->{'products-transfer_add'} ?? FALSE) ? 'checked' : ''); ?>>
+                      <label for="products-transfer_add" class="padding05"><?= lang('transfer_add') ?></label>
+                    </span>
+                    <span style="display:inline-block;">
+                      <input type="checkbox" value="1" id="products-transfer_delete" class="checkbox" name="products-transfer_delete" <?php echo (($gp->{'products-transfer_delete'} ?? FALSE) ? 'checked' : ''); ?>>
+                      <label for="products-transfer_delete" class="padding05"><?= lang('transfer_delete') ?></label>
+                    </span>
+                    <span style="display:inline-block;">
+                      <input type="checkbox" value="1" id="products-transfer_edit" class="checkbox" name="products-transfer_edit" <?php echo (($gp->{'products-transfer_edit'} ?? FALSE) ? 'checked' : ''); ?>>
+                      <label for="products-transfer_edit" class="padding05"><?= lang('transfer_edit') ?></label>
+                    </span>
+                    <span style="display:inline-block;">
+                      <input type="checkbox" value="1" id="products-transfer_status" class="checkbox" name="products-transfer_status" <?php echo (($gp->{'products-transfer_status'} ?? FALSE) ? 'checked' : ''); ?>>
+                      <label for="products-transfer_status" class="padding05"><?= lang('transfer_status') ?></label>
                     </span>
                   </td>
                 </tr>

@@ -12,22 +12,22 @@
         <div class="col-sm-6">
           <div class="form-group">
             <?= lang('date', 'date'); ?>
-            <?= form_input('date', (isset($_POST['date']) ? $_POST['date'] : ''), 'class="form-control" id="date" required="required"'); ?>
+            <input type="datetime-local" class="form-control" id="date" name="date">
           </div>
         </div>
         <?php if ($Owner || $Admin) { ?>
-        <div class="col-sm-6">
-          <div class="well well-sm well-info">
-            <?= lang('created_by', 'created_by'); ?>
-            <?php
+          <div class="col-sm-6">
+            <div class="well well-sm well-info">
+              <?= lang('created_by', 'created_by'); ?>
+              <?php
               $users = $this->site->getUsers();
               foreach ($users as $user) {
                 $usr[$user->id] = $user->fullname;
               }
-            ?>
-            <?= form_dropdown('created_by', $usr, $this->session->userdata('user_id'), 'class="select2" id="ap_created_by" style="width:100%;"'); ?>
+              ?>
+              <?= form_dropdown('created_by', $usr, $this->session->userdata('user_id'), 'class="select2" id="ap_created_by" style="width:100%;"'); ?>
+            </div>
           </div>
-        </div>
         <?php } else { ?>
           <input id="ap_created_by" type="hidden" name="created_by" value="<?= $this->session->userdata('user_id'); ?>">
         <?php } ?>
@@ -51,14 +51,14 @@
           </div>
         </div>
         <?php if ($waiting_transfer) { ?>
-        <div class="col-sm-12">
-          <div class="well well-sm well-success text-center">
-            Silakan transfer ke rekening dengan nominal tepat di bawah ini.<br>
-            <a href="https://indoprinting.co.id/trackorder?inv=<?= $inv->reference; ?>&phone=<?= $customer->phone; ?>&submit=1" target="_blank">
-              <strong>Lihat Rekening Bank dan Tracking Order</strong>
-            </a>
+          <div class="col-sm-12">
+            <div class="well well-sm well-success text-center">
+              Silakan transfer ke rekening dengan nominal tepat di bawah ini.<br>
+              <a href="https://indoprinting.co.id/trackorder?inv=<?= $inv->reference; ?>&phone=<?= $customer->phone; ?>&submit=1" target="_blank">
+                <strong>Lihat Rekening Bank dan Tracking Order</strong>
+              </a>
+            </div>
           </div>
-        </div>
         <?php } ?>
         <div class="col-sm-12">
           <div class="well well-sm amount" style="display: none">
@@ -67,12 +67,12 @@
               <input class="form-control currency" id="amount" name="amount" type="text" required="required">
             </div>
             <?php if ($Owner || $Admin || isset($GP['sales-skip_validation'])) { ?>
-            <div class="form-group use_unique_code" style="display: none">
-              <label><input class="form-control" id="use_unique_code" name="use_unique_code" type="checkbox" value="1"> Use Unique Code</label>
-            </div>
-            <div class="form-group unique_code" style="display: none">
-              <input class="form-control currency" id="unique_code" name="unique_code" placeholder="Unique Code" type="text" value="">
-            </div>
+              <div class="form-group use_unique_code" style="display: none">
+                <label><input class="form-control" id="use_unique_code" name="use_unique_code" type="checkbox" value="1"> Use Unique Code</label>
+              </div>
+              <div class="form-group unique_code" style="display: none">
+                <input class="form-control currency" id="unique_code" name="unique_code" placeholder="Unique Code" type="text" value="">
+              </div>
             <?php } ?>
           </div>
         </div>
@@ -89,10 +89,10 @@
       </div>
     </div>
     <div class="modal-footer">
-      <?php if (($Owner || $Admin || isset($GP['sales-skip_validation']) ) && ! $waiting_transfer) { ?>
-      <div class="form-group">
-        <label><input type="checkbox" name="skip_payment_validation" id="skip_payment_validation" /> Skip Payment Validation</label>
-      </div>
+      <?php if (($Owner || $Admin || isset($GP['sales-skip_validation'])) && !$waiting_transfer) { ?>
+        <div class="form-group">
+          <label><input type="checkbox" name="skip_payment_validation" id="skip_payment_validation" /> Skip Payment Validation</label>
+        </div>
       <?php } ?>
       <input type="button" name="add_payment" value="<?= lang('add_payment'); ?>" class="btn btn-primary" id="add_payment" />
     </div>
@@ -100,15 +100,16 @@
 </div>
 <script type="text/javascript" src="<?= $assets ?>js/custom.js"></script>
 <script type="text/javascript">
-  $(document).ready(function () {
-    let balance = '<?= ($inv->grand_total - $inv->paid); ?>';
-    let paid = '<?= $inv->paid ?>';
-    let transfer_balance = '<?= ($payment_validation ? $payment_validation->amount + $payment_validation->unique_code : 0); ?>';
-    let min_dp = '<?= $settings_json->min_dp; ?>';
-    let min_percent = '<?= $settings_json->min_dp_percent; ?>';
+  $(document).ready(function() {
+    let balance = filterDecimal('<?= ($inv->grand_total - $inv->paid); ?>');
+    let paid = filterDecimal('<?= $inv->paid ?>');
+    let transfer_balance = filterDecimal('<?= ($payment_validation ? $payment_validation->amount + $payment_validation->unique_code : 0); ?>');
+    let min_dp = filterDecimal('<?= $settings_json->min_dp; ?>');
+    let min_percent = filterDecimal('<?= $settings_json->min_dp_percent; ?>');
     let changed = false;
     let waiting_transfer = <?= $waiting_transfer; ?>;
-    let skip_validation = false, payment_method = null;
+    let skip_validation = false,
+      payment_method = null;
     let payment_options = {
       cash: '<?= $this->sma->getPaymentOptionsByType("cash", TRUE); ?>',
       edc: '<?= $this->sma->getPaymentOptionsByType("edc", TRUE); ?>',
@@ -116,10 +117,13 @@
     };
 
     console.log(`Balance: ${balance}`);
+    let amount = balance;
 
     // if (typeof(oTable) !== 'undefined') oTable.fnDraw(false);
 
-    $('#payment_method').on('change', function () { // Do not use 'change'
+    $('#date').val(dateTime());
+
+    $('#payment_method').on('change', function() { // Do not use 'change'
       payment_method = $(this).val();
       if (payment_method == 'Cash') {
         $('.amount').slideDown();
@@ -161,7 +165,7 @@
       }
     });
 
-    $('#skip_payment_validation').on('ifChanged', function (e) {
+    $('#skip_payment_validation').on('ifChanged', function(e) {
       skip_validation = (e.target.checked ? true : false);
       if (e.target.checked && payment_method == 'Transfer') {
         $('.bank_id').slideDown();
@@ -178,7 +182,7 @@
       }
     });
 
-    $('#use_unique_code').on('ifChanged', function (e) {
+    $('#use_unique_code').on('ifChanged', function(e) {
       if (e.target.checked && payment_method == 'Transfer') {
         $('.unique_code').slideDown();
       } else {
@@ -186,12 +190,12 @@
       }
     });
 
-    $('#add_payment').click(function (e) { // Add New Payment
-      if ( ! $('#payment_method').val()) {
+    $('#add_payment').click(function(e) { // Add New Payment
+      if (!$('#payment_method').val()) {
         bootbox.alert('Mohon pilih metode pembayaran!');
         return false;
       }
-      if ( ! $('#bank_id').val()) {
+      if (!$('#bank_id').val()) {
         if (skip_validation || payment_method != 'Transfer') {
           bootbox.alert('Mohon pilih akun pembayaran!');
           return false;
@@ -214,11 +218,11 @@
         data: form,
         method: 'POST',
         processData: false,
-        success: function (data) {
+        success: function(data) {
           console.groupCollapsed('add_payment');
           console.warn(data);
           console.groupEnd();
-          if ( ! data.error) {
+          if (!data.error) {
             if (oTable) oTable.fnDraw(false);
             addAlert(data.msg, 'success');
             $('#myModal').modal('hide');
@@ -231,18 +235,23 @@
       });
     });
 
-    $('#amount').on('focus', function () {
-      disableSubmit(); changed = false;
-    }).change(function () {
-      let amount = $(this).val();
+    $('#amount').on('focus', function() {
+      disableSubmit();
+      changed = false;
+    }).change(function() {
+      amount = $(this).val();
       changed = true;
 
+      amount = filterDecimal(amount);
+    }).on('blur', function() {
       // Calculate f*cked price. 20% from balance.
       let min_price = (parseFloat(balance) * (parseFloat(min_percent) * 0.01));
 
       // If min_price less than min_dp then use min_dp as min_price.
       if (parseFloat(min_price) < parseFloat(min_dp)) min_price = min_dp;
 
+      console.log(`amount: ${amount}`);
+      console.log(`balance: ${balance}`);
       console.log(`min_dp: ${min_dp}`);
       console.log(`min_percent: ${min_percent}`);
       console.log(`min_price: ${min_price}`);
@@ -250,37 +259,33 @@
       if ($(this).val() == '') {
         bootbox.alert({
           message: 'Harus ada nominal pembayaran.',
-          callback: function () {
-            enableSubmit(); changed = false;
+          callback: function() {
+            enableSubmit();
+            changed = false;
           }
         });
-        $('#amount').val(balance);
-      } else
-      if ( ! Number.isFinite(parseFloat($(this).val()))) {
-        bootbox.alert('Pastikan nominal yang diisi harus berupa angka. Jika tidak tahu mana angka, makanya belajar.', function () {
-          enableSubmit(); changed = false;
-        });
-        $('#amount').val(balance);
+        $('#amount').val(formatCurrency(balance));
       } else
       if (skip_validation) {
         changed = false;
       } else
       if (parseFloat(amount) > parseFloat(balance)) {
-        bootbox.alert(`Pembayaran melebihi balance <b>Rp.${formatCurrency(balance)}</b>.`, function() {
-          enableSubmit(); changed = false;
+        bootbox.alert(`Pembayaran melebihi balance <b>${formatCurrency(balance)}</b>.`, function() {
+          enableSubmit();
+          changed = false;
         });
-        $('#amount').val(balance);
+        $('#amount').val(formatCurrency(balance));
       } else
       if (amount < parseFloat(min_price)) {
-        bootbox.alert(`Min. DP adalah <b>Rp.${formatCurrency(min_price)}</b>.`, function() {
-          enableSubmit(); changed = false;
+        bootbox.alert(`Min. DP adalah <b>${formatCurrency(min_price)}</b>.`, function() {
+          enableSubmit();
+          changed = false;
         });
-        $('#amount').val(balance);
+        $('#amount').val(formatCurrency(balance));
       } else {
         changed = false;
       }
-    }).on('blur', function () {
-      if ( ! changed) {
+      if (!changed) {
         enableSubmit();
       }
     });
@@ -299,21 +304,11 @@
 
     $('#amount').val(formatCurrency(balance));
 
-    $("#date").datetimepicker({
-      format: site.dateFormats.js_ldate,
-      fontAwesome: true,
-      language: 'sma',
-      weekStart: 1,
-      todayBtn: 1,
-      autoclose: 1,
-      todayHighlight: 1,
-      minView: 2
-    }).datetimepicker('update', new Date());
-
-    function disableSubmit () {
+    function disableSubmit() {
       $('#add_payment').prop('disabled', true);
     }
-    function enableSubmit () {
+
+    function enableSubmit() {
       $('#add_payment').prop('disabled', false);
     }
   });

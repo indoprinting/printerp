@@ -72,6 +72,8 @@
                 <td><?= $row->date; ?></td>
                 <?php
                 $reference = '';
+                $this->load->model('ProductTransfer');
+
                 if ($row->adjustment_id != NULL) {
                   $reference = $this->site->getStockAdjustmentByID($row->adjustment_id)->reference;
                 } else if ($row->internal_use_id != NULL) {
@@ -85,7 +87,13 @@
                     $reference = '[ DELETED ]';
                   }
                 } else if ($row->transfer_id != NULL) {
-                  $reference = $this->site->getStockTransferByID($row->transfer_id)->reference;
+                  if ($transfer = $this->site->getStockTransferByID($row->transfer_id)) {
+                    $reference = $transfer->reference;
+                  } else if ($pt = $this->ProductTransfer->getProductTransfer(['id' => $row->transfer_id])) {
+                    $reference = $pt->reference;
+                  } else {
+                    $reference = '[ DELETED ]';
+                  }
                 }
                 ?>
                 <td><?= $reference; ?></td>

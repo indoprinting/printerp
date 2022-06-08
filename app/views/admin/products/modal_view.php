@@ -92,6 +92,14 @@
                   <?= renderStatus($productJS->condition); ?>
                 </tr>
               <?php } ?>
+              <tr>
+                <td><?= lang('assigned_at'); ?></td>
+                <?= (!empty($productJS->assigned_at) ? $productJS->assigned_at : ''); ?>
+              </tr>
+              <tr>
+                <td><?= lang('assigned_by'); ?></td>
+                <?= (!empty($productJS->assigned_by) ? getUser(['id' => $productJS->assigned_by])->fullname : ''); ?>
+              </tr>
               <?php if (!empty($productJS->disposal_date)) { ?>
                 <tr>
                   <td><?= lang('disposal_date'); ?></td>

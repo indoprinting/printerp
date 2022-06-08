@@ -1064,7 +1064,7 @@ function loadItems() {
     // Totals calculations after item addition
     var gtotal = parseFloat(total);
     $('#total').text(formatMoney(total));
-    $('#titems').text(an - 1 + ' (' + formatQty(parseFloat(count) - 1) + ')');
+    $('#titems').text(an - 1 + ' (' + (parseFloat(count) - 1) + ')');
     $('#total_items').val(parseFloat(count) - 1);
 
     $('#gtotal').text(formatMoney(gtotal));

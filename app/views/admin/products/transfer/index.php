@@ -113,7 +113,9 @@ if ($endDate = $this->input->get('end_date')) {
           </a>
           <ul class="dropdown-menu dropdown-menu-right tasks-menus" role="menu" aria-labelledby="dLabel">
             <li>
-              <a href="<?= admin_url('products/transfer/add'); ?>" id="add_product_transfer" data-toggle="modal" data-backdrop="false" data-target="#myModal" data-modal-class="modal-lg">
+              <a href="<?= admin_url('products/transfer/add'); ?>" id="add_product_transfer"
+                data-toggle="modal" data-backdrop="false" data-target="#myModal"
+                data-modal-class="modal-lg modal-xl">
                 <i class="fad fa-fw fa-plus-square"></i> Add Product Transfer
               </a>
             </li>

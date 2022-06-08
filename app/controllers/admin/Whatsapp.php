@@ -250,6 +250,35 @@ class Whatsapp extends MY_Controller
     $this->datatable->generate();
   }
 
+  public function getProfiles()
+  {
+    $this->load->library('datatable');
+
+    $this->datatable
+      ->select("wa_profile.id AS id, wa_profile.id AS pid, engine, api_key, device_id,
+        wa_profile.status, wa_profile.created_at, creator.fullname AS creator_name")
+      ->from('wa_profile')
+      ->join('users creator', 'creator.id = wa_profile.created_by', 'left')
+      ->editColumn('pid', function ($data) {
+        return "
+          <div class=\"text-center\">
+            <a href=\"{$this->theme}whatsapp/profile/delete/{$data['id']}\"
+              class=\"tip \"
+              data-action=\"confirm\" style=\"color:red;\" title=\"Delete Whatsapp Profile\">
+                <i class=\"fad fa-fw fa-trash\"></i>
+            </a>
+            <a href=\"{$this->theme}whatsapp/profile/view/{$data['id']}\"
+              class=\"tip\"
+              data-toggle=\"modal\" data-backdrop=\"false\" data-target=\"#myModal\"
+              title=\"View Details\">
+                <i class=\"fad fa-fw fa-chart-bar\"></i>
+            </a>
+          </div>";
+      });
+
+    $this->datatable->generate();
+  }
+
   public function index()
   {
     $meta['bc'] = [
@@ -260,6 +289,37 @@ class Whatsapp extends MY_Controller
     $this->data = array_merge($this->data, $meta);
 
     $this->page_construct('whatsapp/index', $this->data);
+  }
+
+  public function profile()
+  {
+    if ($argv = func_get_args()) {
+      $method = __FUNCTION__ . '_' . $argv[0];
+
+      if (method_exists($this, $method)) {
+        array_shift($argv);
+        return call_user_func_array([$this, $method], $argv);
+      }
+    }
+
+    $meta['bc'] = [
+      ['link' => base_url(), 'page' => lang('home')],
+      ['link' => admin_url('whatsapp'), 'page' => 'Whatsapp'],
+      ['link' => '#', 'page' => 'Whatsapp Profile']
+    ];
+    $meta['page_title'] = 'Whatsapp Profile';
+    $this->data = array_merge($this->data, $meta);
+
+    $this->page_construct('whatsapp/profile/index', $this->data);
+  }
+
+  protected function profile_add()
+  {
+    if ($this->requestMethod == 'POST') {
+
+    }
+
+    $this->load->view($this->theme . 'whatsapp/profile/add', $this->data);
   }
 
   public function sync($trackId = NULL, $noReturn = FALSE)

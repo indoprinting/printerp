@@ -97,9 +97,9 @@
                       <th style="width:60px">Action</th>
                       <th>Code</th>
                       <th>Name</th>
-                      <th>Spec</th>
-                      <th>Markon Price</th>
-                      <th>Quantity</th>
+                      <th style="min-width:100px">Spec</th>
+                      <th style="min-width:100px">Markon Price</th>
+                      <th style="min-width:100px">Quantity</th>
                       <th>Subtotal (Rp)</th>
                     </tr>
                   </thead>

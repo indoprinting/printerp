@@ -14,7 +14,7 @@
               <?php $users = $this->site->getUsers(); ?>
               <?php foreach ($users as $user) :
                 if (!$isAdmin) {
-                  if ($user->id != $pm->created_by) continue;
+                  if ($user->id != $pt->created_by) continue;
                 }
               ?>
                 <option value="<?= $user->id ?>"><?= $user->first_name . ' ' . $user->last_name ?></option>
@@ -25,7 +25,7 @@
         <div class="col-md-6">
           <div class="form-group">
             <label for="date">Date</label>
-            <input type="datetime-local" class="form-control" id="date" name="created_at" value="<?= dtJS($pm->created_at) ?>" <?= ($isAdmin ? '' : ' disabled') ?>>
+            <input type="datetime-local" class="form-control" id="date" name="created_at" value="<?= dtJS($pt->created_at) ?>" <?= ($isAdmin ? '' : ' disabled') ?>>
           </div>
         </div>
       </div>
@@ -39,8 +39,8 @@
                 $selected = '';
 
                 if (!$isAdmin) {
-                  if ($this->session->userdata('warehouse_id')) {
-                    if ($warehouse->id != $pm->from_warehouse_id) continue;
+                  if ($this->session->userdata('warehouse_id') || $mode == 'status') {
+                    if ($warehouse->id != $pt->warehouse_id_from) continue;
                   }
                 }
               ?>
@@ -58,11 +58,9 @@
                 $selected = '';
 
                 if (!$isAdmin) {
-                  if ($this->session->userdata('warehouse_id')) {
-                    if ($warehouse->id != $pm->to_warehouse_id) continue;
+                  if ($this->session->userdata('warehouse_id') || $mode == 'status') {
+                    if ($warehouse->id != $pt->warehouse_id_to) continue;
                   }
-                } else {
-                  if ($warehouse->code == 'LUC') $selected = ' selected';
                 }
               ?>
                 <option value="<?= $warehouse->id ?>" <?= $selected ?>><?= $warehouse->name ?></option>
@@ -73,13 +71,14 @@
       </div>
 
       <div class="row">
-        <div class="col-md-12">
+        <div class="col-md-6">
           <div class="form-group">
             <label for="status">Status</label>
             <select class="select2" id="status" name="status" style="width:100%;">
-              <option value="pending">Pending</option>
+              <option value="packing">Packing</option>
               <option value="sent">Sent</option>
               <option value="received">Received</option>
+              <option value="received_partial">Received Partial</option>
             </select>
           </div>
         </div>
@@ -108,13 +107,21 @@
                       <th style="width:60px">Action</th>
                       <th>Code</th>
                       <th>Name</th>
-                      <th>Spec</th>
-                      <th>Markon Price</th>
-                      <th>Quantity</th>
-                      <th>Subtotal (Rp)</th>
+                      <th style="min-width:100px">Spec</th>
+                      <th style="min-width:100px" class="status-markon-price">Markon Price</th>
+                      <th style="min-width:100px">Quantity</th>
+                      <th style="min-width:100px">Received Qty</th>
+                      <th style="min-width:100px">Rest Qty</th>
+                      <th class="status-subtotal">Subtotal (Rp)</th>
                     </tr>
                   </thead>
                   <tbody></tbody>
+                  <tfoot>
+                    <tr>
+                      <th class="text-right" colspan="8">Grand Total</th>
+                      <th class="grand_total text-right">0</th>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             </div>
@@ -134,7 +141,7 @@
         <div class="col-md-12">
           <div class="form-group">
             <label for="note">Note</label>
-            <textarea class="form-control" name="note"><?= $pm->note ?></textarea>
+            <textarea class="form-control" name="note"><?= $pt->note ?></textarea>
           </div>
         </div>
       </div>
@@ -150,27 +157,27 @@
 <script>
   $(function() {
     let productTransfer = new ProductTransfer('#PTList');
-    let pmitems = JSON.parse('<?= json_encode($pmitems) ?>');
-    let createdBy = '<?= $pm->created_by ?>';
-    let fromWarehouse = '<?= $pm->from_warehouse_id ?>';
-    let toWarehouse = '<?= $pm->to_warehouse_id ?>';
-    let status = '<?= $pm->status ?>';
+    let ptitems = JSON.parse('<?= json_encode($ptitems) ?>');
+    let createdBy = '<?= $pt->created_by ?>';
+    let fromWarehouse = '<?= $pt->warehouse_id_from ?>';
+    let toWarehouse = '<?= $pt->warehouse_id_to ?>';
+    let status = '<?= $pt->status ?>';
     let q = '';
-
-    productTransfer.setMode('<?= $mode ?>'); // edit, status
-
-    q += 'warehouse=' + $('#from_warehouse').val();
-
-    if (pmitems) {
-      for (let pmitem of pmitems) {
-        productTransfer.addItem(pmitem);
-      }
-    }
 
     if (createdBy) $('#created_by').val(createdBy).trigger('change');
     if (fromWarehouse) $('#from_warehouse').val(fromWarehouse).trigger('change');
     if (toWarehouse) $('#to_warehouse').val(toWarehouse).trigger('change');
     if (status) $('#status').val(status).trigger('change');
+
+    productTransfer.setMode('<?= $mode ?>'); // edit, status
+
+    q += 'warehouse=' + $('#from_warehouse').val();
+
+    if (ptitems) {
+      for (let ptitem of ptitems) {
+        productTransfer.addItem(ptitem).refresh();
+      }
+    }
 
     if (productTransfer.mode != 'status') {
       $('#product').select2({
@@ -224,7 +231,7 @@
 
           $('#myModal').modal('hide');
         },
-        url: site.base_url + 'products/transfer/edit/<?= $pm->id ?>'
+        url: site.base_url + 'products/transfer/edit/<?= $pt->id ?>'
       })
     });
   });

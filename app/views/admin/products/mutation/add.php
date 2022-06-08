@@ -25,7 +25,7 @@
         <div class="col-md-6">
           <div class="form-group">
             <label for="date">Date</label>
-            <input type="datetime-local" class="form-control" id="date" name="created_at" value="<?= dtJS($this->serverDateTime) ?>" <?= ($isAdmin ? '' : ' disabled') ?>>
+            <input type="datetime-local" class="form-control" id="date" name="created_at" value="<?= dtJS($this->serverDateTime) ?>" <?= ($isAdmin ? '' : ' readonly') ?>>
           </div>
         </div>
       </div>

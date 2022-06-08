@@ -156,7 +156,7 @@
       console.log(code)
 
       if (code < 48 || code > 57) { // 0 - 9
-        if (code != 190 && code != 8 && code != 46) { // .
+        if (code != 190 && code != 8 && code != 46) { // 8: BS, 46: DEL, 190: .
           return false;
         }
       }

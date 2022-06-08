@@ -159,6 +159,7 @@ $(document).on('click', '[data-action="confirm"]', function (e) {
       $.ajax({
         error: (xhr) => {
           addAlert(xhr.responseJSON.message, 'danger');
+          toastr.error(xhr.responseJSON.message);
         },
         success: (data) => {
           if (isObject(data)) {
@@ -170,8 +171,10 @@ $(document).on('click', '[data-action="confirm"]', function (e) {
               if (data.msg) data.message = data.msg;
 
               addAlert(data.message, 'success');
+              toastr.success(data.message);
             } else {
               addAlert(data.message, 'danger');
+              toastr.error(data.message);
             }
           } else {
             addAlert('Unknown error.', 'danger');
@@ -203,22 +206,16 @@ var Notify = {
   }
 }
 
-$(document).on('blur', '.separator', function() {
-  $(this).val(formatSeparator(this.value));
-});
-$(document).on('focus', '.separator', function() {
-  $(this).val(filterDecimal(this.value));
+$(document).on('keyup', '.separator', function(e) {
+  if (e.key != '.') $(this).val(formatSeparator(this.value));
 });
 /**
  * Currency class
  * Change format in edit and format back to currency after lost focus.
  * 1000000 => 1,000,000
  */
-$(document).on('blur', '.currency', function () {
-  $(this).val(formatCurrency($(this).val())).trigger('change');
-});
-$(document).on('focus', '.currency', function () {
-  $(this).val($(this).val().replaceAll(new RegExp(',', 'g'), ''));
+$(document).on('keyup', '.currency', function (e) {
+  if (e.key != '.') $(this).val(formatCurrency($(this).val())).trigger('change');
 });
 $(document).on('blur', '.quantity', function () {
   if (isNaN(this.value)) {
@@ -381,6 +378,16 @@ function attachmentStockOpname(x) {
       </div>`);
 }
 
+function dateTime(str = Date.now()) {
+  let d = new Date(str);
+  let Y = d.getFullYear();
+  let M = append_zero(d.getMonth() + 1);
+  let D = append_zero(d.getDate());
+  let h = append_zero(d.getHours());
+  let m = append_zero(d.getMinutes());
+  return `${Y}-${M}-${D}T${h}:${m}`;
+}
+
 function filterQueryString(query) {
 
 }
@@ -407,11 +414,9 @@ function filterDecimal(str) {
  * - 12450.23 => 12,450
  */
 function formatCurrency(str) { // Added 2020-05-15 09:50 +7
-  if (str == null) return 0;
-  if (str.toString().length == 0) return 0;
-  if (typeof str == 'string') str = str.replaceAll(/([^0-9\.\-])/g, '');
-  let round = parseFloat(str);
-  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(round);
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency', currency: 'IDR', currencyDisplay: 'narrowSymbol',
+    maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(filterDecimal(str));
 }
 
 function formatNumber(str) {
@@ -437,12 +442,8 @@ function formatQuantity(str) {
 }
 
 function formatSeparator(str) {
-  if (str == null) str = 0;
-  if (str.toString().length == 0) str = 0;
-  if (typeof str == 'string') str = str.replaceAll(/([^0-9\.\-])/g, '');
-  if (isNaN(parseFloat(str))) str = 0;
-
-  return parseFloat(str).toLocaleString('en-US');
+  return new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: 6, minimumFractionDigits: 0 }).format(filterDecimal(str));
 }
 
 /**

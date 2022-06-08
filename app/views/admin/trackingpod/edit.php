@@ -61,19 +61,19 @@
             <div class="col-md-4">
               <div class="form-group">
                 <label for="end_click">End Click</label>
-                <input type="text" id="end_click" class="form-control currency" name="end_click[]" value="<?= formatDecimal($track->end_click) ?>">
+                <input type="text" id="end_click" class="form-control separator" name="end_click[]" value="<?= formatDecimal($track->end_click) ?>">
               </div>
             </div>
             <div class="col-md-4">
               <div class="form-group">
                 <label for="mc_reject">Machine Reject</label>
-                <input type="text" id="mc_reject" class="form-control currency" name="mc_reject[]" value="<?= formatDecimal($track->mc_reject * -1) ?>">
+                <input type="text" id="mc_reject" class="form-control separator" name="mc_reject[]" value="<?= formatDecimal($track->mc_reject * -1) ?>">
               </div>
             </div>
             <div class="col-md-4">
               <div class="form-group">
                 <label for="erp_click">ERP Click</label>
-                <input type="text" id="erp_click" class="form-control currency" name="erp_click" value="<?= formatDecimal($track->erp_click) ?>">
+                <input type="text" id="erp_click" class="form-control separator" name="erp_click" value="<?= formatDecimal($track->erp_click) ?>">
               </div>
             </div>
           </fieldset>
@@ -82,25 +82,25 @@
             <div class="col-md-6">
               <div class="form-group">
                 <label for="start_click">Start Click</label>
-                <input type="text" id="start_click" class="form-control currency" name="start_click" value="<?= formatDecimal($track->start_click) ?>" disabled>
+                <input type="text" id="start_click" class="form-control separator" name="start_click" value="<?= formatDecimal($track->start_click) ?>" disabled>
               </div>
             </div>
             <div class="col-md-6">
               <div class="form-group">
                 <label for="usage_click">Usage Click</label>
-                <input type="text" id="usage_click" class="form-control currency" name="usage_click" value="<?= formatDecimal($track->usage_click) ?>" disabled>
+                <input type="text" id="usage_click" class="form-control separator" name="usage_click" value="<?= formatDecimal($track->usage_click) ?>" disabled>
               </div>
             </div>
             <div class="col-md-6">
               <div class="form-group">
                 <label for="op_reject">Operator Reject</label>
-                <input type="text" id="op_reject" class="form-control currency" name="op_reject" value="<?= formatDecimal($track->op_reject) ?>" disabled>
+                <input type="text" id="op_reject" class="form-control separator" name="op_reject" value="<?= formatDecimal($track->op_reject) ?>" disabled>
               </div>
             </div>
             <div class="col-md-6">
               <div class="form-group">
                 <label for="total_reject">Total Reject</label>
-                <input type="text" id="total_reject" class="form-control currency" name="total_reject" value="<?= formatDecimal($track->mc_reject + $track->op_reject) ?>" disabled>
+                <input type="text" id="total_reject" class="form-control separator" name="total_reject" value="<?= formatDecimal($track->mc_reject + $track->op_reject) ?>" disabled>
               </div>
             </div>
           </fieldset>

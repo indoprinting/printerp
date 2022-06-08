@@ -451,7 +451,7 @@ class Auth extends MY_Controller
           'no', 'use', 'username', 'password', 'email', 'fullname', 'company', 'phone',
           'gender', 'group', 'warehouse', 'biller', 'view_right', 'edit_right', 'active', 'note'
         ];
-        if ($header_id[0] != 'USRACC') {
+        if ($header_id[0] != 'USRACN') {
           $this->session->set_flashdata('error', 'File format is invalid.');
           admin_redirect('users');
         }

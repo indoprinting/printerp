@@ -448,12 +448,13 @@ class Machines extends MY_Controller
 
   public function report()
   {
-    $params = func_get_args();
-    $method = __FUNCTION__ . '_' . (empty($params) ? 'index' : $params[0]);
+    if ($argv = func_get_args()) {
+      $method = __FUNCTION__ . '_' . $argv[0];
 
-    if (method_exists($this, $method)) {
-      if (!empty($params[0])) array_shift($params); // Remove original method as param if first param warehouse.
-      call_user_func_array([$this, $method], $params);
+      if (method_exists($this, $method)) {
+        array_shift($argv);
+        return call_user_func_array([$this, $method], $argv);
+      }
     }
   }
 
@@ -466,14 +467,20 @@ class Machines extends MY_Controller
     $this->data['creator'] = $this->site->getUserByID($this->session->userdata('user_id'));
 
     if ($this->requestMethod == 'POST') {
-      $created_by   = filterDecimal($this->input->post('created_by'));
-      $date         = ($this->isAdmin ? $this->input->post('date') : $this->serverDateTime);
+      $createdBy    = $this->input->post('created_by');
+      $createdAt    = ($this->isAdmin ? dtPHP($this->input->post('created_at')) : $this->serverDateTime);
       $condition    = $this->input->post('condition');
       $note         = $this->input->post('note');
       $picId        = $this->input->post('pic');
-      $warehouse_id = filterDecimal($this->input->post('warehouse'));
+      $warehouseId  = $this->input->post('warehouse');
+
+      if (empty($picId)) $picId = NULL;
 
       if (empty($condition)) sendJSON(['success' => 0, 'message' => 'Condition must be set.']);
+
+      if (($condition == 'off' || $condition == 'trouble') && empty($note)) {
+        $this->response(400, ['message' => 'Note tidak boleh kosong.']);
+      }
 
       $lastReports = $this->site->getProductReports([
         'product_id' => $productId,
@@ -483,9 +490,9 @@ class Machines extends MY_Controller
 
       $reportData = [
         'product_id'   => $product->id,
-        'warehouse_id' => $warehouse_id,
-        'created_by'   => $created_by,
-        'created_at'   => $date,
+        'warehouse_id' => $warehouseId,
+        'created_by'   => $createdBy,
+        'created_at'   => $createdAt,
         'condition'    => $condition,
         'note'         => $note
       ];
@@ -519,40 +526,40 @@ class Machines extends MY_Controller
       }
 
       if ($this->site->addProductReport($reportData)) {
-        $this->site->updateProducts([[ // Update note and pic.
+        $this->site->updateProducts([[ // Update note ONLY.
           'product_id' => $product->id,
           'note' => $note,
-          'pic_id' => intval($picId)
         ]]);
 
         if ($condition == 'good') { // Reset if machine is good.
           if (!empty($lastReports) && $lastReports[0]->condition != 'good') {
-            $warehouse = $this->site->getWarehouseByID($warehouse_id);
+            $warehouse = $this->site->getWarehouseByID($warehouseId);
 
             $this->site->addMaintenanceLog([
               'product_id'      => $product->id,
               'product_code'    => $product->code,
-              'assigned_at'     => ($productJS->assigned_at ?? $this->serverDateTime),
-              'assigned_by'     => ($productJS->assigned_by ?? 1),
-              'fixed_at'        => $date,
+              'assigned_at'     => (!empty($productJS->assigned_at) ? $productJS->assigned_at : $this->serverDateTime),
+              'assigned_by'     => (!empty($productJS->assigned_by) ? $productJS->assigned_by : 1),
+              'fixed_at'        => $createdAt,
               'pic_id'          => $productJS->pic_id,
               'warehouse_id'    => $warehouse->id,
               'warehouse_code'  => $warehouse->code,
               'note'            => $note,
-              'created_by'      => $created_by
+              'created_by'      => $createdBy
             ]);
           }
 
           $this->site->updateProducts([[
             'product_id' => $product->id,
-            'pic_id' => '',
-            'assigned_at' => '',
+            'pic_id' => '', // TS
+            'assigned_at' => '', // Assigned date
+            'assigned_by' => '',
           ]]);
         }
 
-        // Auto Schedule.
+        // Auto Assign TS.
         if ($condition == 'off' || $condition == 'trouble') {
-          $warehouse = $this->site->getWarehouseByID($warehouse_id);
+          $warehouse = $this->site->getWarehouseByID($warehouseId);
           $whJS = getJSON($warehouse->json_data);
           $maintenances = ($whJS->maintenances ?? []);
 
@@ -565,10 +572,10 @@ class Machines extends MY_Controller
                 if ($schedule->category == $subcat->code) {
                   if (isset($schedule->auto_assign) && $schedule->auto_assign == 1) {
                     $this->site->updateProducts([[
-                      'product_id' => $product->id,
-                      'pic_id' => $schedule->pic,
-                      'assigned_at' => $date,
-                      'assigned_by' => $created_by
+                      'product_id'  => $product->id,
+                      'pic_id'      => ($picId ?? $schedule->pic),
+                      'assigned_at' => $createdAt,
+                      'assigned_by' => $createdBy
                     ]]);
                   }
                 }
@@ -612,7 +619,8 @@ class Machines extends MY_Controller
       ];
 
       if (empty($productJS->pic_id)) {
-        $productData['assigned_at'] = date('Y-m-d H:i:s');
+        $productData['assigned_at'] = $this->serverDateTime;
+        $productData['assigned_by'] = $this->session->userdata('user_id');
       }
 
       if ($this->site->updateProducts([$productData])) {
@@ -623,6 +631,59 @@ class Machines extends MY_Controller
     }
 
     $this->load->view($this->theme . 'machines/report_assign', $this->data);
+  }
+
+  /**
+   * Multi check for good to good condition.
+   */
+  protected function report_batch()
+  {
+    if ($this->requestMethod == 'POST') {
+      $itemIds = $this->input->post('val');
+
+      if (empty($itemIds)) {
+        $this->response(400, ['message' => "Harap pilih salah satu item."]);
+      }
+
+      $problem = FALSE;
+      $failed = 0;
+      $success = 0;
+
+      foreach ($itemIds as $itemId) {
+        $product = $this->site->getProductByID($itemId);
+        $warehouse = $this->site->getWarehouseByName($product->warehouses);
+
+        $lastReport = $this->site->getProductReport([
+          'product_id' => $itemId,
+          'order_by' => ['created_at', 'DESC']
+        ]);
+
+        if ($lastReport->condition != 'good') {
+          $problem = TRUE;
+        }
+
+        $reportData = [
+          'product_id'   => $product->id,
+          'warehouse_id' => $warehouse->id,
+          'created_by'   => $this->session->userdata('user_id'),
+          'created_at'   => $this->serverDateTime,
+          'condition'    => 'good',
+          'note'         => 'OK'
+        ];
+    
+        if (!$problem && $this->site->addProductReport($reportData)) {
+          $success++;
+        } else {
+          $failed++;
+          $problem = FALSE;
+        }
+      }
+
+      if ($success) {
+        $this->response(200, ['message' => "{$success} item berhasil dibuatkan report. {$failed} item gagal."]);
+      }
+      $this->response(400, ['message' => 'Gagal menambah report item yang dipilih. Pastikan item berstatus <b>Good</b>.']);
+    }
   }
 
   protected function report_delete($reportId)
@@ -656,6 +717,7 @@ class Machines extends MY_Controller
         $("#myModal").modal("hide");
         $("#myModal2").modal("hide");
         addAlert("' . lang('access_denied') . '", "danger");
+        toastr.error("' . lang('access_denied') . '");
         </script>');
     }
 
@@ -718,6 +780,9 @@ class Machines extends MY_Controller
           'note'   => $note,
           'pic_id' => intval($picId)
         ]]);
+
+
+
         $this->site->syncProductReports($product->id);
 
         sendJSON(['success' => 1, 'message' => 'Product Report has been updated successfully.']);

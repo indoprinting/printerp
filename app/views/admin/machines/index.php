@@ -109,8 +109,8 @@ if ($endDate = $this->input->get('end_date')) {
           </a>
           <ul class="dropdown-menu dropdown-menu-right tasks-menus" role="menu" aria-labelledby="dLabel">
             <li>
-              <a href="<?= admin_url('reports/reportMachines?xls=1' . $q); ?>" id="export_excel">
-                <i class="fad fa-file-excel"></i> Export Excel
+              <a href="#" id="good_check">
+                <i class="fad fa-thumbs-up"></i> Report Good
               </a>
             </li>
           </ul>
@@ -129,7 +129,7 @@ if ($endDate = $this->input->get('end_date')) {
           <div class="row">
             <div class="col-sm-4">
               <div class="form-group">
-                <label for="warehouses"><i class="fad fa-warehouse"></i> Warehouses</label>
+                <label for="fwarehouses"><i class="fad fa-warehouse"></i> Warehouses</label>
                 <?php
                 $whs = $this->site->getWarehouses();
 
@@ -140,12 +140,12 @@ if ($endDate = $this->input->get('end_date')) {
                   }
                 }
                 ?>
-                <?= form_multiselect('warehouses[]', $bl, ($warehouses ?? ''), 'class="form-control select2" id="warehouses" data-placeholder="Select warehouse" style="width:100%;"'); ?>
+                <?= form_multiselect('warehouses[]', $bl, ($warehouses ?? ''), 'class="form-control select2" id="fwarehouses" data-placeholder="Select warehouse" style="width:100%;"'); ?>
               </div>
             </div>
             <div class="col-sm-4">
-              <label for="condition">Condition</label>
-              <select class="select2" id="condition" name="condition" style="width:100%">
+              <label for="fcondition">Condition</label>
+              <select class="select2" id="fcondition" name="condition" style="width:100%">
                 <option value="good">Good</option>
                 <option value="off">Off</option>
                 <option value="trouble">Trouble</option>
@@ -233,14 +233,14 @@ if ($endDate = $this->input->get('end_date')) {
 </div>
 <script>
   $(document).ready(function() {
-    $('#condition').val('<?= $cond ?>').trigger('change');
+    $('#fcondition').val('<?= $cond ?>').trigger('change');
 
     $('#btn_filter').click(function() {
-      let created_by = $('#created_by').val();
+      let created_by = $('#fcreated_by').val();
       let startDate = $('#startDate').val();
       let endDate = $('#endDate').val();
-      let condition = $('#condition').val();
-      let warehouses = $('#warehouses').val();
+      let condition = $('#fcondition').val();
+      let warehouses = $('#fwarehouses').val();
       let q = '?';
 
       if (created_by) {
@@ -262,6 +262,42 @@ if ($endDate = $this->input->get('end_date')) {
       }
 
       location.href = site.base_url + 'machines' + q;
+    });
+
+    $('#good_check').click(function() {
+      addConfirm({
+        title: 'Good Check',
+        message: 'Pastikan semua item sudah diperiksa dengan benar. Cek semua ke <b>Good</b>?',
+        onok: () => {
+          let formData = new FormData();
+          let vals = $('input[name="val[]"]');
+
+          formData.append('<?= csrf_token_name() ?>', '<?= csrf_hash() ?>');
+
+          for (let x in vals) {
+            if (vals[x].checked) {
+              formData.append('val[]', vals[x].value);
+            }
+          }
+
+          $.ajax({
+            contentType: false,
+            data: formData,
+            error: (xhr) => {
+              addAlert(xhr.responseJSON.message, 'danger');
+            },
+            processData: false,
+            method: 'POST',
+            success: function(data) {
+              if (typeof oTable == 'object') oTable.fnDraw(false);
+              if (typeof Table == 'object') Table.draw(false);
+
+              addAlert(data.message, 'success');
+            },
+            url: site.base_url + 'machines/report/batch'
+          })
+        }
+      })
     });
   });
 </script>

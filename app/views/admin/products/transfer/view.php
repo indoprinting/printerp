@@ -1,4 +1,11 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
+
+<?php
+  $mode = $this->input->get('m'); // noprice
+  $warehouseFrom = $this->site->getWarehouseByID($pt->warehouse_id_from);
+  $warehouseTo   = $this->site->getWarehouseByID($pt->warehouse_id_to);
+?>
+
 <div class="modal-content">
   <div class="modal-body">
     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
@@ -15,36 +22,43 @@
         <div class="col-md-6">
           <div class="row">
             <div class="col-md-4">Created At</div>
-            <div class="col-md-8">: <?= $pm->created_at ?></div>
+            <div class="col-md-8">: <?= $pt->created_at ?></div>
           </div>
           <div class="row">
             <div class="col-md-4">Created By</div>
-            <div class="col-md-8">: <?= $this->site->getUserByID($pm->created_by)->fullname ?></div>
+            <div class="col-md-8">: <?= $this->site->getUserByID($pt->created_by)->fullname ?></div>
           </div>
           <div class="row">
             <div class="col-md-4">Updated At</div>
-            <div class="col-md-8">: <?= ($pm->updated_at ? $pm->updated_at : '') ?></div>
+            <div class="col-md-8">: <?= ($pt->updated_at ? $pt->updated_at : '') ?></div>
           </div>
           <div class="row">
             <div class="col-md-4">Updated By</div>
-            <div class="col-md-8">: <?= ($pm->updated_by ? $this->site->getUserByID($pm->updated_by)->fullname : '') ?></div>
-          </div>
-          <div class="row">
-            <div class="col-md-4">From Warehouse</div>
-            <div class="col-md-8">: <?= $this->site->getWarehouseByID($pm->from_warehouse_id)->name ?></div>
-          </div>
-          <div class="row">
-            <div class="col-md-4">To Warehouse</div>
-            <div class="col-md-8">: <?= $this->site->getWarehouseByID($pm->to_warehouse_id)->name ?></div>
+            <div class="col-md-8">: <?= ($pt->updated_by ? $this->site->getUserByID($pt->updated_by)->fullname : '') ?></div>
           </div>
           <div class="row">
             <div class="col-md-4">Status</div>
-            <div class="col-md-8">: <?= ucwords(str_replace('_', ' ', $pm->status)) ?></div>
+            <div class="col-md-8">: <?= ucwords(str_replace('_', ' ', $pt->status)) ?></div>
           </div>
         </div>
         <div class="col-md-6 pull-right text-right order_barcodes">
-          <?= $this->ridintek->qrcode(admin_url('products/mutations/view/' . $pm->id)); ?>
+          <?= $this->ridintek->qrcode(admin_url('products/mutations/view/' . $pt->id)); ?>
         </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-xs-6">
+        Kepada:<br />
+        <h3 style="margin-top:10px;"><?= $warehouseTo->name . ' ( ' . $warehouseTo->code . ' )'; ?></h3>
+        <?= '<p>' . $warehouseTo->address . '</p><p>' . $warehouseTo->phone . '<br>' . $warehouseTo->email . '</p>';
+        ?>
+      </div>
+      <div class="col-xs-6">
+        Dari:
+        <h3 style="margin-top:10px;"><?= $warehouseFrom->name . ' ( ' . $warehouseFrom->code . ' )'; ?></h3>
+        <?= '<p>' . $warehouseFrom->address . '</p><p>' . $warehouseFrom->phone . '<br>' . $warehouseFrom->email . '</p>';
+        ?>
       </div>
     </div>
 
@@ -55,24 +69,36 @@
             <th>No</th>
             <th>Code</th>
             <th>name</th>
+            <?php if ($mode != 'noprice'): ?>
+            <th>Markon Price</th>
+            <?php endif; ?>
             <th>Total Qty</th>
             <th>Received Qty</th>
             <th>Rest Qty</th>
+            <?php if ($mode != 'noprice'): ?>
+            <th>Subtotal</th>
+            <?php endif; ?>
             <th>Status</th>
           </tr>
         </thead>
         <tbody>
           <?php $r = 1;
-          foreach ($pmitems as $pmitem) :
+          foreach ($ptitems as $ptitem) :
           ?>
             <tr>
               <td style="text-align:center; vertical-align:middle;"><?= $r; ?></td>
-              <td style="text-align:center"><?= $pmitem->product_code; ?></td>
-              <td style="vertical-align:middle;"><?= $pmitem->product_name; ?></td>
-              <td style="text-align:center; vertical-align:middle;"><?= floatval($pmitem->quantity); ?></td>
-              <td style="text-align:center; vertical-align:middle;"><?= floatval($pmitem->received_qty); ?></td>
-              <td style="text-align:center; vertical-align:middle;"><?= floatval($pmitem->quantity - $pmitem->received_qty); ?></td>
-              <?= renderStatus($pmitem->status) ?>
+              <td style="text-align:center"><?= $ptitem->product_code; ?></td>
+              <td style="vertical-align:middle;"><?= $ptitem->product_name; ?></td>
+              <?php if ($mode != 'noprice'): ?>
+              <td style="text-align:right; vertical-align:middle;"><?= formatCurrency($ptitem->markon_price); ?></td>
+              <?php endif; ?>
+              <td style="text-align:right; vertical-align:middle;"><?= formatQuantity($ptitem->quantity); ?></td>
+              <td style="text-align:right; vertical-align:middle;"><?= formatQuantity($ptitem->received_qty); ?></td>
+              <td style="text-align:right; vertical-align:middle;"><?= formatQuantity($ptitem->quantity - $ptitem->received_qty); ?></td>
+              <?php if ($mode != 'noprice'): ?>
+              <td style="text-align:right; vertical-align:middle;"><?= formatCurrency($ptitem->markon_price * $ptitem->quantity); ?></td>
+              <?php endif; ?>
+              <?= renderStatus($ptitem->status) ?>
             </tr>
           <?php
             $r++;
@@ -84,11 +110,11 @@
 
     <div class="row">
       <div class="col-md-7">
-        <?php if (!empty($pm->note)) {
+        <?php if (!empty($pt->note)) {
         ?>
           <div class="well well-sm">
             <p class="bold"><?= lang('note'); ?>:</p>
-            <div><?= $pm->note; ?></div>
+            <div><?= htmlDecode($pt->note); ?></div>
           </div>
         <?php
         } ?>

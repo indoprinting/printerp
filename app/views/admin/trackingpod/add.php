@@ -71,13 +71,13 @@
             <div class="col-md-6">
               <div class="form-group">
                 <label for="end_click1">End Click</label>
-                <input type="text" id="end_click1" class="form-control currency" name="end_click[]" required>
+                <input type="text" id="end_click1" class="form-control separator" name="end_click[]" required>
               </div>
             </div>
             <div class="col-md-6">
               <div class="form-group">
                 <label for="mc_reject1">Reject Machine</label>
-                <input type="text" id="mc_reject1" class="form-control currency" name="mc_reject[]">
+                <input type="text" id="mc_reject1" class="form-control separator" name="mc_reject[]">
               </div>
             </div>
           </fieldset>
@@ -87,13 +87,13 @@
             <div class="col-md-6">
               <div class="form-group">
                 <label for="end_click2">End Click</label>
-                <input type="text" id="end_click2" class="form-control currency" name="end_click[]">
+                <input type="text" id="end_click2" class="form-control separator" name="end_click[]">
               </div>
             </div>
             <div class="col-md-6">
               <div class="form-group">
                 <label for="mc_reject2">Reject Machine</label>
-                <input type="text" id="mc_reject2" class="form-control currency" name="mc_reject[]">
+                <input type="text" id="mc_reject2" class="form-control separator" name="mc_reject[]">
               </div>
             </div>
           </fieldset>
@@ -103,13 +103,13 @@
             <div class="col-md-6">
               <div class="form-group">
                 <label for="end_click3">End Click</label>
-                <input type="text" id="end_click3" class="form-control currency" name="end_click[]">
+                <input type="text" id="end_click3" class="form-control separator" name="end_click[]">
               </div>
             </div>
             <div class="col-md-6">
               <div class="form-group">
                 <label for="mc_reject3">Reject Machine</label>
-                <input type="text" id="mc_reject3" class="form-control currency" name="mc_reject[]">
+                <input type="text" id="mc_reject3" class="form-control separator" name="mc_reject[]">
               </div>
             </div>
           </fieldset>

@@ -28,9 +28,9 @@
                       <?php foreach ($users as $user) :
                         $userGroup = $this->site->getUserGroup($user->id);
 
-                        if ($userGroup->name != 'support') continue;
+                        if ($userGroup->name != 'support' && $userGroup->name != 'kurir') continue;
                       ?>
-                        <option value="<?= $user->id ?>" data-group="<?= $userGroup->name ?>"><?= $user->first_name . ' ' . $user->last_name ?></option>
+                        <option value="<?= $user->id ?>" data-group="<?= $userGroup->name ?>"><?= $user->fullname ?></option>
                       <?php endforeach; ?>
                     </select>
                   </td>

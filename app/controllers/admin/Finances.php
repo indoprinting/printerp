@@ -1258,6 +1258,16 @@ class Finances extends MY_Controller
     }
   }
 
+  public function getBankBalance($bankId)
+  {
+    $bank = $this->site->getBank(['id' => $bankId]);
+
+    if ($bank) {
+      $this->response(200, ['data' => ['balance' => floatval($bank->amount)]]);
+    }
+    $this->response(404, ['message' => 'Bank is not found.']);
+  }
+
   public function incomes()
   {
     $params = func_get_args();

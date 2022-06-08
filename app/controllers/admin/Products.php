@@ -15,8 +15,9 @@ class Products extends MY_Controller
     }
     $this->lang->admin_load('products', $this->Settings->user_language);
     $this->load->library('form_validation');
-    $this->load->admin_model('products_model');
-    $this->load->admin_model('settings_model');
+    // $this->load->admin_model('products_model');
+    // $this->load->admin_model('settings_model');
+    $this->load->model('Payment');
     $this->load->model('ProductTransfer');
     $this->digital_upload_path = 'files/';
     $this->import_path         = 'files/import/';
@@ -207,8 +208,6 @@ class Products extends MY_Controller
       $uploader = new FileUpload();
 
       if ($uploader->has('document')) {
-        checkPath($this->digital_upload_path);
-
         $attachment = $uploader->getRandomName();
 
         if ($uploader->move($this->digital_upload_path, $attachment)) {
@@ -224,36 +223,9 @@ class Products extends MY_Controller
         admin_redirect('products/quantity_adjustments');
       }
     } else {
-      if ($count_id) {
-        $stock_count = $this->products_model->getStouckCountByID($count_id);
-        $items       = $this->products_model->getStockCountItems($count_id);
-        foreach ($items as $item) {
-          $c = sha1(uniqid(mt_rand(), true));
-          if ($item->counted != $item->expected) {
-            $product     = $this->site->getProductByID($item->product_id);
-            $row         = json_decode('{}');
-            $row->id     = $item->product_id;
-            $row->code   = $product->code;
-            $row->name   = $product->name;
-            $row->qty    = $item->counted - $item->expected;
-            $row->type   = $row->qty >= 0 ? 'addition' : 'subtraction';
-            $row->qty    = $row->qty >= 0 ? $row->qty : (0 - $row->qty);
-            $options     = $this->products_model->getProductOptions($product->id);
-            $row->option = $item->product_variant_id ? $item->product_variant_id : 0;
-            $row->serial = '';
-            $ri          = $this->Settings->item_addition ? $product->id : $c;
-
-            $pr[$ri] = [
-              'id' => $c, 'item_id' => $row->id, 'label' => $row->name . ' (' . $row->code . ')',
-              'row' => $row, 'options' => $options,
-            ];
-            $c++;
-          }
-        }
-      }
-      $this->data['adjustment_items'] = $count_id ? json_encode($pr) : false;
-      $this->data['warehouse_id']     = $count_id ? $stock_count->warehouse_id : false;
-      $this->data['count_id']         = $count_id;
+      $this->data['adjustment_items'] = FALSE;
+      $this->data['warehouse_id']     = FALSE;
+      $this->data['count_id']         = NULL;
       $this->data['error']            = (validation_errors() ? validation_errors() : $this->session->flashdata('error'));
       $this->data['warehouses']       = $this->site->getAllWarehouses();
 
@@ -393,50 +365,50 @@ class Products extends MY_Controller
     }
   }
 
-  public function addByAjax()
-  {
-    return FALSE;
-    if ($this->input->get('token') && $this->input->get('token') == $this->session->userdata('user_csrf') && $this->input->is_ajax_request()) {
-      $product = $this->input->get('product');
-      if (!isset($product['code']) || empty($product['code'])) {
-        exit(json_encode(['msg' => lang('product_code_is_required')]));
-      }
-      if (!isset($product['name']) || empty($product['name'])) {
-        exit(json_encode(['msg' => lang('product_name_is_required')]));
-      }
-      if (!isset($product['category_id']) || empty($product['category_id'])) {
-        exit(json_encode(['msg' => lang('product_category_is_required')]));
-      }
-      if (!isset($product['unit']) || empty($product['unit'])) {
-        exit(json_encode(['msg' => lang('product_unit_is_required')]));
-      }
-      if (!isset($product['price']) || empty($product['price'])) {
-        exit(json_encode(['msg' => lang('product_price_is_required')]));
-      }
-      if (!isset($product['cost']) || empty($product['cost'])) {
-        exit(json_encode(['msg' => lang('product_cost_is_required')]));
-      }
-      if ($this->site->getProductByCode($product['code'])) {
-        exit(json_encode(['msg' => lang('product_code_already_exist')]));
-      }
-      if ($row = $this->products_model->addAjaxProduct($product)) {
-        $pr       = [
-          'id' => $row->id,
-          'label' => $row->name . ' (' . $row->code . ')',
-          'code' => $row->code,
-          'qty' => 1,
-          'cost' => $row->cost,
-          'name' => $row->name,
-          'discount' => '0'
-        ];
-        sendJSON(['msg' => 'success', 'result' => $pr]);
-      } else {
-        exit(json_encode(['msg' => lang('failed_to_add_product')]));
-      }
-    } else {
-      json_encode(['msg' => 'Invalid token']);
-    }
-  }
+  // public function addByAjax()
+  // {
+  //   return FALSE;
+  //   if ($this->input->get('token') && $this->input->get('token') == $this->session->userdata('user_csrf') && $this->input->is_ajax_request()) {
+  //     $product = $this->input->get('product');
+  //     if (!isset($product['code']) || empty($product['code'])) {
+  //       exit(json_encode(['msg' => lang('product_code_is_required')]));
+  //     }
+  //     if (!isset($product['name']) || empty($product['name'])) {
+  //       exit(json_encode(['msg' => lang('product_name_is_required')]));
+  //     }
+  //     if (!isset($product['category_id']) || empty($product['category_id'])) {
+  //       exit(json_encode(['msg' => lang('product_category_is_required')]));
+  //     }
+  //     if (!isset($product['unit']) || empty($product['unit'])) {
+  //       exit(json_encode(['msg' => lang('product_unit_is_required')]));
+  //     }
+  //     if (!isset($product['price']) || empty($product['price'])) {
+  //       exit(json_encode(['msg' => lang('product_price_is_required')]));
+  //     }
+  //     if (!isset($product['cost']) || empty($product['cost'])) {
+  //       exit(json_encode(['msg' => lang('product_cost_is_required')]));
+  //     }
+  //     if ($this->site->getProductByCode($product['code'])) {
+  //       exit(json_encode(['msg' => lang('product_code_already_exist')]));
+  //     }
+  //     if ($row = $this->products_model->addAjaxProduct($product)) {
+  //       $pr       = [
+  //         'id' => $row->id,
+  //         'label' => $row->name . ' (' . $row->code . ')',
+  //         'code' => $row->code,
+  //         'qty' => 1,
+  //         'cost' => $row->cost,
+  //         'name' => $row->name,
+  //         'discount' => '0'
+  //       ];
+  //       sendJSON(['msg' => 'success', 'result' => $pr]);
+  //     } else {
+  //       exit(json_encode(['msg' => lang('failed_to_add_product')]));
+  //     }
+  //   } else {
+  //     json_encode(['msg' => 'Invalid token']);
+  //   }
+  // }
 
   public function add_category()
   {
@@ -512,12 +484,12 @@ class Products extends MY_Controller
       admin_redirect('products/categories');
     }
 
-    if ($this->form_validation->run() == true && $this->settings_model->addCategory($data)) {
+    if ($this->form_validation->run() == true && $this->site->addProductCategory($data)) {
       $this->session->set_flashdata('message', lang('product_categories_added'));
       admin_redirect('products/categories');
     } else {
       $this->data['error']      = validation_errors() ? validation_errors() : $this->session->flashdata('error');
-      $this->data['categories'] = $this->settings_model->getParentCategories();
+      $this->data['categories'] = $this->site->getParentCategories();
       $this->load->view($this->theme . 'products/add_category', $this->data);
     }
   }
@@ -587,7 +559,7 @@ class Products extends MY_Controller
       if (!empty($_POST['val'])) {
         if ($this->input->post('form_action') == 'delete') {
           foreach ($_POST['val'] as $id) {
-            $this->settings_model->deleteCategory($id);
+            $this->site->deleteProductCategory($id);
           }
           $this->session->set_flashdata('message', lang('categories_deleted'));
           redirect($_SERVER['HTTP_REFERER']);
@@ -621,133 +593,133 @@ class Products extends MY_Controller
     sendJSON(['results' => [['id' => '', 'text' => 'No Category found.']]]);
   }
 
-  public function count_stock($page = null)
-  {
-    $this->sma->checkPermissions('stock_count');
-    $this->form_validation->set_rules('warehouse', lang('warehouse'), 'required');
-    $this->form_validation->set_rules('type', lang('type'), 'required');
+  // public function count_stock($page = null)
+  // {
+  //   $this->sma->checkPermissions('stock_count');
+  //   $this->form_validation->set_rules('warehouse', lang('warehouse'), 'required');
+  //   $this->form_validation->set_rules('type', lang('type'), 'required');
 
-    if ($this->form_validation->run() == true) {
-      $warehouse_id = $this->input->post('warehouse');
-      $type         = $this->input->post('type');
-      $categories   = $this->input->post('category') ? $this->input->post('category') : null;
-      $brands       = $this->input->post('brand') ? $this->input->post('brand') : null;
-      $this->load->helper('string');
-      $name     = random_string('md5') . '.csv';
-      $products = $this->products_model->getStockCountProducts($warehouse_id, $type, $categories, $brands);
-      $pr       = 0;
-      $rw       = 0;
-      foreach ($products as $product) {
-        if ($variants = $this->products_model->getStockCountProductVariants($warehouse_id, $product->id)) {
-          foreach ($variants as $variant) {
-            $items[] = [
-              'product_code' => $product->code,
-              'product_name' => $product->name,
-              'variant'      => $variant->name,
-              'expected'     => $variant->quantity,
-              'counted'      => '',
-            ];
-            $rw++;
-          }
-        } else {
-          $items[] = [
-            'product_code' => $product->code,
-            'product_name' => $product->name,
-            'variant'      => '',
-            'expected'     => $product->quantity,
-            'counted'      => '',
-          ];
-          $rw++;
-        }
-        $pr++;
-      }
-      if (!empty($items)) {
-        $csv_file = fopen('./files/' . $name, 'w');
-        fprintf($csv_file, chr(0xEF) . chr(0xBB) . chr(0xBF));
-        fputcsv($csv_file, [lang('product_code'), lang('product_name'), lang('variant'), lang('expected'), lang('counted')]);
-        foreach ($items as $item) {
-          fputcsv($csv_file, $item);
-        }
-        // file_put_contents('./files/'.$name, $csv_file);
-        // fwrite($csv_file, $txt);
-        fclose($csv_file);
-      } else {
-        $this->session->set_flashdata('error', lang('no_product_found'));
-        redirect($_SERVER['HTTP_REFERER']);
-      }
+  //   if ($this->form_validation->run() == true) {
+  //     $warehouse_id = $this->input->post('warehouse');
+  //     $type         = $this->input->post('type');
+  //     $categories   = $this->input->post('category') ? $this->input->post('category') : null;
+  //     $brands       = $this->input->post('brand') ? $this->input->post('brand') : null;
+  //     $this->load->helper('string');
+  //     $name     = random_string('md5') . '.csv';
+  //     $products = $this->products_model->getStockCountProducts($warehouse_id, $type, $categories, $brands);
+  //     $pr       = 0;
+  //     $rw       = 0;
+  //     foreach ($products as $product) {
+  //       if ($variants = $this->products_model->getStockCountProductVariants($warehouse_id, $product->id)) {
+  //         foreach ($variants as $variant) {
+  //           $items[] = [
+  //             'product_code' => $product->code,
+  //             'product_name' => $product->name,
+  //             'variant'      => $variant->name,
+  //             'expected'     => $variant->quantity,
+  //             'counted'      => '',
+  //           ];
+  //           $rw++;
+  //         }
+  //       } else {
+  //         $items[] = [
+  //           'product_code' => $product->code,
+  //           'product_name' => $product->name,
+  //           'variant'      => '',
+  //           'expected'     => $product->quantity,
+  //           'counted'      => '',
+  //         ];
+  //         $rw++;
+  //       }
+  //       $pr++;
+  //     }
+  //     if (!empty($items)) {
+  //       $csv_file = fopen('./files/' . $name, 'w');
+  //       fprintf($csv_file, chr(0xEF) . chr(0xBB) . chr(0xBF));
+  //       fputcsv($csv_file, [lang('product_code'), lang('product_name'), lang('variant'), lang('expected'), lang('counted')]);
+  //       foreach ($items as $item) {
+  //         fputcsv($csv_file, $item);
+  //       }
+  //       // file_put_contents('./files/'.$name, $csv_file);
+  //       // fwrite($csv_file, $txt);
+  //       fclose($csv_file);
+  //     } else {
+  //       $this->session->set_flashdata('error', lang('no_product_found'));
+  //       redirect($_SERVER['HTTP_REFERER']);
+  //     }
 
-      if ($this->Owner || $this->Admin) {
-        $date = $this->sma->fld($this->input->post('date'));
-      } else {
-        $date = date('Y-m-d H:s:i');
-      }
-      $category_ids   = '';
-      $brand_ids      = '';
-      $category_names = '';
-      $brand_names    = '';
-      if ($categories) {
-        $r = 1;
-        $s = sizeof($categories);
-        foreach ($categories as $category_id) {
-          $category = $this->site->getProductCategoryByID($category_id);
-          if ($r == $s) {
-            $category_names .= $category->name;
-            $category_ids   .= $category->id;
-          } else {
-            $category_names .= $category->name . ', ';
-            $category_ids   .= $category->id . ', ';
-          }
-          $r++;
-        }
-      }
+  //     if ($this->Owner || $this->Admin) {
+  //       $date = $this->sma->fld($this->input->post('date'));
+  //     } else {
+  //       $date = date('Y-m-d H:s:i');
+  //     }
+  //     $category_ids   = '';
+  //     $brand_ids      = '';
+  //     $category_names = '';
+  //     $brand_names    = '';
+  //     if ($categories) {
+  //       $r = 1;
+  //       $s = sizeof($categories);
+  //       foreach ($categories as $category_id) {
+  //         $category = $this->site->getProductCategoryByID($category_id);
+  //         if ($r == $s) {
+  //           $category_names .= $category->name;
+  //           $category_ids   .= $category->id;
+  //         } else {
+  //           $category_names .= $category->name . ', ';
+  //           $category_ids   .= $category->id . ', ';
+  //         }
+  //         $r++;
+  //       }
+  //     }
 
-      if ($brands) {
-        $r = 1;
-        $s = sizeof($brands);
-        foreach ($brands as $brand_id) {
-          $brand = $this->site->getBrandByID($brand_id);
-          if ($r == $s) {
-            $brand_names .= $brand->name;
-            $brand_ids   .= $brand->id;
-          } else {
-            $brand_names .= $brand->name . ', ';
-            $brand_ids   .= $brand->id . ', ';
-          }
-          $r++;
-        }
-      }
+  //     if ($brands) {
+  //       $r = 1;
+  //       $s = sizeof($brands);
+  //       foreach ($brands as $brand_id) {
+  //         $brand = $this->site->getBrandByID($brand_id);
+  //         if ($r == $s) {
+  //           $brand_names .= $brand->name;
+  //           $brand_ids   .= $brand->id;
+  //         } else {
+  //           $brand_names .= $brand->name . ', ';
+  //           $brand_ids   .= $brand->id . ', ';
+  //         }
+  //         $r++;
+  //       }
+  //     }
 
-      $data = [
-        'date'           => $date,
-        'warehouse_id'   => $warehouse_id,
-        'reference'      => $this->input->post('reference'),
-        'type'           => $type,
-        'categories'     => $category_ids,
-        'category_names' => $category_names,
-        'brands'         => $brand_ids,
-        'brand_names'    => $brand_names,
-        'initial_file'   => $name,
-        'products'       => $pr,
-        'rows'           => $rw,
-        'created_by'     => $this->session->userdata('user_id'),
-      ];
-    }
+  //     $data = [
+  //       'date'           => $date,
+  //       'warehouse_id'   => $warehouse_id,
+  //       'reference'      => $this->input->post('reference'),
+  //       'type'           => $type,
+  //       'categories'     => $category_ids,
+  //       'category_names' => $category_names,
+  //       'brands'         => $brand_ids,
+  //       'brand_names'    => $brand_names,
+  //       'initial_file'   => $name,
+  //       'products'       => $pr,
+  //       'rows'           => $rw,
+  //       'created_by'     => $this->session->userdata('user_id'),
+  //     ];
+  //   }
 
-    if ($this->form_validation->run() == true && $this->products_model->addStockCount($data)) {
-      $this->session->set_flashdata('message', lang('stock_count_intiated'));
-      admin_redirect('products/stock_counts');
-    } else {
-      $this->data['error']      = (validation_errors() ? validation_errors() : $this->session->flashdata('error'));
-      $this->data['warehouses'] = $this->site->getAllWarehouses();
-      $this->data['categories'] = $this->site->getAllCategories();
-      $this->data['brands']     = NULL;
-      $bc                       = [['link' => base_url(), 'page' => lang('home')], ['link' => admin_url('products'), 'page' => lang('products')], ['link' => '#', 'page' => lang('count_stock')]];
-      $meta                     = ['page_title' => lang('count_stock'), 'bc' => $bc];
-      $this->data = array_merge($this->data, $meta);
+  //   if ($this->form_validation->run() == true && $this->products_model->addStockCount($data)) {
+  //     $this->session->set_flashdata('message', lang('stock_count_intiated'));
+  //     admin_redirect('products/stock_counts');
+  //   } else {
+  //     $this->data['error']      = (validation_errors() ? validation_errors() : $this->session->flashdata('error'));
+  //     $this->data['warehouses'] = $this->site->getAllWarehouses();
+  //     $this->data['categories'] = $this->site->getAllCategories();
+  //     $this->data['brands']     = NULL;
+  //     $bc                       = [['link' => base_url(), 'page' => lang('home')], ['link' => admin_url('products'), 'page' => lang('products')], ['link' => '#', 'page' => lang('count_stock')]];
+  //     $meta                     = ['page_title' => lang('count_stock'), 'bc' => $bc];
+  //     $this->data = array_merge($this->data, $meta);
 
-      $this->page_construct('products/count_stock', $this->data);
-    }
-  }
+  //     $this->page_construct('products/count_stock', $this->data);
+  //   }
+  // }
 
   /* ------------------------------------------------------------------------------- */
 
@@ -784,7 +756,7 @@ class Products extends MY_Controller
       sendJSON(['error' => 1, 'msg' => lang('category_has_subcategory')]);
     }
 
-    if ($this->settings_model->deleteCategory($id)) {
+    if ($this->site->deleteProductCategory($id)) {
       sendJSON(['error' => 0, 'msg' => lang('category_deleted')]);
     }
   }
@@ -1072,7 +1044,7 @@ class Products extends MY_Controller
   {
     $this->load->helper('security');
     $this->form_validation->set_rules('code', lang('category_code'), 'trim|required');
-    $pr_details = $this->settings_model->getCategoryByID($id);
+    $pr_details = $this->site->getProductCategoryByID($id);
     if ($this->input->post('code') != $pr_details->code) {
       $this->form_validation->set_rules('code', lang('category_code'), 'required|is_unique[categories.code]');
     }
@@ -1147,34 +1119,34 @@ class Products extends MY_Controller
       admin_redirect('products/categories');
     }
 
-    if ($this->form_validation->run() == true && $this->settings_model->updateCategory($id, $data)) {
+    if ($this->form_validation->run() == true && $this->site->updateProductCategory($id, $data)) {
       $this->session->set_flashdata('message', lang('category_updated'));
       admin_redirect('products/categories');
     } else {
       $this->data['error']      = validation_errors() ? validation_errors() : $this->session->flashdata('error');
       $this->data['category']   = $this->site->getProductCategoryByID($id);
-      $this->data['categories'] = $this->settings_model->getParentCategories();
+      $this->data['categories'] = $this->site->getParentCategories();
       $this->load->view($this->theme . 'products/edit_category', $this->data);
     }
   }
 
-  public function get_suggestions()
-  {
-    $term = $this->input->get('term', true);
-    if (strlen($term) < 1 || !$term) {
-      die("<script type='text/javascript'>setTimeout(function(){ window.top.location.href = '" . admin_url('welcome') . "'; }, 10);</script>");
-    }
+  // public function get_suggestions()
+  // {
+  //   $term = $this->input->get('term', true);
+  //   if (strlen($term) < 1 || !$term) {
+  //     die("<script type='text/javascript'>setTimeout(function(){ window.top.location.href = '" . admin_url('welcome') . "'; }, 10);</script>");
+  //   }
 
-    $rows = $this->products_model->getProductsForPrinting($term);
-    if ($rows) {
-      foreach ($rows as $row) {
-        $pr[]     = ['id' => $row->id, 'label' => $row->name . ' (' . $row->code . ')', 'code' => $row->code, 'name' => $row->name, 'price' => $row->price, 'qty' => 1];
-      }
-      sendJSON($pr);
-    } else {
-      sendJSON([['id' => 0, 'label' => lang('no_match_found'), 'value' => $term]]);
-    }
-  }
+  //   $rows = $this->products_model->getProductsForPrinting($term);
+  //   if ($rows) {
+  //     foreach ($rows as $row) {
+  //       $pr[]     = ['id' => $row->id, 'label' => $row->name . ' (' . $row->code . ')', 'code' => $row->code, 'name' => $row->name, 'price' => $row->price, 'qty' => 1];
+  //     }
+  //     sendJSON($pr);
+  //   } else {
+  //     sendJSON([['id' => 0, 'label' => lang('no_match_found'), 'value' => $term]]);
+  //   }
+  // }
 
   public function getAdjustments($warehouse_id = null)
   {
@@ -1397,6 +1369,11 @@ class Products extends MY_Controller
 
     if ($supplier_id) {
       $this->datatables->where('supplier_id', $supplier_id);
+    }
+
+    if ($warehouse) {
+      $this->datatables->like('products.warehouses', $warehouse->name, 'none');
+      $this->datatables->or_like('products.warehouses', '', 'none');
     }
 
     $this->datatables->add_column('Actions', $action, 'product_id, image, code, name');
@@ -1705,13 +1682,13 @@ class Products extends MY_Controller
               'description' => isset($csv['description']) ? trim($csv['description']) : null,
             ];
 
-            if (!empty($pcode) && ($pcategory = $this->settings_model->getCategoryByCode($pcode))) {
+            if (!empty($pcode) && ($pcategory = $this->site->getProductCategoryByCode($pcode))) {
               $category['parent_code'] = $pcategory->code;
             }
 
-            if ($c = $this->settings_model->getCategoryByCode($code)) {
+            if ($c = $this->site->getProductCategoryByCode($code)) {
               $updated .= '<p>' . lang('product_categories_updated') . ' (' . $code . ')</p>';
-              $this->settings_model->updateCategory($c->id, $category);
+              $this->site->updateProductCategory($c->id, $category);
             } else {
               if ($category['parent_code']) {
                 $subcategories[] = $category;
@@ -1724,7 +1701,7 @@ class Products extends MY_Controller
       }
     }
 
-    if ($this->form_validation->run() == true && $this->settings_model->addCategories($categories, $subcategories)) {
+    if ($this->form_validation->run() == true && $this->site->addProductCategories($categories, $subcategories)) {
       $this->session->set_flashdata('message', lang('product_categories_added') . $updated);
       admin_redirect('products/categories');
     } else {
@@ -2116,16 +2093,29 @@ class Products extends MY_Controller
                   $new_product = $this->site->getProductByCode($sell_item['code']); // Get new added product.
 
                   foreach ($price_groups as $price_group) {
-                    $this->settings_model->setProductPriceForPriceGroup(
-                      $new_product->id,
-                      $group_id,
-                      $price_group[0],
-                      $price_group[1],
-                      $price_group[2],
-                      $price_group[3],
-                      $price_group[4],
-                      $price_group[5]
-                    ); // Insert price group.
+                    $ppData = [
+                      'product_id' => $new_product->id,
+                      'price_group_id' => $group_id,
+                      'price'  => $price_group[0],
+                      'price2' => $price_group[1],
+                      'price3' => $price_group[2],
+                      'price4' => $price_group[3],
+                      'price5' => $price_group[4],
+                      'price6' => $price_group[5],
+                    ];
+    
+                    $this->site->addProductPrices($ppData);
+
+                    // $this->settings_model->setProductPriceForPriceGroup(
+                    //   $new_product->id,
+                    //   $group_id,
+                    //   $price_group[0],
+                    //   $price_group[1],
+                    //   $price_group[2],
+                    //   $price_group[3],
+                    //   $price_group[4],
+                    //   $price_group[5]
+                    // ); // Insert price group.
                     $group_id++;
                   }
 
@@ -2138,16 +2128,29 @@ class Products extends MY_Controller
                   $group_id = 1; // Begin group from 1 to 6 + (7: Privilge A, 8: Privilege B, 9: Privilege C)
 
                   foreach ($price_groups as $price_group) {
-                    $this->settings_model->setProductPriceForPriceGroup(
-                      $product->id,
-                      $group_id,
-                      $price_group[0],
-                      $price_group[1],
-                      $price_group[2],
-                      $price_group[3],
-                      $price_group[4],
-                      $price_group[5]
-                    ); // Insert price group.
+                    $ppData = [
+                      'product_id' => $product->id,
+                      'price_group_id' => $group_id,
+                      'price'  => $price_group[0],
+                      'price2' => $price_group[1],
+                      'price3' => $price_group[2],
+                      'price4' => $price_group[3],
+                      'price5' => $price_group[4],
+                      'price6' => $price_group[5],
+                    ];
+    
+                    $this->site->addProductPrices($ppData);
+
+                    // $this->settings_model->setProductPriceForPriceGroup(
+                    //   $product->id,
+                    //   $group_id,
+                    //   $price_group[0],
+                    //   $price_group[1],
+                    //   $price_group[2],
+                    //   $price_group[3],
+                    //   $price_group[4],
+                    //   $price_group[5]
+                    // ); // Insert price group.
                     $group_id++;
                   }
 
@@ -2386,16 +2389,29 @@ class Products extends MY_Controller
                   $group_id = 1; // Begin group from 1 to 6 + (7: Privilge A, 8: Privilege B, 9: Privilege C)
 
                   foreach ($price_groups as $price_group) {
-                    $this->settings_model->setProductPriceForPriceGroup(
-                      $product->id,
-                      $group_id,
-                      $price_group[0],
-                      $price_group[1],
-                      $price_group[2],
-                      $price_group[3],
-                      $price_group[4],
-                      $price_group[5]
-                    ); // Insert price group.
+                    $ppData = [
+                      'product_id' => $product->id,
+                      'price_group_id' => $group_id,
+                      'price'  => $price_group[0],
+                      'price2' => $price_group[1],
+                      'price3' => $price_group[2],
+                      'price4' => $price_group[3],
+                      'price5' => $price_group[4],
+                      'price6' => $price_group[5],
+                    ];
+    
+                    $this->site->addProductPrices($ppData);
+
+                    // $this->settings_model->setProductPriceForPriceGroup(
+                    //   $product->id,
+                    //   $group_id,
+                    //   $price_group[0],
+                    //   $price_group[1],
+                    //   $price_group[2],
+                    //   $price_group[3],
+                    //   $price_group[4],
+                    //   $price_group[5]
+                    // ); // Insert price group.
                     $group_id++;
                   }
                   $updated++;
@@ -2426,16 +2442,29 @@ class Products extends MY_Controller
 
           $price_groups = $group_price_groups[$item_index]; // Fixed.
           foreach ($price_groups as $price_group) {
-            $this->settings_model->setProductPriceForPriceGroup(
-              $new_product->id,
-              $group_id,
-              $price_group[0],
-              $price_group[1],
-              $price_group[2],
-              $price_group[3],
-              $price_group[4],
-              $price_group[5]
-            ); // Insert price group.
+            $ppData = [
+              'product_id' => $new_product->id,
+              'price_group_id' => $group_id,
+              'price'  => $price_group[0],
+              'price2' => $price_group[1],
+              'price3' => $price_group[2],
+              'price4' => $price_group[3],
+              'price5' => $price_group[4],
+              'price6' => $price_group[5],
+            ];
+
+            $this->site->addProductPrices($ppData);
+
+            // $this->settings_model->setProductPriceForPriceGroup(
+            //   $new_product->id,
+            //   $group_id,
+            //   $price_group[0],
+            //   $price_group[1],
+            //   $price_group[2],
+            //   $price_group[3],
+            //   $price_group[4],
+            //   $price_group[5]
+            // ); // Insert price group.
             $group_id++;
           }
           $item_index++;
@@ -2566,7 +2595,7 @@ class Products extends MY_Controller
     $this->data['unit']          = $this->site->getUnitByID($pr_details->unit);
     $this->data['sale_unit']     = $this->site->getUnitByID($pr_details->sale_unit);
     $this->data['purchase_unit'] = $this->site->getUnitByID($pr_details->purchase_unit);
-    $this->data['images']        = $this->products_model->getProductPhotos($product_id);
+    $this->data['images']        = NULL; //$this->products_model->getProductPhotos($product_id);
     $this->data['category']      = $this->site->getProductCategoryByID($pr_details->category_id);
     $this->data['subcategory']   = $pr_details->subcategory_id ? $this->site->getProductCategoryByID($pr_details->subcategory_id) : null;
     $this->data['warehouses']    = $this->site->getAllWarehousesWithPQ($product_id, ['start_date' => $startDate, 'end_date' => $endDate]); // PQ = Product Quantity
@@ -2963,25 +2992,6 @@ class Products extends MY_Controller
             $this->session->set_flashdata('message', $this->lang->line('products_deleted'));
             redirect($_SERVER['HTTP_REFERER']);
           }
-        } elseif ($this->input->post('form_action') == 'labels') {
-          foreach ($_POST['val'] as $id) {
-            $row               = $this->site->getProductByID($id);
-            $selected_variants = false;
-            if ($variants = $this->products_model->getProductOptions($row->id)) {
-              foreach ($variants as $variant) {
-                $selected_variants[$variant->id] = $variant->quantity > 0 ? 1 : 0;
-              }
-            }
-            $pr[$row->id] = ['id' => $row->id, 'label' => $row->name . ' (' . $row->code . ')', 'code' => $row->code, 'name' => $row->name, 'price' => $row->price, 'qty' => $row->quantity, 'variants' => $variants, 'selected_variants' => $selected_variants];
-          }
-
-          $this->data['items'] = isset($pr) ? json_encode($pr) : false;
-          $this->data['error'] = (validation_errors() ? validation_errors() : $this->session->flashdata('error'));
-          $bc   = [['link' => base_url(), 'page' => lang('home')], ['link' => admin_url('products'), 'page' => lang('products')], ['link' => '#', 'page' => lang('print_barcodes')]];
-          $meta = ['page_title' => lang('print_barcodes'), 'bc' => $bc];
-          $this->data = array_merge($this->data, $meta);
-
-          $this->page_construct('products/print_barcodes', $this->data);
         } elseif ($this->input->post('form_action') == 'export_excel') {
           $sheet = $this->ridintek->spreadsheet();
           $sheet->setTitle('Products');
@@ -3063,7 +3073,8 @@ class Products extends MY_Controller
     $analyzed  = $this->sma->analyze_term($term);
     $sr        = $analyzed['term'];
 
-    $rows = $this->products_model->getQASuggestions($sr, 10);
+    // $rows = $this->products_model->getQASuggestions($sr, 10);
+    $rows = $this->site->getProductNames($sr, 10);
 
     if ($rows) {
       foreach ($rows as $row) {
@@ -3108,35 +3119,35 @@ class Products extends MY_Controller
     $this->page_construct('products/quantity_adjustments', $this->data);
   }
 
-  public function set_rack($product_id = null, $warehouse_id = null)
-  {
-    $this->sma->checkPermissions('edit', true);
+  // public function set_rack($product_id = null, $warehouse_id = null)
+  // {
+  //   $this->sma->checkPermissions('edit', true);
 
-    $this->form_validation->set_rules('rack', lang('rack_location'), 'trim|required');
+  //   $this->form_validation->set_rules('rack', lang('rack_location'), 'trim|required');
 
-    if ($this->form_validation->run() == true) {
-      $data = [
-        'rack'    => $this->input->post('rack'),
-        'product_id'   => $product_id,
-        'warehouse_id' => $warehouse_id,
-      ];
-    } elseif ($this->input->post('set_rack')) {
-      $this->session->set_flashdata('error', validation_errors());
-      admin_redirect('products/' . $warehouse_id);
-    }
+  //   if ($this->form_validation->run() == true) {
+  //     $data = [
+  //       'rack'    => $this->input->post('rack'),
+  //       'product_id'   => $product_id,
+  //       'warehouse_id' => $warehouse_id,
+  //     ];
+  //   } elseif ($this->input->post('set_rack')) {
+  //     $this->session->set_flashdata('error', validation_errors());
+  //     admin_redirect('products/' . $warehouse_id);
+  //   }
 
-    if ($this->form_validation->run() == true && $this->products_model->setRack($data)) {
-      $this->session->set_flashdata('message', lang('rack_set'));
-      admin_redirect('products/' . $warehouse_id);
-    } else {
-      $this->data['error']        = validation_errors() ? validation_errors() : $this->session->flashdata('error');
-      $this->data['warehouse_id'] = $warehouse_id;
-      $this->data['product']      = $this->site->getProductByID($product_id);
-      $wh_pr                      = $this->products_model->getProductQuantity($product_id, $warehouse_id);
-      $this->data['rack']         = $wh_pr['rack'];
-      $this->load->view($this->theme . 'products/set_rack', $this->data);
-    }
-  }
+  //   if ($this->form_validation->run() == true && $this->products_model->setRack($data)) {
+  //     $this->session->set_flashdata('message', lang('rack_set'));
+  //     admin_redirect('products/' . $warehouse_id);
+  //   } else {
+  //     $this->data['error']        = validation_errors() ? validation_errors() : $this->session->flashdata('error');
+  //     $this->data['warehouse_id'] = $warehouse_id;
+  //     $this->data['product']      = $this->site->getProductByID($product_id);
+  //     $wh_pr                      = $this->products_model->getProductQuantity($product_id, $warehouse_id);
+  //     $this->data['rack']         = $wh_pr['rack'];
+  //     $this->load->view($this->theme . 'products/set_rack', $this->data);
+  //   }
+  // }
 
   public function stock_opname()
   {
@@ -3697,24 +3708,25 @@ class Products extends MY_Controller
     $this->load->view($this->theme . 'products/stock_opname/view', $this->data);
   }
 
-  public function suggestions()
-  {
-    $term = $this->input->get('term', true);
+  // public function suggestions()
+  // {
+  //   $term = $this->input->get('term', true);
 
-    if (strlen($term) < 1 || !$term) {
-      die("<script type='text/javascript'>setTimeout(function(){ window.top.location.href = '" . admin_url('welcome') . "'; }, 10);</script>");
-    }
+  //   if (strlen($term) < 1 || !$term) {
+  //     die("<script type='text/javascript'>setTimeout(function(){ window.top.location.href = '" . admin_url('welcome') . "'; }, 10);</script>");
+  //   }
 
-    $rows = $this->products_model->getProductNames($term);
-    if ($rows) {
-      foreach ($rows as $row) {
-        $pr[] = ['id' => $row->id, 'label' => $row->name . ' (' . $row->code . ')', 'code' => $row->code, 'name' => $row->name, 'price' => $row->price, 'qty' => 1];
-      }
-      sendJSON($pr);
-    } else {
-      sendJSON([['id' => 0, 'label' => lang('no_match_found'), 'value' => $term]]);
-    }
-  }
+  //   // $rows = $this->products_model->getProductNames($term);
+  //   $rows = $this->site->getProductNames($term);
+  //   if ($rows) {
+  //     foreach ($rows as $row) {
+  //       $pr[] = ['id' => $row->id, 'label' => $row->name . ' (' . $row->code . ')', 'code' => $row->code, 'name' => $row->name, 'price' => $row->price, 'qty' => 1];
+  //     }
+  //     sendJSON($pr);
+  //   } else {
+  //     sendJSON([['id' => 0, 'label' => lang('no_match_found'), 'value' => $term]]);
+  //   }
+  // }
 
   public function select2()
   {
@@ -3758,6 +3770,8 @@ class Products extends MY_Controller
 
   public function transfer()
   {
+    checkPermission('products-transfer_view');
+
     if ($argv = func_get_args()) {
       $method = __FUNCTION__ . '_' . $argv[0];
 
@@ -3782,7 +3796,9 @@ class Products extends MY_Controller
 
   protected function transfer_add()
   {
-    checkPermission('products-transfer_add');
+    if (!getPermission('products-transfer_add')) {
+      $this->response(401, ['message' => 'Anda tidak memiliki akses untuk menambahkan.']);
+    }
 
     if ($this->requestMethod == 'POST') {
       $createdAt       = ($this->isAdmin ? dtPHP($this->input->post('created_at')) : $this->serverDateTime);
@@ -3793,6 +3809,9 @@ class Products extends MY_Controller
       $products        = $this->input->post('product');
 
       $items = [];
+
+      if (!$products) $this->response(400, ['message' => 'Item tidak boleh kosong.']);
+
       $productSize = count($products['id']);
 
       for ($a = 0; $a < $productSize; $a++) {
@@ -3821,12 +3840,69 @@ class Products extends MY_Controller
       }
 
       if ($this->ProductTransfer->addProductTransfer($ptData, $items)) {
-        $this->response(201, ['message' => 'Product Mutation berhasil dibuat.']);
+        $this->response(201, ['message' => 'Product Transfer berhasil dibuat.']);
       }
-      $this->response(400, ['message' => 'Gagal membuat Product Mutation.']);
+      $this->response(400, ['message' => 'Gagal membuat Product Transfer.']);
     }
 
     $this->load->view($this->theme . 'products/transfer/add', $this->data);
+  }
+
+  protected function transfer_addPayment($ptId = NULL)
+  {
+    $pt = $this->ProductTransfer->getProductTransfer(['id' => $ptId]);
+
+    if ($this->requestMethod == 'POST') {
+      $createdAt   = dtPHP($this->input->post('created_at'));
+      $createdBy   = $this->input->post('created_by');
+      $bankIdFrom  = $this->input->post('bank_id_from');
+      $bankIdTo    = $this->input->post('bank_id_to');
+      $amount      = filterDecimal($this->input->post('amount'));
+      $note        = htmlEncode($this->input->post('note'));
+
+      $paymentData = [
+        'pt_id'        => $pt->id,
+        'bank_id_from' => $bankIdFrom,
+        'bank_id_to'   => $bankIdTo,
+        'amount'       => $amount,
+        'note'         => $note,
+        'created_at'   => $createdAt,
+        'created_by'   => $createdBy,
+      ];
+
+      if ($this->ProductTransfer->addPayment($paymentData)) {
+        // Update paid.
+        $this->ProductTransfer->updateProductTransfer($pt->id, [
+          'paid' => $pt->paid + $amount
+        ]);
+
+        // Change payment status by sync it.
+        $this->ProductTransfer->syncProductTransferPayment($pt->id);
+
+        $this->response(201, ['message' => 'Berhasil dibayar.']);
+      }
+
+      $this->response(400, ['message' => 'Gagal dibayar.']);
+    }
+
+    $this->data['pt'] = $pt;
+
+    $this->load->view($this->theme . 'products/transfer/addPayment', $this->data);
+  }
+
+  protected function transfer_addProductTransfersFromPlan()
+  {
+    $warehouses = $this->input->post('warehouse'); // ID: durian, fatmawati, tembalang...
+
+    if ($warehouses) {
+      foreach ($warehouses as $whId) {
+        // Add product transfer by each warehouse id.
+        $this->ProductTransfer->addProductTransferByWarehouseId($whId);
+      }
+
+      $this->response(201, ['message' => 'Product Transfers have beed added successfully.']);
+    }
+    $this->response(400, ['message' => 'Failed to add product transfer.']);
   }
 
   protected function transfer_delete($pmId = NULL)
@@ -3859,25 +3935,27 @@ class Products extends MY_Controller
     $this->response(400, ['message' => 'Tidak ada Product Transfer yang terpilih.']);
   }
 
-  protected function transfer_edit($pmId = NULL)
+  protected function transfer_edit($ptId = NULL)
   {
-    $pm = $this->site->getProductMutation(['id' => $pmId]);
+    $pt = $this->ProductTransfer->getProductTransfer(['id' => $ptId]);
     $mode = ($this->input->get('mode') ?? $this->input->post('mode') ?? 'edit');
 
     if ($mode == 'edit') {
-      checkPermission('products-mutation_edit');
+      checkPermission('products-transfer_edit');
     } else if ($mode == 'status') {
-      checkPermission('products-mutation_status');
+      checkPermission('products-transfer_status');
     }
 
     if ($this->requestMethod == 'POST') {
-      $createdAt       = dtPHP($this->isAdmin ? $this->input->post('created_at') : $pm->created_at);
+      $createdAt       = dtPHP($this->isAdmin ? $this->input->post('created_at') : $pt->created_at);
       $createdBy       = $this->input->post('created_by');
-      $fromWarehouseId = $this->input->post('from_warehouse');
-      $toWarehouseId   = $this->input->post('to_warehouse');
+      $warehouseIdFrom = $this->input->post('from_warehouse');
+      $warehouseIdTo   = $this->input->post('to_warehouse');
       $note            = $this->input->post('note');
       $products        = $this->input->post('product');
       $status          = $this->input->post('status');
+
+      $isReceived = ($status == 'received' || $status == 'received_partial');
 
       if (empty($status)) {
         $this->response(400, ['message' => 'Status tidak boleh kosong.']);
@@ -3887,59 +3965,65 @@ class Products extends MY_Controller
       $productSize = count($products['id']);
 
       for ($a = 0; $a < $productSize; $a++) {
-        $receivedQty = (floatval($products['received_qty'][$a]) + floatval($products['quantity'][$a]));
+        $receivedQty = (filterDecimal($products['received_qty'][$a]) + filterDecimal($products['rest_qty'][$a]));
 
         $items[] = [
           'product_id'   => floatval($products['id'][$a]),
-          'quantity'     => floatval($products['total_qty'][$a]), // Total qty
-          'received_qty' => $receivedQty,
+          'markon_price' => filterDecimal($products['markon_price'][$a]),
+          'quantity'     => filterDecimal($products['quantity'][$a]),
+          'received_qty' => ($isReceived ? $receivedQty : 0),
+          'spec'         => htmlEncode($products['spec'][$a]),
           'status'       => $status
         ];
       }
 
-      $pmData = [
+      $ptData = [
         'created_at'        => $createdAt,
         'created_by'        => $createdBy,
-        'from_warehouse_id' => $fromWarehouseId,
-        'to_warehouse_id'   => $toWarehouseId,
+        'warehouse_id_from' => $warehouseIdFrom,
+        'warehouse_id_to'   => $warehouseIdTo,
         'status'            => $status,
-        'note'              => $note
+        'note'              => htmlEncode($note)
       ];
 
       $upload = new FileUpload();
 
       if ($upload->has('attachment')) {
         $name = $upload->getRandomName();
-        $upload->move(FCPATH . 'files/products/mutation/attachments', $name);
-        $pmData['attachment'] = $name;
+        $upload->move(FCPATH . 'files/products/transfer/attachments', $name);
+        $ptData['attachment'] = $name;
       }
 
-      if ($this->site->updateProductMutation($pmId, $pmData, $items)) {
-        $this->response(200, ['message' => 'Product Mutation has been updated.']);
+      if ($this->ProductTransfer->updateProductTransfer($ptId, $ptData, $items)) {
+        $this->response(200, ['message' => 'Product Transfer has been updated.']);
       }
-      $this->response(400, ['message' => 'Failed to update Product Mutation.']);
+      $this->response(400, ['message' => 'Failed to update Product Transfer.']);
     }
 
-    $pmitems = $this->site->getProductMutationItems(['pm_id' => $pmId]);
+    $ptitems = $this->ProductTransfer->getProductTransferItems(['pt_id' => $ptId]);
     $items = [];
 
-    foreach ($pmitems as $pmitem) {
-      $product = $this->site->getProductById($pmitem->product_id);
+    foreach ($ptitems as $ptitem) {
+      $product = $this->site->getProductById($ptitem->product_id);
+      $whProduct = $this->site->getWarehouseProduct($product->id, $pt->warehouse_id_from);
 
       $items[] = [
-        'id'           => $pmitem->product_id,
-        'code'         => $pmitem->product_code,
+        'id'           => $ptitem->product_id,
+        'code'         => $ptitem->product_code,
         'name'         => $product->name,
-        'quantity'     => $pmitem->quantity,
-        'received_qty' => $pmitem->received_qty,
+        'markon_price' => $ptitem->markon_price,
+        'quantity'     => $ptitem->quantity,
+        'real_qty'     => $whProduct->quantity,
+        'received_qty' => $ptitem->received_qty,
+        'spec'         => $ptitem->spec
       ];
     }
 
     $this->data['mode'] = $mode;
-    $this->data['pm'] = $pm;
-    $this->data['pmitems'] = $items;
+    $this->data['pt'] = $pt;
+    $this->data['ptitems'] = $items;
 
-    $this->load->view($this->theme . 'products/mutation/edit', $this->data);
+    $this->load->view($this->theme . 'products/transfer/edit', $this->data);
   }
 
   protected function transfer_getTransfers()
@@ -3971,15 +4055,22 @@ class Products extends MY_Controller
           <a href=\"{$this->theme}products/transfer/edit/{$data['id']}\"
             class=\"tip\"
             data-toggle=\"modal\" data-backdrop=\"false\" data-target=\"#myModal\"
-            data-modal-class=\"modal-lg\" title=\"Edit Product Transfer\">
+            data-modal-class=\"modal-lg modal-xl\" title=\"Edit Product Transfer\">
               <i class=\"fad fa-fw fa-edit\"></i>
           </a>
           <a href=\"{$this->theme}products/transfer/view/{$data['id']}\"
             class=\"tip\"
             data-toggle=\"modal\" data-backdrop=\"false\" data-target=\"#myModal\"
-            data-modal-class=\"modal-lg\"
+            data-modal-class=\"modal-lg modal-xl\"
             title=\"View Details\">
               <i class=\"fad fa-fw fa-chart-bar\"></i>
+          </a>
+          <a href=\"{$this->theme}products/transfer/view/{$data['id']}?m=noprice\"
+            class=\"tip\"
+            data-toggle=\"modal\" data-backdrop=\"false\" data-target=\"#myModal\"
+            data-modal-class=\"modal-lg modal-xl\"
+            title=\"View Invoice\">
+              <i class=\"fad fa-fw fa-book\"></i>
           </a>
         </div>";
       })
@@ -4015,9 +4106,9 @@ class Products extends MY_Controller
 
         return "
         <div class=\"text-center\">
-          <a href=\"" . admin_url('products/transfer/add_payment/' . $data['id']) . "\"
+          <a href=\"" . admin_url('products/transfer/addPayment/' . $data['id']) . "\"
             class=\"label label-{$type} status\"
-            data-toggle=\"modal\" data-target=\"#myModal\" data-modal-class=\"modal-lg\">{$status}
+            data-toggle=\"modal\" data-target=\"#myModal\">{$status}
           </a>
         </div>
         ";
@@ -4038,28 +4129,58 @@ class Products extends MY_Controller
     $this->datatable->generate();
   }
 
-  protected function transfer_view($pmId = NULL)
+  protected function transfer_plan()
   {
-    $pmitems = $this->site->getProductMutationItems(['pm_id' => $pmId]);
+    $bc = [
+      ['link' => base_url(), 'page' => lang('home')],
+      ['link' => admin_url('products'), 'page' => 'Products'],
+      ['link' => admin_url('products/transfer'), 'page' => 'Transfer'],
+      ['link' => '#', 'page' => 'Transfer Plan']
+    ];
+    $meta = ['page_title' => 'Product Transfer Plan', 'bc' => $bc];
+    $this->data = array_merge($this->data, $meta);
+
+    $this->page_construct('products/transfer/plan', $this->data);
+  }
+
+  private function transfers_updateSafetyStock()
+  {
+    if ($this->input->is_ajax_request() && $_SERVER['REQUEST_METHOD'] == 'POST') {
+      ini_set('max_execution_time', 0);
+
+      if ($this->site->syncTransferSafetyStock()) {
+        sendJSON(['error' => 0, 'msg' => 'Safety stock produk berhasil disinkron.']);
+      }
+
+      sendJSON(['error' => 1, 'msg' => 'Gagal menyinkronkan safety stock.']);
+    }
+  }
+
+  protected function transfer_view($ptId = NULL)
+  {
+    checkPermission('products-transfer_view');
+
+    $ptitems = $this->ProductTransfer->getProductTransferItems(['pt_id' => $ptId]);
     $items = [];
 
-    foreach ($pmitems as $pmitem) {
-      $product = $this->site->getProductById($pmitem->product_id);
+    foreach ($ptitems as $ptitem) {
+      $product = $this->site->getProductById($ptitem->product_id);
 
       $items[] = (object)[
-        'product_id'   => $pmitem->product_id,
-        'product_code' => $pmitem->product_code,
+        'product_id'   => $ptitem->product_id,
+        'product_code' => $ptitem->product_code,
         'product_name' => $product->name,
-        'quantity'     => $pmitem->quantity,
-        'received_qty' => $pmitem->received_qty,
-        'status'       => $pmitem->status
+        'markon_price' => $ptitem->markon_price,
+        'quantity'     => $ptitem->quantity,
+        'received_qty' => $ptitem->received_qty,
+        'status'       => $ptitem->status
       ];
     }
 
-    $this->data['pm']      = $this->site->getProductMutation(['id' => $pmId]);
-    $this->data['pmitems'] = $items;
+    $this->data['pt']      = $this->ProductTransfer->getProductTransfer(['id' => $ptId]);
+    $this->data['ptitems'] = $items;
 
-    $this->load->view($this->theme . 'products/mutation/view', $this->data);
+    $this->load->view($this->theme . 'products/transfer/view', $this->data);
   }
 
   public function view($id = null)
@@ -4077,12 +4198,12 @@ class Products extends MY_Controller
     }
     $this->data['product']          = $pr_details;
     $this->data['unit']             = $this->site->getUnitByID($pr_details->unit);
-    $this->data['images']           = $this->products_model->getProductPhotos($id);
+    $this->data['images']           = NULL; //$this->products_model->getProductPhotos($id);
     $this->data['category']         = $this->site->getProductCategoryByID($pr_details->category_id);
     $this->data['subcategory']      = $pr_details->subcategory_id ? $this->site->getProductCategoryByID($pr_details->subcategory_id) : null;
     $this->data['warehouses']       = $this->site->getAllWarehousesWithPQ($id);
-    $this->data['sold']             = $this->products_model->getSoldQty($id);
-    $this->data['purchased']        = $this->products_model->getPurchasedQty($id);
+    $this->data['sold']             = NULL; //$this->products_model->getSoldQty($id);
+    $this->data['purchased']        = NULL; //$this->products_model->getPurchasedQty($id);
 
     $bc   = [
       ['link' => base_url(), 'page' => lang('home')],
@@ -4097,7 +4218,8 @@ class Products extends MY_Controller
 
   public function view_adjustment($id)
   {
-    $adjustment = $this->products_model->getAdjustmentByID($id);
+    $adjustment = $this->site->getStockAdjustmentByID($id);
+
     if (!$id || !$adjustment) {
       $this->session->set_flashdata('error', lang('adjustment_not_found'));
       $this->sma->md();
@@ -4111,18 +4233,18 @@ class Products extends MY_Controller
     $this->load->view($this->theme . 'products/view_adjustment', $this->data);
   }
 
-  public function view_count($id)
-  {
-    $this->sma->checkPermissions('stock_count', true);
-    $stock_count = $this->products_model->getStouckCountByID($id);
-    if (!$stock_count->finalized) {
-      $this->sma->md('admin/products/finalize_count/' . $id);
-    }
+  // public function view_count($id)
+  // {
+  //   $this->sma->checkPermissions('stock_count', true);
+  //   $stock_count = $this->products_model->getStouckCountByID($id);
+  //   if (!$stock_count->finalized) {
+  //     $this->sma->md('admin/products/finalize_count/' . $id);
+  //   }
 
-    $this->data['stock_count']       = $stock_count;
-    $this->data['stock_count_items'] = $this->products_model->getStockCountItems($id);
-    $this->data['warehouse']         = $this->site->getWarehouseByID($stock_count->warehouse_id);
-    $this->data['adjustment']        = $this->products_model->getAdjustmentByCountID($id);
-    $this->load->view($this->theme . 'products/view_count', $this->data);
-  }
+  //   $this->data['stock_count']       = $stock_count;
+  //   $this->data['stock_count_items'] = $this->products_model->getStockCountItems($id);
+  //   $this->data['warehouse']         = $this->site->getWarehouseByID($stock_count->warehouse_id);
+  //   $this->data['adjustment']        = $this->products_model->getAdjustmentByCountID($id);
+  //   $this->load->view($this->theme . 'products/view_count', $this->data);
+  // }
 }

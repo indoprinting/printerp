@@ -1,8 +1,6 @@
 <?php
 defined('BASEPATH') or exit('No direct script access allowed');
 
-use thiagoalessio\TesseractOCR\TesseractOCR;
-
 class Debug extends MY_Controller
 {
   public function __construct()
@@ -12,6 +10,18 @@ class Debug extends MY_Controller
   }
 
   public function index()
+  {
+
+  }
+
+  public function user()
+  {
+    $u = getUser(['username' => 'system']);
+    // echo getLastError();
+    print_r($u);
+  }
+
+  public function classObject()
   {
     $obj = (object)[
       'name' => 'R'

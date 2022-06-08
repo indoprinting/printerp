@@ -648,6 +648,14 @@
                               </a>
                             </li>
                           <?php endif; ?>
+                          <?php if ($Owner || $Admin || getPermission('products-transfer_add')) : ?>
+                            <li id="products_transfer_plan">
+                              <a href="<?= admin_url('products/transfer/plan') ?>">
+                                <i class="fad fa-arrow-right-arrow-left" style="color: #40FF80"></i>
+                                <span class="text"> <?= lang('transfer_plan'); ?></span>
+                              </a>
+                            </li>
+                          <?php endif; ?>
                           <?php if ($Owner || $Admin || $GP['products-add']) : ?>
                             <li id="products_import">
                               <a class="submenu" href="<?= admin_url('products/import'); ?>">
@@ -839,6 +847,12 @@
                             <a class="submenu" href="<?= admin_url('whatsapp'); ?>">
                               <i class="fad fa-send" style="color: #FF40FF"></i>
                               <span class="text"> Sent Messages</span>
+                            </a>
+                          </li>
+                          <li id="whatsapp_profile">
+                            <a class="submenu" href="<?= admin_url('whatsapp/profile'); ?>">
+                              <i class="fad fa-users-cog" style="color: #4080FF"></i>
+                              <span class="text"> Profile</span>
                             </a>
                           </li>
                         </ul>

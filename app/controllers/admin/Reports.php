@@ -2638,8 +2638,8 @@ class Reports extends MY_Controller
         $reportBegin = $row->assigned_at;
       }
 
-      $duration = ($reportBegin && $reportEnd ? getDaysInPeriod($reportBegin, $reportEnd) : 0);
-      if ($duration < 0) $duration = 0;
+      $duration = ($reportBegin && $reportEnd ? getDaysInPeriod($reportBegin, $reportEnd) : '-');
+      // if ($duration < 0) $duration = -1;
 
       $sheet->setCellValue('A' . $r, $row->product_code);
       $sheet->setCellValue('B' . $r, $row->product_name);
@@ -2651,7 +2651,7 @@ class Reports extends MY_Controller
       $sheet->setCellValue('H' . $r, $row->order_price);
       $sheet->setCellValue('I' . $r, $row->disposal_date);
       $sheet->setCellValue('J' . $r, $row->disposal_price);
-      $sheet->setCellValue('K' . $r, ($row->active ? 'Active' : 'Non Active'));
+      $sheet->setCellValue('K' . $r, ($row->active ? 'Active' : 'Inactive'));
       $sheet->setCellValue('L' . $r, $row->warehouses);
       $sheet->setCellValue('M' . $r, $row->maintenance_qty);
       $sheet->setCellValue('N' . $r, $row->maintenance_cost);
@@ -2660,7 +2660,7 @@ class Reports extends MY_Controller
       $sheet->setCellValue('Q' . $r, $row->last_update);
       $sheet->setCellValue('R' . $r, $row->assigned_at);
       $sheet->setCellValue('S' . $r, $row->pic_name);
-      $sheet->setCellValue('T' . $r, $duration); // Duration
+      $sheet->setCellValue('T' . $r, $duration); // Duration in days
       $sheet->setCellValue('U' . $r, $row->creator_name);
 
       $colorStatus = NULL;

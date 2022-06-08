@@ -6,26 +6,27 @@
   </div>
   <div class="modal-body">
     <form id="form" data-toggle="validator" enctype="multipart/form-data">
+      <?= csrf_field() ?>
       <div class="row">
         <div class="col-md-6">
           <div class="form-group">
             <label for="created_by">Created By</label>
             <select class="select2" id="created_by" name="created_by" style="width:100%;">
               <?php $users = $this->site->getUsers(); ?>
-              <?php foreach ($users as $user):
+              <?php foreach ($users as $user) :
                 if (!$isAdmin) {
                   if ($user->id != $this->session->userdata('user_id')) continue;
                 }
               ?>
-                <option value="<?= $user->id ?>"><?= $user->first_name . ' ' . $user->last_name ?></option>
+                <option value="<?= $user->id ?>"><?= $user->fullname ?></option>
               <?php endforeach; ?>
             </select>
           </div>
         </div>
         <div class="col-md-6">
           <div class="form-group">
-            <label for="date">Date</label>
-            <input type="text" class="form-control datetime" name="date" value="<?= $this->serverDateTime ?>" <?= ($isAdmin ? '' : ' disabled') ?>>
+            <label for="created_at">Created At</label>
+            <input type="datetime-local" id="created_at" class="form-control" name="created_at" <?= ($isAdmin ? '' : ' disabled') ?>>
           </div>
         </div>
       </div>
@@ -44,7 +45,7 @@
 
                 $selected = (strcasecmp($warehouse->name, $product->warehouses) === 0 ? ' selected' : '');
               ?>
-                <option value="<?= $warehouse->id ?>"<?= $selected ?>><?= $warehouse->name ?></option>
+                <option value="<?= $warehouse->id ?>" <?= $selected ?>><?= $warehouse->name ?></option>
               <?php endforeach; ?>
             </select>
           </div>
@@ -63,19 +64,43 @@
         </div>
       </div>
 
-      <div class="row">
+      <div class="row assign-ts" style="display:none">
         <div class="col-md-6">
           <div class="form-group">
-            <label for="pic">Team Support</label>
+            <label for="assigned_by">Assigned By</label>
+            <select class="select2" id="assigned_by" name="assigned_by" style="width:100%;">
+              <?php $users = $this->site->getUsers(); ?>
+              <?php foreach ($users as $user) :
+                if (!$isAdmin) {
+                  if ($user->id != $this->session->userdata('user_id')) continue;
+                }
+              ?>
+                <option value="<?= $user->id ?>"><?= $user->fullname ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-group">
+            <label>Assigned At</label>
+            <input type="datetime-local" class="form-control" id="assigned_at" name="assigned_at">
+          </div>
+        </div>
+      </div>
+
+      <div class="row assign-ts" style="display:none">
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="pic">Assign Team Support</label>
             <select class="select2" id="pic" name="pic" data-placeholder="Pilih TS" style="width:100%;">
               <option value=""></option>
               <?php $users = $this->site->getUsers(['active' => 1]); ?>
-              <?php foreach ($users as $user):
+              <?php foreach ($users as $user) :
                 $userGroup = $this->site->getUserGroup($user->id);
 
-                if ($userGroup->name != 'support') continue;
+                if ($userGroup->name != 'support' && $userGroup->name != 'kurir') continue;
               ?>
-                <option value="<?= $user->id ?>" data-group="<?= $userGroup->name ?>"><?= $user->first_name . ' ' . $user->last_name ?></option>
+                <option value="<?= $user->id ?>" data-group="<?= $userGroup->name ?>"><?= $user->fullname ?></option>
               <?php endforeach; ?>
             </select>
           </div>
@@ -98,7 +123,6 @@
           </div>
         </div>
       </div>
-      <input type="hidden" name="<?= csrf_token_name() ?>" value="<?= csrf_hash() ?>">
     </form>
   </div>
   <div class="modal-footer">
@@ -109,10 +133,21 @@
 <script defer src="<?= $assets ?>js/modal.js?v=<?= $res_hash ?>"></script>
 <script>
   $(document).ready(function() {
+    $('#created_at').val(dateTime('<?= $this->serverDateTime ?>'));
+    $('#created_by').val('<?= $this->session->userdata('user_id') ?>').trigger('change');
+
+    $('#condition').change(function() {
+      if (this.value != 'good') {
+        $('.assign-ts').slideDown();
+      } else {
+        $('.assign-ts').slideUp();
+      }
+    });
+
     $('#submit').click(function() {
       let form = new FormData(document.getElementById('form'));
       let condition = $('#condition');
-      let note      = $('#note');
+      let note = $('#note');
 
       if (condition.val() == 'trouble' || condition.val() == 'off') {
         if (note.val() != '<p>-</p>' && note.val().length < 35) {
@@ -125,19 +160,16 @@
       $.ajax({
         contentType: false,
         data: form,
+        error: (xhr) => {
+          addAlert(xhr.responseJSON.message, 'danger');
+          toastr.error(xhr.responseJSON.message);
+        },
         method: 'POST',
         processData: false,
         success: function(data) {
-          if (isObject(data)) {
-            if (data.success) {
-              if (Table) Table.draw(false);
-              addAlert(data.message, 'success');
-            } else {
-              addAlert(data.message, 'danger');
-            }
-          } else {
-            addAlert('Something wrong here.', 'danger');
-          }
+          if (Table) Table.draw(false);
+          addAlert(data.message, 'success');
+          toastr.success(data.message);
 
           $('#myModal').modal('hide');
         },

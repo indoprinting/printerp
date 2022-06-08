@@ -1,19 +1,19 @@
 
 class ProductTransfer {
-  constructor(elm) {
-    this._elm = document.querySelector(elm);
-    this._tbody = null;
+  constructor(table) {
+    this._table = document.querySelector(table);
+    this._tbody = this._table.querySelector('tbody');
     this._lastValue = 0;
     this.mode = 'add';
 
     document.addEventListener('change', (e) => {
-      if (e.target.matches('input.pt-quantity')) {
+      if (e.target.matches('input.pt-quantity') || e.target.matches('input.pt-rest')) {
         if (parseFloat(e.target.value) > parseFloat(e.target.dataset.quantity)) {
           e.target.value = this._lastValue;
           toastr.error(`Tidak boleh lebih dari stok yang ada. Maksimum ${e.target.dataset.quantity}`);
           return false;
         }
-  
+
         if (parseFloat(e.target.value) < 0 || (this._lastValue > 0 && parseFloat(e.target.value) == 0)) {
           e.target.value = this._lastValue;
           toastr.error('Tidak boleh ada stok kosong atau minus.');
@@ -29,7 +29,7 @@ class ProductTransfer {
     });
 
     document.addEventListener('focus', (e) => {
-      if (e.target.matches('input.pt-quantity, input.markon_price')) {
+      if (e.target.matches('input.pt-quantity, input.pt-rest, input.markon_price')) {
         this._lastValue = e.target.value;
       }
     }, true);
@@ -37,13 +37,19 @@ class ProductTransfer {
 
   addItem(item) {
     if (item) {
-      this._tbody = this._elm.querySelector('tbody');
+      // console.log(item);
       let tr = document.createElement('tr');
+      let readOnly = (this.mode == 'status' ? ' readonly' : '');
 
       tr.dataset.id = item.id;
 
       item.received_qty = (item.received_qty ?? 0); // Required or NaN.
       item.spec = (item.spec ?? '');
+
+      if (item.quantity == 0) {
+        toastr.error(`Stock <strong>${item.name}</strong> sedang kosong.`);
+        return this;
+      }
 
       tr.innerHTML = `
         <input type="hidden" name="product[id][]" value="${item.id}">`;
@@ -65,22 +71,34 @@ class ProductTransfer {
 
       if (this.mode == 'add' || this.mode == 'edit') {
         tr.innerHTML += `
-          <td><input class="form-control markon_price separator text-right" name="product[markon_price][]"
+          <td><input class="form-control markon_price separator text-right"
+            name="product[markon_price][]"
             type="text" value="${formatSeparator(item.markon_price)}"></td>`;
+      } else {
+        tr.innerHTML += `<input type="hidden" name="product[markon_price][]" value="${item.markon_price}">`;
       }
 
-      if (this.mode == 'edit' || this.mode == 'status') {
-        let readonly = (this.mode == 'status' ? ' readonly' : '');
-
-        tr.innerHTML += `
-          <td><input class="form-control separator text-right" name="product[received_qty][]"
-            type="text" value="${parseFloat(item.received_qty)}"${readonly}></td>`;
-      }
+      if (this.mode == 'add') item.real_qty = item.quantity;
 
       tr.innerHTML += `
         <td><input class="form-control pt-quantity separator text-right"
-          name="product[quantity][]" data-quantity="${parseFloat(item.quantity)}"
+          name="product[quantity][]"
+          data-quantity="${parseFloat(item.real_qty)}"
+          type="text" value="${formatSeparator(item.quantity)}"${readOnly}></td>`;
+
+      if (this.mode == 'edit' || this.mode == 'status') {
+        tr.innerHTML += `
+          <td><input class="form-control separator text-right"
+            name="product[received_qty][]"
+            type="text" value="${parseFloat(item.received_qty)}"${readOnly}></td>`;
+
+        tr.innerHTML += `
+        <td><input class="form-control pt-rest separator text-right"
+          name="product[rest_qty][]"
+          data-quantity="${parseFloat(item.quantity) - parseFloat(item.received_qty)}"
           type="text" value="${formatSeparator(item.quantity - item.received_qty)}"></td>`;
+      }
+
 
       if (this.mode == 'add' || this.mode == 'edit') {
         tr.innerHTML += `
@@ -118,6 +136,12 @@ class ProductTransfer {
 
   setMode(mode) {
     this.mode = mode;
+
+    if (mode == 'status') {
+      this._table.querySelector('tfoot').style.display = 'none';
+      this._table.querySelector('th.status-markon-price').style.display = 'none'
+      this._table.querySelector('th.status-subtotal').style.display = 'none'
+    }
     return this;
   }
 }

@@ -628,6 +628,31 @@ class Site extends MY_Model
     return FALSE;
   }
 
+  public function addProductCategories($categories, $subcategories)
+  {
+    $result = false;
+    if (!empty($categories)) {
+      foreach ($categories as $category) {
+        $this->db->insert('categories', $category);
+      }
+      $result = true;
+    }
+    if (!empty($subcategories)) {
+      foreach ($subcategories as $category) {
+        if (!empty($category['parent_code'])) {
+          $this->db->insert('categories', $category);
+        } else {
+          if ($pcategory = $this->getCategoryByCode($category['parent_code'])) {
+            $category['parent_code'] = $pcategory->code;
+            $this->db->insert('categories', $category);
+          }
+        }
+      }
+      $result = true;
+    }
+    return $result;
+  }
+
   /**
    * Add product mutation
    * @param array $data [ attachment, *status, *from_warehouse_id, *to_warehouse_id, note,
@@ -1928,7 +1953,7 @@ class Site extends MY_Model
     $ret = $this->ridintek->mutex('stock')->on('lock', function ($mutex) use ($ci, $data) {
       $stock_data = [];
 
-      $stock_data['date']       = ($data['date'] ?? date('Y-m-d H:i:s'));
+      $stock_data['date']       = ($data['created_at'] ?? $data['date'] ?? date('Y-m-d H:i:s'));
       $stock_data['created_at'] = $stock_data['date'];
       $stock_data['created_by'] = getUserCreator($data['created_by'] ?? NULL);
 
@@ -3299,6 +3324,16 @@ class Site extends MY_Model
     return false;
   }
 
+  public function deleteProductCategory($categoryId)
+  {
+    $this->db->delete('categories', ['id' => $categoryId]);
+
+    if ($this->db->affected_rows()) {
+      return TRUE;
+    }
+    return FALSE;
+  }
+
   public function deleteProductMutations($clause = [])
   {
     $pms = $this->getProductMutations($clause);
@@ -3826,10 +3861,7 @@ class Site extends MY_Model
     return [];
   }
 
-  /**
-   * @deprecated Use getCategories() instead.
-   */
-  public function getAllCategories()
+  public function getParentCategories()
   {
     $this->db->where('parent_code', null)->or_like('parent_code', '', 'none')->order_by('name', 'ASC');
 
@@ -7104,14 +7136,20 @@ class Site extends MY_Model
 
   public function getUsers($clause = [])
   {
-    $this->db->select('users.*, groups.name AS group_name');
+    $this->db->select('users.id AS id, users.*, groups.name AS group_name');
     $this->db->join('groups', 'groups.id = users.group_id', 'left');
+
+    if (isset($clause['id'])) {
+      $this->db->where('users.id', $clause['id']);
+      unset($clause['id']);
+    }
 
     $q = $this->db->get_where('users', $clause);
 
-    if ($q->num_rows() > 0) {
+    if ($q && $q->num_rows() > 0) {
       return $q->result();
     }
+    setLastError($this->db->error()['message']);
     return [];
   }
 
@@ -7188,9 +7226,8 @@ class Site extends MY_Model
    */
   public function getWarehouseProduct($product_id, $warehouse_id)
   {
-    $q = $this->db->get_where('warehouses_products', ['product_id' => $product_id, 'warehouse_id' => $warehouse_id]);
-    if ($q->num_rows() > 0) {
-      return $q->row();
+    if ($rows = $this->getWarehouseProducts($product_id, $warehouse_id)) {
+      return $rows[0];
     }
     return NULL;
   }
@@ -8664,6 +8701,8 @@ class Site extends MY_Model
         $this->db->delete('product_mutation_item', ['pm_id' => $pmId]);
         $this->db->delete('stocks', ['pm_id' => $pmId]);
 
+        $receivedTotal = 0;
+
         foreach ($items as $item) {
           $product = $this->site->getProductByID($item['product_id']);
 
@@ -8674,10 +8713,13 @@ class Site extends MY_Model
             if ($item['status'] == 'received' || $item['status'] == 'received_partial') {
               $balance = ($item['quantity'] - $item['received_qty']);
 
-              $item['status'] = ($balance > 0 ? 'received_partial' : 'received');
+              // Change item status.
+              $item['status'] = ($balance == 0 ? 'received' : 'received_partial');
 
               if ($item['status'] == 'received_partial') {
                 $this->db->update('product_mutation', ['status' => 'received_partial'], ['id' => $pmId]);
+              } else if ($item['status'] == 'received') {
+                $receivedTotal++;
               }
             }
 
@@ -8712,6 +8754,10 @@ class Site extends MY_Model
               }
             }
           }
+        }
+
+        if ($receivedTotal == count($items)) {
+          $this->db->update('product_transfer', ['status' => 'received'], ['id' => $pmId]);
         }
       }
       return TRUE;
@@ -8781,6 +8827,7 @@ class Site extends MY_Model
         $productJS = getJSON($item->json_data);
 
         if (isset($product['assigned_at'])) $productJS->assigned_at = trim($product['assigned_at']);
+        // A person who assign a PIC. Ex. Admin (Eko) assign TS (Thomas), Eko as assigned_by.
         if (isset($product['assigned_by'])) $productJS->assigned_by = trim($product['assigned_by']);
         if (isset($product['autocomplete'])) $productJS->autocomplete = filterDecimal($product['autocomplete']);
         if (isset($product['condition'])) $productJS->condition = trim($product['condition']);
@@ -8794,7 +8841,7 @@ class Site extends MY_Model
         if (isset($product['maintenance_cost'])) $productJS->maintenance_cost = trim($product['maintenance_cost']);
         if (isset($product['order_date'])) $productJS->order_date = trim($product['order_date']);
         if (isset($product['order_price'])) $productJS->order_price = filterDecimal($product['order_price']);
-        // AKA ts_id (TS=Team Support)
+        // AKA pic_id (TS=Team Support)
         if (isset($product['pic_id'])) $productJS->pic_id = filterDecimal($product['pic_id']);
         if (isset($product['priority'])) $productJS->priority = trim($product['priority']);
         if (isset($product['purchased_at'])) $productJS->purchased_at = trim($product['purchased_at']);

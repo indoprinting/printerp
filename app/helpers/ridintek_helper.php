@@ -1738,6 +1738,17 @@ function getURLRating($warehouseId)
   return $url;
 }
 
+function getUser($clause = [])
+{
+  $ci = &get_instance();
+
+  if ($rows = $ci->site->getUsers($clause)) {
+    return $rows[0];
+  }
+
+  return NULL;
+}
+
 /**
  * Get user creator in current session. If no session, system user is selected.
  * @param int $user_id User ID (optional).
@@ -1748,6 +1759,17 @@ function getUserCreator($user_id = NULL)
   $ci = &get_instance();
 
   return ($user_id ?? $ci->session->userdata('user_id') ?? $ci->site->getUserByUsername('system')->id);
+}
+
+function getWarehouse($clause = [])
+{
+  $ci = &get_instance();
+
+  if ($rows = $ci->site->getWarehouses($clause)) {
+    return $rows[0];
+  }
+
+  return NULL;
 }
 
 /**
@@ -1821,7 +1843,7 @@ function isDueDate($due_date)
  */
 function isNumberFloated($num)
 {
-  return (strpos($num, '.') !== FALSE ? TRUE : FALSE);
+  return (strpos(floatval($num), '.') !== FALSE ? TRUE : FALSE);
 }
 
 /**

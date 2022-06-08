@@ -191,7 +191,7 @@ class Developers extends MY_Controller
         $this->response(400, ['message' => 'Failed to send message.', 'data' => $json]);
       }
 
-      $this->response(200, ['message' => 'Failed to send message', 'data' => $errMsg]);
+      $this->response(400, ['message' => 'JSON cannot be decoded. Failed to send message', 'data' => $res]);
     }
   }
 
