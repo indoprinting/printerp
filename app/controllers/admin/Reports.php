@@ -2366,7 +2366,7 @@ class Reports extends MY_Controller
     $this->sma->checkUserPermissions('reports-income_statement');
 
     $this->data['error']      = (validation_errors() ? validation_errors() : $this->session->flashdata('error'));
-    $this->data['categories'] = $this->site->getAllCategories();
+    $this->data['categories'] = $this->site->getParentCategories();
     $this->data['warehouses'] = $this->site->getAllWarehouses();
 
     $warehouse_id = $this->input->get('warehouse');
@@ -2399,7 +2399,7 @@ class Reports extends MY_Controller
     $this->sma->checkUserPermissions('reports-inventory_balance');
 
     $this->data['error']      = (validation_errors() ? validation_errors() : $this->session->flashdata('error'));
-    $this->data['categories'] = $this->site->getAllCategories();
+    $this->data['categories'] = $this->site->getParentCategories();
     $this->data['warehouses'] = $this->site->getAllWarehouses();
 
     $warehouse_id = $this->input->get('warehouse');

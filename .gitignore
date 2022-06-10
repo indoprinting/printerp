@@ -132,9 +132,9 @@ backup_db.sh
 backup_erp.sh
 bin/
 composer.phar
-files/
-!files/templates/*.xlsx
+files/*
+!files/templates
 git.txt
 progress.md
-sess/
+sess/*
 webinfo.php

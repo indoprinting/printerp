@@ -11,7 +11,16 @@ class Debug extends MY_Controller
 
   public function index()
   {
+    echo "Index";
+  }
 
+  public function bank()
+  {
+    $q = $this->Bank->getBanks(['active ' => 0]);
+
+    echo '<pre>';
+    print_r($q);
+    echo '</pre>';
   }
 
   public function user()
@@ -179,6 +188,14 @@ class Debug extends MY_Controller
     else:
       echo "Failed";
     endif;
+  }
+
+  public function pdo_drivers()
+  {
+    $pdo = new PDO('mysql:host=localhost;dbname=idp_erp;charset=utf8mb4', 'idp_erp', 'IdpDuri4n100$');
+
+    print_r(PDO::getAvailableDrivers());
+    $pdo = NULL;
   }
 
   public function array_function()

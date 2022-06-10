@@ -1426,7 +1426,7 @@ class Procurements extends MY_Controller
       $this->data['error']      = (validation_errors() ? validation_errors() : $this->session->flashdata('error'));
       $this->data['quote_id']   = NULL;
       $this->data['suppliers']  = $this->site->getAllSuppliers();
-      $this->data['categories'] = $this->site->getAllCategories();
+      $this->data['categories'] = $this->site->getCategories();
       $this->data['expenseCategories'] = $this->site->getExpenseCategories(['order' => ['name', 'ASC']]);
       $this->data['warehouses'] = $this->site->getAllWarehouses();
       $this->data['ponumber']   = ''; //$this->site->getReference('po');
@@ -1853,7 +1853,7 @@ class Procurements extends MY_Controller
       $this->data['suppliers']      = $this->site->getAllSuppliers();
       $this->data['supplier_id']    = $purchase->supplier_id;
       $this->data['purchase']       = $this->site->getStockPurchaseByID($purchase_id);
-      $this->data['categories']     = $this->site->getAllCategories();
+      $this->data['categories']     = $this->site->getCategories();
       $this->data['warehouses']     = $this->site->getAllWarehouses();
 
       $bc = [

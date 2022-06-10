@@ -1813,7 +1813,6 @@ function htmlRemove($html)
  */
 function isCLI()
 {
-  is_cli();
   return (PHP_SAPI === 'cli' OR defined('STDIN'));
 }
 
@@ -2091,7 +2090,6 @@ function ocr($image)
     setLastError('Image file is not found.');
     return FALSE;
   }
-
 
   return $output;
 }

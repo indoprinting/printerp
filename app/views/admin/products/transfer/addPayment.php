@@ -124,8 +124,11 @@ $banksTo   = $this->site->getBanks(['biller_id' => $billerTo->id]);
           method: 'POST',
           processData: false,
           success: (data) => {
-            console.log(data);
             toastr.success(data.message);
+
+            if (typeof Table == 'object') Table.draw(false);
+
+            $('#myModal').modal('hide');
           },
           url: site.base_url + 'products/transfer/addPayment/<?= $pt->id ?>'
         });

@@ -308,13 +308,23 @@ class ProductTransfer extends MY_Model
   public function syncProductTransferPayment($ptId)
   {
     $pt = $this->getProductTransfer(['id' => $ptId]);
+    $payments = $this->Payment->getPayments(['transfer_id' => $ptId]);
+    $amount = 0;
 
+    foreach ($payments as $payment) {
+      if ($payment->type == 'received')
+        $amount += $payment->amount;
+    }
+
+    $data['paid'] = $amount;
     $data['payment_status'] = $pt->payment_status;
 
-    if ($pt->paid == $pt->grand_total) {
+    if ($amount == $pt->grand_total) {
       $data['payment_status'] = 'paid';
-    } else if ($pt->paid < $pt->grand_total) {
+    } else if ($amount > 0 && $amount < $pt->grand_total) {
       $data['payment_status'] = 'partial';
+    } else {
+      $data['payment_status'] = 'pending';
     }
 
     if ($this->updateProductTransfer($ptId, $data)) {

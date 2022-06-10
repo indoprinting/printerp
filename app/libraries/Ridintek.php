@@ -132,6 +132,16 @@ class FileUpload {
     }
     return FALSE;
   }
+
+  public function store($newName = NULL)
+  {
+    $ci = &get_instance();
+    return $ci->Attachment->addAttachment([
+      'filename' => $newName,
+      'mime' => $this->getType(),
+      'data' => file_get_contents($this->getTempName())
+    ]);
+  }
 }
 
 class Ridintek

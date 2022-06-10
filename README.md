@@ -4,7 +4,7 @@ PrintERP atau Indoprinting ERP adalah software ERP (Enterprise Resource Planning
 # Author
 Name | Position
 -----|---------
-Riyan Widiyanto | DevOps Engineer/Full-Stack Developer/Tester/Documenter/Troubleshooter/The Only One who develop PrintERP.
+Riyan Widiyanto | DevOps Engineer/Full-Stack Developer/Tester/Documenter/Troubleshooter/The Only One who developed PrintERP.
 
 # Site
 > https://printerp.indoprinting.co.id

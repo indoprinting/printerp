@@ -86,35 +86,6 @@ class Billers extends MY_Controller
           }
           redirect($_SERVER['HTTP_REFERER']);
         }
-
-        if ($this->input->post('form_action') == 'export_excel') {
-          $this->load->library('excel');
-          $this->excel->setActiveSheetIndex(0);
-          $this->excel->getActiveSheet()->setTitle(lang('billers'));
-          $this->excel->getActiveSheet()->SetCellValue('A1', lang('company'));
-          $this->excel->getActiveSheet()->SetCellValue('B1', lang('name'));
-          $this->excel->getActiveSheet()->SetCellValue('C1', lang('phone'));
-          $this->excel->getActiveSheet()->SetCellValue('D1', lang('email'));
-          $this->excel->getActiveSheet()->SetCellValue('E1', lang('city'));
-
-          $row = 2;
-          foreach ($_POST['val'] as $id) {
-            $customer = $this->site->getCustomerByID($id);
-            $this->excel->getActiveSheet()->SetCellValue('A' . $row, $customer->company);
-            $this->excel->getActiveSheet()->SetCellValue('B' . $row, $customer->name);
-            $this->excel->getActiveSheet()->SetCellValue('C' . $row, $customer->phone);
-            $this->excel->getActiveSheet()->SetCellValue('D' . $row, $customer->email);
-            $this->excel->getActiveSheet()->SetCellValue('E' . $row, $customer->city);
-            $row++;
-          }
-
-          $this->excel->getActiveSheet()->getColumnDimension('A')->setWidth(20);
-          $this->excel->getActiveSheet()->getColumnDimension('B')->setWidth(20);
-          $this->excel->getDefaultStyle()->getAlignment()->setVertical(PHPExcel_Style_Alignment::VERTICAL_CENTER);
-          $filename = 'billers_' . date('Y_m_d_H_i_s');
-          $this->load->helper('excel');
-          create_excel($this->excel, $filename);
-        }
       } else {
         $this->session->set_flashdata('error', $this->lang->line('no_biller_selected'));
         redirect($_SERVER['HTTP_REFERER']);

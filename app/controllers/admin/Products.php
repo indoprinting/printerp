@@ -17,8 +17,6 @@ class Products extends MY_Controller
     $this->load->library('form_validation');
     // $this->load->admin_model('products_model');
     // $this->load->admin_model('settings_model');
-    $this->load->model('Payment');
-    $this->load->model('ProductTransfer');
     $this->digital_upload_path = 'files/';
     $this->import_path         = 'files/import/';
     $this->upload_path         = 'assets/uploads/';
@@ -711,7 +709,7 @@ class Products extends MY_Controller
   //   } else {
   //     $this->data['error']      = (validation_errors() ? validation_errors() : $this->session->flashdata('error'));
   //     $this->data['warehouses'] = $this->site->getAllWarehouses();
-  //     $this->data['categories'] = $this->site->getAllCategories();
+  //     $this->data['categories'] = $this->site->();
   //     $this->data['brands']     = NULL;
   //     $bc                       = [['link' => base_url(), 'page' => lang('home')], ['link' => admin_url('products'), 'page' => lang('products')], ['link' => '#', 'page' => lang('count_stock')]];
   //     $meta                     = ['page_title' => lang('count_stock'), 'bc' => $bc];
@@ -2103,7 +2101,7 @@ class Products extends MY_Controller
                       'price5' => $price_group[4],
                       'price6' => $price_group[5],
                     ];
-    
+
                     $this->site->addProductPrices($ppData);
 
                     // $this->settings_model->setProductPriceForPriceGroup(
@@ -2138,7 +2136,7 @@ class Products extends MY_Controller
                       'price5' => $price_group[4],
                       'price6' => $price_group[5],
                     ];
-    
+
                     $this->site->addProductPrices($ppData);
 
                     // $this->settings_model->setProductPriceForPriceGroup(
@@ -2399,7 +2397,7 @@ class Products extends MY_Controller
                       'price5' => $price_group[4],
                       'price6' => $price_group[5],
                     ];
-    
+
                     $this->site->addProductPrices($ppData);
 
                     // $this->settings_model->setProductPriceForPriceGroup(
@@ -3871,11 +3869,6 @@ class Products extends MY_Controller
       ];
 
       if ($this->ProductTransfer->addPayment($paymentData)) {
-        // Update paid.
-        $this->ProductTransfer->updateProductTransfer($pt->id, [
-          'paid' => $pt->paid + $amount
-        ]);
-
         // Change payment status by sync it.
         $this->ProductTransfer->syncProductTransferPayment($pt->id);
 
@@ -3933,6 +3926,22 @@ class Products extends MY_Controller
     }
 
     $this->response(400, ['message' => 'Tidak ada Product Transfer yang terpilih.']);
+  }
+
+  protected function transfer_deletePayment($paymentId)
+  {
+    if ($this->requestMethod == 'POST') {
+      $payment = $this->Payment->getPayment(['id' => $paymentId]);
+
+      if ($this->Payment->deletePayments(['id' => $paymentId])) {
+        $pt = $this->ProductTransfer->getProductTransfer(['id' => $payment->transfer_id]);
+
+        $this->ProductTransfer->syncProductTransferPayment($pt->id);
+
+        $this->response(200, ['message' => 'Pembayaran berhasil dihapus.']);
+      }
+      $this->response(400, ['message' => 'Pembayaran gagal dihapus.']);
+    }
   }
 
   protected function transfer_edit($ptId = NULL)
@@ -4026,6 +4035,11 @@ class Products extends MY_Controller
     $this->load->view($this->theme . 'products/transfer/edit', $this->data);
   }
 
+  protected function transfer_editPayment($paymentId = NULL)
+  {
+
+  }
+
   protected function transfer_getTransfers()
   {
     $startDate  = $this->input->get('start_date');
@@ -4071,6 +4085,13 @@ class Products extends MY_Controller
             data-modal-class=\"modal-lg modal-xl\"
             title=\"View Invoice\">
               <i class=\"fad fa-fw fa-book\"></i>
+          </a>
+          <a href=\"{$this->theme}products/transfer/payments/{$data['id']}\"
+            class=\"tip\"
+            data-toggle=\"modal\" data-backdrop=\"false\" data-target=\"#myModal\"
+            data-modal-class=\"modal-lg modal-xl\"
+            title=\"View Payments\">
+              <i class=\"fad fa-fw fa-money-bill-alt\"></i>
           </a>
         </div>";
       })
@@ -4127,6 +4148,16 @@ class Products extends MY_Controller
     }
 
     $this->datatable->generate();
+  }
+
+  protected function transfer_payments($ptId = NULL)
+  {
+    $this->ProductTransfer->syncProductTransferPayment($ptId);
+
+    $this->data['payments'] = $this->Payment->getPayments(['transfer_id' => $ptId]);
+    $this->data['pt']      = $this->ProductTransfer->getProductTransfer(['id' => $ptId]);
+
+    $this->load->view($this->theme . 'products/transfer/payments', $this->data);
   }
 
   protected function transfer_plan()

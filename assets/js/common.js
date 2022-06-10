@@ -147,9 +147,15 @@ $(document).on('click', '[data-action="confirm"]', function (e) {
   e.preventDefault();
   e.stopPropagation();
 
+  let data = {};
   let labels  = this.dataset.labels ?? null;
   let message = this.dataset.message ?? 'Are you sure?';
+  let method  = this.dataset.method ?? 'GET';
   let title   = this.dataset.title ?? 'Confirmation';
+
+  if (method.toUpperCase() == 'POST') {
+    data[security.csrf_token_name] = security.csrf_hash;
+  }
 
   addConfirm({
     labels: JSON.parse(labels),
@@ -157,10 +163,12 @@ $(document).on('click', '[data-action="confirm"]', function (e) {
     onok: () => {
       console.log(this.href);
       $.ajax({
+        data: data,
         error: (xhr) => {
           addAlert(xhr.responseJSON.message, 'danger');
           toastr.error(xhr.responseJSON.message);
         },
+        method: method,
         success: (data) => {
           if (isObject(data)) {
             if (data.status == 200 || data.success || (typeof data.error != 'undefined' && !data.error)) {

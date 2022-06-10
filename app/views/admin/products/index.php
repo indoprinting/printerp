@@ -362,7 +362,7 @@ if ($end_date) {
 							<div class="form-group">
 								<label><?= lang('category'); ?></label>
 								<?php
-								$categories = $this->site->getAllCategories();
+								$categories = $this->site->getCategories();
 								$cat = [];
 								$cat[''] = lang('select') . ' ' . lang('category');
 								foreach ($categories as $category) {
