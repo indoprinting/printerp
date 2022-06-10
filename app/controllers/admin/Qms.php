@@ -29,7 +29,7 @@ class Qms extends MY_Controller
       'warehouse_id'      => $warehouse_id
     ];
 
-    if ($newTicket = $this->qms_model->addQueueTicket($ticket_data)) {
+    if ($newTicket = $this->Qms_model->addQueueTicket($ticket_data)) {
       sendJSON(['error' => 0, 'data' => $newTicket]);
     } else {
       sendJSON(['error' => 1, 'msg' => 'Cannot create ticket']);
@@ -47,7 +47,7 @@ class Qms extends MY_Controller
       'warehouse_id' => $warehouse_id
     ];
 
-    if ($response = $this->qms_model->callQueue($call_data)) {
+    if ($response = $this->Qms_model->callQueue($call_data)) {
       sendJSON(['error' => 0, 'data' => $response]);
     }
 
@@ -77,7 +77,7 @@ class Qms extends MY_Controller
   {
     if (!$this->isAdmin) sendJSON(['success' => 0, 'message' => lang('access_denied')]);
 
-    if ($this->qms_model->deleteQueue($ticketId)) {
+    if ($this->Qms_model->deleteQueue($ticketId)) {
       sendJSON(['success' => 1, 'message' => 'Queue deleted successfully.']);
     }
     sendJSON(['success' => 0, 'message' => 'Failed to delete queue.']);
@@ -100,7 +100,7 @@ class Qms extends MY_Controller
   public function displayResponse($ticket_id = NULL)
   {
     if ($ticket_id) {
-      if ($this->qms_model->updateQueueTicket($ticket_id, ['status' => 3])) {
+      if ($this->Qms_model->updateQueueTicket($ticket_id, ['status' => 3])) {
         sendJSON(['error' => 0, 'msg' => 'Update success.']);
       } else {
         sendJSON(['error' => 1, 'msg' => 'Update failed.']);
@@ -122,7 +122,7 @@ class Qms extends MY_Controller
       'serve_time' => ($this->input->post('serve_time') ?? NULL)
     ];
 
-    if ($this->qms_model->endQueue($ticket_id, $queueData)) {
+    if ($this->Qms_model->endQueue($ticket_id, $queueData)) {
       sendJSON(['error' => 0, 'msg' => 'OK']);
     }
     sendJSON(['error' => 1, 'msg' => 'Cannot end queue ticket.']);
@@ -164,7 +164,7 @@ class Qms extends MY_Controller
 
       $hMutex = mutexCreate('QMS_getDisplayData', TRUE);
 
-      $call = $this->qms_model->getTodayCallableQueueTicket($warehouse_id);
+      $call = $this->Qms_model->getTodayCallableQueueTicket($warehouse_id);
 
       if ($call) {
         $display_data['call'] = ['error' => 0, 'data' => $call];
@@ -172,11 +172,11 @@ class Qms extends MY_Controller
         $display_data['call'] = ['error' => 1, 'data' => NULL, 'msg' => 'No queue ticket to call.'];
       }
 
-      $counters = $this->qms_model->getTodayOnlineCounters($warehouse_id);
+      $counters = $this->Qms_model->getTodayOnlineCounters($warehouse_id);
 
       if ($counters) {
         foreach ($counters as $counter) {
-          $queue_category = $this->qms_model->getQueueCategoryByID($counter->queue_category_id);
+          $queue_category = $this->Qms_model->getQueueCategoryByID($counter->queue_category_id);
 
           $counter_list[] = [
             'counter' => $counter->counter,
@@ -191,7 +191,7 @@ class Qms extends MY_Controller
         $display_data['counter'] = ['error' => 1, 'data' => [], 'msg' => 'No counter online.'];
       }
 
-      $queue_lists = $this->qms_model->getTodayQueueTicketList($warehouse_id);
+      $queue_lists = $this->Qms_model->getTodayQueueTicketList($warehouse_id);
 
       if ($queue_lists) {
         foreach ($queue_lists as $ticket) {
@@ -214,7 +214,7 @@ class Qms extends MY_Controller
         $display_data['queue_list'] = ['error' => 1, 'data' => [], 'msg' => 'No queue ticket available.'];
       }
 
-      $skip_lists = $this->qms_model->getTodaySkippedQueueList($warehouse_id);
+      $skip_lists = $this->Qms_model->getTodaySkippedQueueList($warehouse_id);
 
       if ($skip_lists) {
         foreach ($skip_lists as $ticket) {
@@ -426,7 +426,7 @@ class Qms extends MY_Controller
     } else if ($xls == 2) {
       // Export Report
 
-      $users = $this->qms_model->getQueueUsers(['start_date' => $startDate, 'end_date' => $endDate]);
+      $users = $this->Qms_model->getQueueUsers(['start_date' => $startDate, 'end_date' => $endDate]);
 
       $sheet = $this->ridintek->spreadsheet();
 
@@ -451,13 +451,13 @@ class Qms extends MY_Controller
           $warehouseName = $this->Settings->default_warehouse;
         }
 
-        $queueSessions = $this->qms_model->getQueueSessions([
+        $queueSessions = $this->Qms_model->getQueueSessions([
           'user_id' => $user->id,
           'start_date' => $startDate,
           'end_date' => $endDate
         ]);
 
-        $tickets = $this->qms_model->getQueueTickets([
+        $tickets = $this->Qms_model->getQueueTickets([
           'user_id' => $user->id, 'start_date' => $startDate, 'end_date' => $endDate
         ]);
 
@@ -536,7 +536,7 @@ class Qms extends MY_Controller
       $sheet->getSheetByName('Sheet2');
       $sheet->setTitle('Ticket Report');
 
-      $tickets = $this->qms_model->getQueueTickets(['start_date' => $startDate, 'end_date' => $endDate]);
+      $tickets = $this->Qms_model->getQueueTickets(['start_date' => $startDate, 'end_date' => $endDate]);
 
       $a = 3; // First row index.
 
@@ -606,7 +606,7 @@ class Qms extends MY_Controller
    */
   public function recallQueue($ticket_id = NULL)
   {
-    if ($response = $this->qms_model->recallQueue($ticket_id)) {
+    if ($response = $this->Qms_model->recallQueue($ticket_id)) {
       sendJSON(['error' => 0, 'data' => $response]);
     }
     sendJSON(['error' => 1, 'msg' => 'Cannot recall queue ticket.']);
@@ -625,7 +625,7 @@ class Qms extends MY_Controller
 
     $hMutex = mutexCreate('QMS_sendReport', TRUE);
 
-    if ($queueSession = $this->qms_model->getTodayQueueSession($user_id)) {
+    if ($queueSession = $this->Qms_model->getTodayQueueSession($user_id)) {
       $sessionData = [
         'over_wcall_time'  => $this->input->post('over_wait_call_time'),
         'over_wserve_time' => $this->input->post('over_wait_serve_time'),
@@ -633,7 +633,7 @@ class Qms extends MY_Controller
         'over_rest_time'   => $this->input->post('over_rest_time')
       ];
 
-      if ($this->qms_model->updateQueueSession($queueSession->id, $sessionData)) {
+      if ($this->Qms_model->updateQueueSession($queueSession->id, $sessionData)) {
         mutexRelease($hMutex);
         sendJSON(['error' => 0, 'text' => 'success']);
       }
@@ -647,7 +647,7 @@ class Qms extends MY_Controller
   {
     $ticket_id = $this->input->post('ticket');
 
-    if ($this->qms_model->serveQueue($ticket_id)) {
+    if ($this->Qms_model->serveQueue($ticket_id)) {
       sendJSON(['error' => 0, 'msg' => 'OK']);
     }
     sendJSON(['error' => 1, 'msg' => 'Cannot serving queue ticket.']);
@@ -660,7 +660,7 @@ class Qms extends MY_Controller
     $warehouse_id = ($this->session->userdata('warehouse_id') ?? $this->Settings->default_warehouse);
 
     if ($this->site->updateUser($user_id, ['counter' => $counter])) {
-      $online_counters = $this->qms_model->getTodayOnlineCounters($warehouse_id);
+      $online_counters = $this->Qms_model->getTodayOnlineCounters($warehouse_id);
 
       if ($online_counters) {
         foreach ($online_counters as $online_counter) {
@@ -673,13 +673,13 @@ class Qms extends MY_Controller
 
       if ($counter > 0) {
         // Prevent duplicate queue session.
-        if (!$this->qms_model->getTodayQueueSession($user_id)) {
+        if (!$this->Qms_model->getTodayQueueSession($user_id)) {
           $sessionData = [
             'user_id' => $user_id,
             'warehouse_id' => $warehouse_id
           ];
 
-          $this->qms_model->addQueueSession($sessionData); // Start Queue session.
+          $this->Qms_model->addQueueSession($sessionData); // Start Queue session.
         }
       }
 
@@ -696,7 +696,7 @@ class Qms extends MY_Controller
   {
     $ticket_id = $this->input->post('ticket');
 
-    if ($this->qms_model->skipQueue($ticket_id)) {
+    if ($this->Qms_model->skipQueue($ticket_id)) {
       sendJSON(['error' => 0, 'msg' => 'OK']);
     }
     sendJSON(['error' => 1, 'msg' => 'Cannot skip queue ticket.']);
@@ -704,7 +704,7 @@ class Qms extends MY_Controller
 
   public function startRest()
   {
-    if ($this->qms_model->startRest($this->session->userdata('user_id'))) {
+    if ($this->Qms_model->startRest($this->session->userdata('user_id'))) {
       sendJSON(['error' => 0, 'msg' => 'OK']);
     }
     sendJSON(['error' => 1, 'msg' => 'You cannot rest.']);
@@ -712,7 +712,7 @@ class Qms extends MY_Controller
 
   public function test()
   {
-    $r = $this->qms_model->getQueueTicketByID(1);
+    $r = $this->Qms_model->getQueueTicketByID(1);
     rd_print($r);
   }
 }
