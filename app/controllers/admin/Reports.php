@@ -2641,27 +2641,28 @@ class Reports extends MY_Controller
       $duration = ($reportBegin && $reportEnd ? getDaysInPeriod($reportBegin, $reportEnd) : '-');
       // if ($duration < 0) $duration = -1;
 
-      $sheet->setCellValue('A' . $r, $row->product_code);
-      $sheet->setCellValue('B' . $r, $row->product_name);
-      $sheet->setCellValue('C' . $r, $row->sn);
-      $sheet->setCellValue('D' . $r, $row->category_name);
-      $sheet->setCellValue('E' . $r, $row->subcategory_name);
-      $sheet->setCellValue('F' . $r, $row->priority);
-      $sheet->setCellValue('G' . $r, $row->order_date);
-      $sheet->setCellValue('H' . $r, $row->order_price);
-      $sheet->setCellValue('I' . $r, $row->disposal_date);
-      $sheet->setCellValue('J' . $r, $row->disposal_price);
-      $sheet->setCellValue('K' . $r, ($row->active ? 'Active' : 'Inactive'));
-      $sheet->setCellValue('L' . $r, $row->warehouses);
-      $sheet->setCellValue('M' . $r, $row->maintenance_qty);
-      $sheet->setCellValue('N' . $r, $row->maintenance_cost);
-      $sheet->setCellValue('O' . $r, lang($row->last_condition));
-      $sheet->setCellValue('P' . $r, htmlRemove($row->note));
-      $sheet->setCellValue('Q' . $r, $row->last_update);
-      $sheet->setCellValue('R' . $r, $row->assigned_at);
-      $sheet->setCellValue('S' . $r, $row->pic_name);
-      $sheet->setCellValue('T' . $r, $duration); // Duration in days
-      $sheet->setCellValue('U' . $r, $row->creator_name);
+      $sheet->setCellValue('A' . $r, $r - 1);
+      $sheet->setCellValue('B' . $r, $row->product_code);
+      $sheet->setCellValue('C' . $r, $row->product_name);
+      $sheet->setCellValue('D' . $r, $row->sn);
+      $sheet->setCellValue('E' . $r, $row->category_name);
+      $sheet->setCellValue('F' . $r, $row->subcategory_name);
+      $sheet->setCellValue('G' . $r, $row->priority);
+      $sheet->setCellValue('H' . $r, $row->order_date);
+      $sheet->setCellValue('I' . $r, $row->order_price);
+      $sheet->setCellValue('J' . $r, $row->disposal_date);
+      $sheet->setCellValue('K' . $r, $row->disposal_price);
+      $sheet->setCellValue('L' . $r, ($row->active ? 'Active' : 'Inactive'));
+      $sheet->setCellValue('M' . $r, $row->warehouses);
+      $sheet->setCellValue('N' . $r, $row->maintenance_qty);
+      $sheet->setCellValue('O' . $r, $row->maintenance_cost);
+      $sheet->setCellValue('P' . $r, lang($row->last_condition));
+      $sheet->setCellValue('Q' . $r, htmlRemove($row->note));
+      $sheet->setCellValue('R' . $r, $row->last_update);
+      $sheet->setCellValue('S' . $r, $row->assigned_at);
+      $sheet->setCellValue('T' . $r, $row->pic_name);
+      $sheet->setCellValue('U' . $r, $duration); // Duration in days
+      $sheet->setCellValue('V' . $r, $row->creator_name);
 
       $colorStatus = NULL;
 
@@ -2715,9 +2716,9 @@ class Reports extends MY_Controller
 
     $sheet->getSheetByName('Machine Report');
 
-    $sheet->setColumnAutoWidth('A');
-    // $sheet->setColumnAutoWidth('B');
-    $sheet->setColumnAutoWidth('C');
+    // $sheet->setColumnAutoWidth('A');
+    $sheet->setColumnAutoWidth('B');
+    // $sheet->setColumnAutoWidth('C');
     $sheet->setColumnAutoWidth('D');
     $sheet->setColumnAutoWidth('E');
     $sheet->setColumnAutoWidth('F');
@@ -2730,8 +2731,8 @@ class Reports extends MY_Controller
     $sheet->setColumnAutoWidth('M');
     $sheet->setColumnAutoWidth('N');
     $sheet->setColumnAutoWidth('O');
-    // $sheet->setColumnAutoWidth('P');
-    $sheet->setColumnAutoWidth('Q');
+    $sheet->setColumnAutoWidth('P');
+    // $sheet->setColumnAutoWidth('Q');
     $sheet->setColumnAutoWidth('R');
     $sheet->setColumnAutoWidth('S');
     $sheet->setColumnAutoWidth('T');
