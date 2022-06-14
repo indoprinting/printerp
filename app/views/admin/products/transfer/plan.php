@@ -319,7 +319,7 @@ if ($filter = $this->input->get('f')) {
         toastr.success(data.message);
         location.href = site.base_url + 'products/transfer';
       },
-      url: site.base_url + 'products/transfer/addProductTransfersFromPlan'
+      url: site.base_url + 'products/transfer/addProductTransferFromPlan'
     });
   }
 

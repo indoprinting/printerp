@@ -130,7 +130,6 @@ class Products extends MY_Controller
         }
       }
 
-      //rd_print($product_data); die();
       if ($this->site->addProducts([$product_data])) {
         $this->session->set_flashdata('message', lang('product_added'));
         admin_redirect('products');
@@ -3731,7 +3730,9 @@ class Products extends MY_Controller
     $term        = $this->input->get('term');
     $type        = $this->input->get('type') ?? 'standard';
     $limit       = $this->input->get('limit') ?? 10;
-    $warehouseId = $this->input->get('warehouse');
+    $warehouseId = $this->input->get('warehouse_id');
+    $warehouseIdFrom = $this->input->get('warehouse_from');
+    $warehouseIdTo = $this->input->get('warehouse_to');
 
     if ($this->input->get('id')) {
       $term = [];
@@ -3746,9 +3747,15 @@ class Products extends MY_Controller
     if ($warehouseId) {
       $opt['warehouse_id'] = $warehouseId;
     }
+    if ($warehouseIdFrom) {
+      $opt['warehouse_id_from'] = $warehouseIdFrom;
+    }
+    if ($warehouseIdTo) {
+      $opt['warehouse_id_to'] = $warehouseIdTo;
+    }
 
     $items = $this->site->getProductSelect2($term, $opt);
-    sendJSON(['results' => $items]);
+    $this->response(200, ['results' => $items]);
   }
 
   public function suggestion_select()
@@ -3883,7 +3890,7 @@ class Products extends MY_Controller
     $this->load->view($this->theme . 'products/transfer/addPayment', $this->data);
   }
 
-  protected function transfer_addProductTransfersFromPlan()
+  protected function transfer_addProductTransferFromPlan()
   {
     $warehouses = $this->input->post('warehouse'); // ID: durian, fatmawati, tembalang...
 
@@ -3893,9 +3900,9 @@ class Products extends MY_Controller
         $this->ProductTransfer->addProductTransferByWarehouseId($whId);
       }
 
-      $this->response(201, ['message' => 'Product Transfers have beed added successfully.']);
+      $this->response(201, ['message' => 'Transfer produk berhasil ditambahkan.']);
     }
-    $this->response(400, ['message' => 'Failed to add product transfer.']);
+    $this->response(400, ['message' => 'Gagal menambahkan transfer produk.']);
   }
 
   protected function transfer_delete($pmId = NULL)
