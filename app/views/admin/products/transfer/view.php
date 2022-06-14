@@ -1,9 +1,9 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
 
 <?php
-  $mode = $this->input->get('m'); // noprice
-  $warehouseFrom = $this->site->getWarehouseByID($pt->warehouse_id_from);
-  $warehouseTo   = $this->site->getWarehouseByID($pt->warehouse_id_to);
+$mode = $this->input->get('m'); // noprice
+$warehouseFrom = $this->site->getWarehouseByID($pt->warehouse_id_from);
+$warehouseTo   = $this->site->getWarehouseByID($pt->warehouse_id_to);
 ?>
 
 <div class="modal-content">
@@ -69,34 +69,37 @@
             <th>No</th>
             <th>Code</th>
             <th>name</th>
-            <?php if ($mode != 'noprice'): ?>
-            <th>Markon Price</th>
+            <?php if ($mode != 'noprice') : ?>
+              <th>Markon Price</th>
             <?php endif; ?>
             <th>Total Qty</th>
             <th>Received Qty</th>
             <th>Rest Qty</th>
-            <?php if ($mode != 'noprice'): ?>
-            <th>Subtotal</th>
+            <?php if ($mode != 'noprice') : ?>
+              <th>Subtotal</th>
             <?php endif; ?>
             <th>Status</th>
           </tr>
         </thead>
         <tbody>
-          <?php $r = 1;
+          <?php
+          $r = 1;
+          $grandTotal = 0;
+
           foreach ($ptitems as $ptitem) :
-          ?>
+            $grandTotal += $ptitem->markon_price * $ptitem->quantity; ?>
             <tr>
               <td style="text-align:center; vertical-align:middle;"><?= $r; ?></td>
               <td style="text-align:center"><?= $ptitem->product_code; ?></td>
               <td style="vertical-align:middle;"><?= $ptitem->product_name; ?></td>
-              <?php if ($mode != 'noprice'): ?>
-              <td style="text-align:right; vertical-align:middle;"><?= formatCurrency($ptitem->markon_price); ?></td>
+              <?php if ($mode != 'noprice') : ?>
+                <td style="text-align:right; vertical-align:middle;"><?= formatCurrency($ptitem->markon_price); ?></td>
               <?php endif; ?>
               <td style="text-align:right; vertical-align:middle;"><?= formatQuantity($ptitem->quantity); ?></td>
               <td style="text-align:right; vertical-align:middle;"><?= formatQuantity($ptitem->received_qty); ?></td>
               <td style="text-align:right; vertical-align:middle;"><?= formatQuantity($ptitem->quantity - $ptitem->received_qty); ?></td>
-              <?php if ($mode != 'noprice'): ?>
-              <td style="text-align:right; vertical-align:middle;"><?= formatCurrency($ptitem->markon_price * $ptitem->quantity); ?></td>
+              <?php if ($mode != 'noprice') : ?>
+                <td style="text-align:right; vertical-align:middle;"><?= formatCurrency($ptitem->markon_price * $ptitem->quantity); ?></td>
               <?php endif; ?>
               <?= renderStatus($ptitem->status) ?>
             </tr>
@@ -105,6 +108,15 @@
           endforeach;
           ?>
         </tbody>
+        <?php if ($mode != 'noprice') : ?>
+          <tfoot>
+            <tr>
+              <th colspan="7" class="text-right">Grand Total</th>
+              <th><?= formatCurrency($grandTotal) ?></th>
+              <th></th>
+            </tr>
+          </tfoot>
+        <?php endif; ?>
       </table>
     </div>
 
