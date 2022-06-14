@@ -353,6 +353,20 @@ class ProductTransfer extends MY_Model
 
     $data['json'] = json_encode($json);
 
+    if ($items) {
+      $data['items'] = '';
+      $data['grand_total'] = 0;
+
+      foreach ($items as $item) {
+        $product = $this->site->getProductByID($item['product_id']);
+
+        if ($product) {
+          $data['items'] .= "- ({$product->code}) " . getExcerpt($product->name) . '<br>';
+
+          $data['grand_total'] += $item['markon_price'] * $item['quantity'];
+        }
+      }
+    }
 
     $this->db->update('product_transfer', $data, ['id' => $ptId]);
 
