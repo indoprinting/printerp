@@ -4796,7 +4796,7 @@ class Site extends MY_Model
     if (!empty($clause['biller_id'])) {
 
     }
-    
+
     $q = $this->db->get_where('holiday', $clause);
 
     if ($q && $q->num_rows()) {
@@ -5559,14 +5559,27 @@ class Site extends MY_Model
   /**
    * Get products for select2. (NEW)
    * @param string $term Search terms.
-   * @param array $opt [ type:(standard|combo|service), limit:10, warehouse_id ]
+   * @param array $opt [ type:(standard|combo|service), limit:10,
+   *  warehouse_id, warehouse_id_from, warehouse_id_to ]
    */
   public function getProductSelect2($term, $opt = [])
   {
-    $hasWarehouse = (isset($opt['warehouse_id']));
+    $hasWarehouse     = isset($opt['warehouse_id']);
+    $hasWarehouseFrom = isset($opt['warehouse_id_from']);
+    $hasWarehouseTo   = isset($opt['warehouse_id_to']);
 
-    $quantity    = ($hasWarehouse ? 'warehouses_products.quantity' : 'products.quantity');
-    $safetyStock = ($hasWarehouse ? 'warehouses_products.safety_stock' : 'products.safety_stock');
+    $quantity    = ($hasWarehouse ? 'whp.quantity, whp.warehouse_id' : 'products.quantity');
+
+    if ($hasWarehouseFrom && $hasWarehouseTo) {
+      $quantity = 'whp_from.quantity AS quantity_from, whp_from.warehouse_id warehouse_id_from';
+      $quantity .= ', whp_to.quantity AS quantity_to, whp_to.warehouse_id warehouse_id_to';
+    } else if ($hasWarehouseFrom) {
+      $quantity = 'whp_from.quantity AS quantity_from, whp_from.warehouse_id warehouse_id_from';
+    } else if ($hasWarehouseTo) {
+      $quantity = 'whp_to.quantity AS quantity_to, whp_to.warehouse_id warehouse_id_to';
+    }
+
+    $safetyStock = ($hasWarehouse ? 'whp.safety_stock' : 'products.safety_stock');
 
     $this->db
       ->select("products.id, CONCAT('(', products.code, ') ', products.name) AS text, products.code,
@@ -5574,8 +5587,18 @@ class Site extends MY_Model
       ->from('products');
 
     if ($hasWarehouse) {
-      $this->db->join('warehouses_products', 'warehouses_products.product_id = products.id', 'left');
-      $this->db->where('warehouses_products.warehouse_id', $opt['warehouse_id']);
+      $this->db->join('warehouses_products whp', 'whp.product_id = products.id', 'left');
+      $this->db->where('whp.warehouse_id', $opt['warehouse_id']);
+    }
+
+    if ($hasWarehouseFrom) {
+      $this->db->join('warehouses_products whp_from', 'whp_from.product_id = products.id', 'left');
+      $this->db->where('whp_from.warehouse_id', $opt['warehouse_id_from']);
+    }
+
+    if ($hasWarehouseTo) {
+      $this->db->join('warehouses_products whp_to', 'whp_to.product_id = products.id', 'left');
+      $this->db->where('whp_to.warehouse_id', $opt['warehouse_id_to']);
     }
 
     if ($term && gettype($term) == 'string') {
