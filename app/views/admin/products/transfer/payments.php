@@ -11,7 +11,7 @@
   </div>
   <div class="modal-body">
     <div class="table-responsive">
-      <table id="CompTable" class="table table-bordered table-hover table-striped">
+      <table id="Table2" class="table table-bordered table-hover table-striped">
         <thead>
           <tr>
             <th><?= lang('date'); ?></th>
