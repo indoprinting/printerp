@@ -424,7 +424,7 @@ function filterDecimal(str) {
 function formatCurrency(str) { // Added 2020-05-15 09:50 +7
   return new Intl.NumberFormat('en-US', {
     style: 'currency', currency: 'IDR', currencyDisplay: 'narrowSymbol',
-    maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(filterDecimal(str));
+    maximumFractionDigits: 0, minimumFractionDigits: 0 }).format(filterDecimal(str));
 }
 
 function formatNumber(str) {
