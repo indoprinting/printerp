@@ -39,6 +39,16 @@
               </thead>
               <tbody>
                 <tr>
+                  <td>Dashboard</td>
+                  <td colspan="4"></td>
+                  <td>
+                    <span style="display:inline-block;">
+                      <input type="checkbox" value="1" id="dashboard-chart" class="checkbox" name="dashboard-chart" <?php echo (($gp->{'dashboard-chart'} ?? FALSE) ? 'checked' : ''); ?>>
+                      <label for="dashboard-chart" class="padding05">Chart</label>
+                    </span>
+                  </td>
+                </tr>
+                <tr>
                   <td><?= lang('finances') . ' ' . lang('banks'); ?></td>
                   <td class="text-center">
                     <input type="checkbox" value="1" class="checkbox" name="banks-index" <?php echo (($gp->{'banks-index'} ?? FALSE) ? 'checked' : ''); ?>>

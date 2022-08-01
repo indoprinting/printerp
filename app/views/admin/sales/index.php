@@ -53,7 +53,7 @@ if ($group_by = $this->input->get('group_by')) {
       "iDisplayLength": <?= $Settings->rows_per_page ?>,
       'bProcessing': true,
       'bServerSide': true,
-      'sAjaxSource': '<?= admin_url('sales/getSales?' . $q); ?>',
+      'sAjaxSource': site.base_url + '<?= 'sales/getSales?' . $q; ?>',
       'fnServerData': function(sSource, aoData, fnCallback) {
         aoData.push({
           "name": "<?= $this->security->get_csrf_token_name() ?>",

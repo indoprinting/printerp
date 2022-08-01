@@ -9,6 +9,30 @@ class Gallery extends MY_Controller
     parent::__construct();
   }
 
+  public function attachment($attachmentId = NULL)
+  {
+    $attachment = Attachment::getRow(['id' => $attachmentId]);
+
+    $modal = ($this->input->get('modal') == 1 ? TRUE : FALSE);
+
+    if ($attachment && !$modal) {
+      $download = ($this->input->get('d') == 1 ? TRUE : FALSE);
+
+      header("Content-Type: {$attachment->mime}");
+      header("Content-Length: {$attachment->size}");
+
+      if ($download) {
+        header("Content-Disposition: attachment; filename=\"{$attachment->filename}\"");
+      }
+
+      die($attachment->data);
+    }
+
+    $this->data['attachment'] = $attachment;
+
+    $this->load->view($this->theme . 'gallery/attachment', $this->data);
+  }
+
   public function barcode()
   {
     $data = $this->input->get('data');
@@ -25,7 +49,7 @@ class Gallery extends MY_Controller
 
   protected function getFile($name)
   {
-    $filename = NULL;
+    $filename = '';
     $paths = getAttachmentPaths();
 
     if ($paths) {

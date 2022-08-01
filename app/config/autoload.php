@@ -1,4 +1,4 @@
-<?php defined('BASEPATH') OR exit('No direct script access allowed');
+<?php defined('BASEPATH') or exit('No direct script access allowed');
 
 /*
 | -------------------------------------------------------------------
@@ -135,7 +135,8 @@ $autoload['language'] = array();
 |   $autoload['model'] = array('first_model' => 'first');
 */
 
+// 'site' will be OBSOLETE!!! AND REMOVED!!!
 $autoload['model'] = [
-  'app', 'site', 'Attachment', 'Bank', 'Expense', 'Payment',
-  'ProductTransfer', 'Qms_model'
+  'app', 'site', 'Adjustment', 'Attachment', 'Bank', 'DB', 'Expense', 'Payment',
+  'ProductTransfer', 'Qms_model', 'Stock'
 ];

@@ -187,11 +187,11 @@ class Api extends MY_Controller
   {
     if ($mode == 'edit') {
       if ($this->requestMethod == 'POST') {
-        $this->customers_edit();
+        return $this->customers_edit();
       } else {
         http_response_code(403);
+        $this->response(404, ['message' => 'Not Found']);
       }
-      die();
     }
 
     if ($this->requestMethod == 'GET') {
@@ -534,7 +534,7 @@ class Api extends MY_Controller
         'warehouse_id'      => $warehouse->id
       ];
 
-      if ($newTicket = $this->qms_model->addQueueTicket($ticket_data)) {
+      if ($newTicket = $this->Qms_model->addQueueTicket($ticket_data)) {
         sendJSON(['error' => 0, 'data' => $newTicket]);
       } else {
         sendJSON(['error' => 1, 'msg' => 'Cannot create ticket']);

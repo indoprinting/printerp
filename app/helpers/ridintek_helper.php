@@ -752,19 +752,6 @@ function getCurrentMonthPeriod($period = [])
 }
 
 /**
- * Get last 30 days period.
- *
- * This function created due F\*CKED ST\*PID `Felix Angga Asiskin` DIDN'T UNDERSTAND ABOUT FILTERING.
- */
-function getLastMonthPeriod($period = [])
-{
-  $data['start_date'] = ($period['start_date'] ?? date('Y-m-d', strtotime('-30 days')));
-  $data['end_date']   = ($period['end_date']   ?? date('Y-m-d'));
-
-  return $data;
-}
-
-/**
  * Get current week of month.
  */
 function getCurrentWeekOfMonth(): int
@@ -828,6 +815,30 @@ function getExcerpt($text, $length = 20)
     return $text;
   }
   return substr($text, 0, $len - 3) . '...';
+}
+
+/**
+ * Get google spreadsheet.
+ * @param int $sheetId Sheet ID.
+ * @param string $ranges A1 Notation ranges. Ex. A1:C4
+ * @return array Return spreadsheet values.
+ */
+function getGoogleSheet($sheetId, $ranges)
+{
+  // gsheet@ridintek-20220718.iam.gserviceaccount.com
+  $tokenFile = FCPATH . 'app/credentials/ridintek-20220718-61ba6114a396.json';
+  $client = new Google\Client();
+
+  $client->setApplicationName('PrintERP');
+  $client->setAuthConfig($tokenFile);
+  $client->setAccessType('offline');
+  $client->setScopes([Google\Service\Sheets::SPREADSHEETS]);
+
+  $service = new Google\Service\Sheets($client);
+
+  $res = $service->spreadsheets_values->get($sheetId, $ranges);
+
+  return $res->getValues();
 }
 
 /**
@@ -1098,6 +1109,19 @@ function getJSON($jsonStr, $assoc = FALSE)
 function getLastError()
 {
   return ($_SESSION['lastErrorMsg'] ?? NULL);
+}
+
+/**
+ * Get last 30 days period.
+ *
+ * This function created due F\*CKED ST\*PID `Felix Angga Asiskin` DIDN'T UNDERSTAND ABOUT FILTERING.
+ */
+function getLastMonthPeriod($period = [])
+{
+  $data['start_date'] = ($period['start_date'] ?? date('Y-m-d', strtotime('-30 days')));
+  $data['end_date']   = ($period['end_date']   ?? date('Y-m-d'));
+
+  return $data;
 }
 
 function getProductReportDuration($machineId)
@@ -1773,6 +1797,15 @@ function getWarehouse($clause = [])
 }
 
 /**
+ * Convert html string into readable note.
+ */
+function html2Note($html)
+{
+  $str = str_replace('<br>', "\r\n", $html);
+  return htmlRemove($str);
+}
+
+/**
  * Decode HTML string.
  * @param string $html HTML string to decode.
  * @return string Return decoded HTML string.
@@ -1813,7 +1846,7 @@ function htmlRemove($html)
  */
 function isCLI()
 {
-  return (PHP_SAPI === 'cli' OR defined('STDIN'));
+  return (PHP_SAPI === 'cli' or defined('STDIN'));
 }
 
 /**
@@ -2079,7 +2112,7 @@ function mutexRelease($hMutex)
 function ocr($image)
 {
   if (PHP_OS == 'Linux') {
-    $exe = '/usr/local/tesseract-5.0/bin/tesseract';
+    $exe = '/usr/local/tesseract-5.1.0/bin/tesseract';
   } else if (PHP_OS == 'WINNT') {
     $exe = '"C:/Program Files/Tesseract-OCR/tesseract.exe"';
   }
@@ -2434,12 +2467,12 @@ function XTime($time)
 }
 
 /**
-	 * Generic File Loader Helper
-	 *
-	 * @param	string $path File path
-	 * @param	bool $return Whether to return the file output
-	 * @return object|string
-	 */
+ * Generic File Loader Helper
+ *
+ * @param	string $path File path
+ * @param	bool $return Whether to return the file output
+ * @return object|string
+ */
 function view(string $view, $vars = [], $return = FALSE)
 {
   $ci = &get_instance();

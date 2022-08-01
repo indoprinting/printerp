@@ -127,6 +127,7 @@ nb-configuration.xml
 
 # Custom PrintERP
 app/config/database.php
+app/credentials/*
 app/logs/*
 backup_db.sh
 backup_erp.sh

@@ -127,7 +127,8 @@ class Qms_model extends CI_Model
     };
 
     $di = new DateInterval("PT{$waitTime}M");
-    $estCallDate = new DateTime();
+
+    $estCallDate = new DateTime('now', new DateTimeZone('Asia/Jakarta')); // Current datetime.
     $estCallDate->add($di);
 
     $est_call_date = $estCallDate->format('Y-m-d H:i:s');

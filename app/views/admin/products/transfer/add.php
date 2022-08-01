@@ -99,6 +99,8 @@
                       <th>Name</th>
                       <th style="min-width:100px">Spec</th>
                       <th style="min-width:100px">Markon Price</th>
+                      <th style="min-width:100px">Source Qty</th>
+                      <th style="min-width:100px">Destination Qty</th>
                       <th style="min-width:100px">Quantity</th>
                       <th>Subtotal (Rp)</th>
                     </tr>
@@ -106,7 +108,7 @@
                   <tbody></tbody>
                   <tfoot>
                     <tr>
-                      <th class="text-right" colspan="6">Grand Total</th>
+                      <th class="text-right" colspan="8">Grand Total</th>
                       <th class="grand_total text-right">0</th>
                     </tr>
                   </tfoot>
@@ -147,7 +149,8 @@
     let productTransfer = new ProductTransfer('#PTList');
     let q = '';
 
-    q += 'warehouse=' + $('#from_warehouse').val();
+    q += 'warehouse_from_id=' + $('#from_warehouse').val();
+    q += '&warehouse_to_id=' + $('#to_warehouse').val();
 
     $('#product').select2({
       ajax: {

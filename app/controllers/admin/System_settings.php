@@ -2647,6 +2647,7 @@ class system_settings extends MY_Controller
           'banks-edit'                => $this->input->post('banks-edit'),
           'banks-index'               => $this->input->post('banks-index'),
           'banks-reconciliation'      => $this->input->post('banks-reconciliation'),
+          'dashboard-chart'           => $this->input->post('dashboard-chart'),
           'mutations-add'             => $this->input->post('mutations-add'),
           'mutations-delete'          => $this->input->post('mutations-delete'),
           'mutations-edit'            => $this->input->post('mutations-edit'),

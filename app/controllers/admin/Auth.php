@@ -364,17 +364,17 @@ class Auth extends MY_Controller
 
   public function getUserLogins($id = null)
   {
-    if (!$this->ion_auth->in_group(['owner', 'admin'])) {
-      $this->session->set_flashdata('warning', lang('access_denied'));
-      admin_redirect('welcome');
-    }
-    $this->load->library('datatables');
-    $this->datatables
-      ->select('login, ip_address, time')
-      ->from('user_logins')
-      ->where('user_id', $id);
+    // if (!$this->ion_auth->in_group(['owner', 'admin'])) {
+    //   $this->session->set_flashdata('warning', lang('access_denied'));
+    //   admin_redirect('welcome');
+    // }
+    // $this->load->library('datatables');
+    // $this->datatables
+    //   ->select('login, ip_address, time')
+    //   ->from('user_logins')
+    //   ->where('user_id', $id);
 
-    echo $this->datatables->generate();
+    // echo $this->datatables->generate();
   }
 
   public function getUsers()

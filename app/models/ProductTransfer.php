@@ -20,10 +20,15 @@ class ProductTransfer extends MY_Model
     $bankTo   = $this->site->getBank(['id' => $data['bank_id_to']]);
     $pt       = $this->getProductTransfer(['id' => $data['pt_id']]);
 
+    if (!$pt) {
+      setLastError("Product Transfer ID:{$data['pt_id']} not found.");
+      return FALSE;
+    }
+
     $data = setCreatedBy($data); // created_at, created_by
 
     $paymentDataFrom = [
-      'transfer_id' => $data['pt_id'],
+      'pt_id'       => $data['pt_id'],
       'reference'   => $pt->reference,
       'bank_id'     => $bankFrom->id,
       'method'      => $bankFrom->type,
@@ -35,7 +40,7 @@ class ProductTransfer extends MY_Model
     ];
 
     $paymentDataTo = [
-      'transfer_id' => $data['pt_id'],
+      'pt_id'       => $data['pt_id'],
       'reference'   => $pt->reference,
       'bank_id'     => $bankTo->id,
       'method'      => $bankTo->type,
@@ -49,6 +54,7 @@ class ProductTransfer extends MY_Model
     if ($this->Payment->addPayment($paymentDataFrom) && $this->Payment->addPayment($paymentDataTo)) {
       return TRUE;
     }
+    setLastError("Failed to add payment.");
     return FALSE;
   }
 
@@ -312,6 +318,8 @@ class ProductTransfer extends MY_Model
     $amount = 0;
 
     foreach ($payments as $payment) {
+      // Since ProductTransfer using same transfer_id in payments. We filtered it.
+      if ($payment->reference != $pt->reference) continue;
       if ($payment->type == 'received')
         $amount += $payment->amount;
     }

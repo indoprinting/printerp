@@ -42,10 +42,6 @@ if ($endDate = $this->input->get('end_date')) {
         {
           targets: [3, 4, 5, 6, 7, 8],
           render: formatQuantity
-        },
-        {
-          targets: 12,
-          render: attachment
         }
       ],
       lengthMenu: [

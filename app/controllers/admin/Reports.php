@@ -663,7 +663,9 @@ class Reports extends MY_Controller
       foreach ($saleItems as $saleItem) {
         $saleItemJS = getJSON($saleItem->json_data);
 
-        if ($saleItemJS->operator_id != $user->id) continue;
+        if (isset($saleItemJS->operator_id)) {
+          if ($saleItemJS->operator_id != $user->id) continue;
+        }
 
         $overProduction = FALSE;
 
@@ -2528,6 +2530,8 @@ class Reports extends MY_Controller
 
     $q = $this->db->get();
 
+    // print_r($q->result()); die;
+
     if ($q) {
       $rows = $q->result();
     } else {
@@ -2657,7 +2661,7 @@ class Reports extends MY_Controller
       $sheet->setCellValue('N' . $r, $row->maintenance_qty);
       $sheet->setCellValue('O' . $r, $row->maintenance_cost);
       $sheet->setCellValue('P' . $r, lang($row->last_condition));
-      $sheet->setCellValue('Q' . $r, htmlRemove($row->note));
+      $sheet->setCellValue('Q' . $r, html2Note($row->note));
       $sheet->setCellValue('R' . $r, $row->last_update);
       $sheet->setCellValue('S' . $r, $row->assigned_at);
       $sheet->setCellValue('T' . $r, $row->pic_name);
@@ -2678,7 +2682,7 @@ class Reports extends MY_Controller
       }
 
       if ($colorStatus) {
-        $sheet->setFillColor('O' . $r, $colorStatus);
+        $sheet->setFillColor('P' . $r, $colorStatus);
       }
 
       $r++;
@@ -2694,8 +2698,8 @@ class Reports extends MY_Controller
     $r = 2;
 
     foreach ($rows as $row) {
-      if (!$row->assigned_by) $row->assigned_by = 1;
-      if (!$row->pic_id) $row->pic_id = 1;
+      if (!$row->assigned_by) $row->assigned_by = 0;
+      if (!$row->pic_id) $row->pic_id = 0;
 
       $assigner = $this->site->getUserByID($row->assigned_by);
       $pic = $this->site->getUserByID($row->pic_id);
@@ -2705,9 +2709,9 @@ class Reports extends MY_Controller
       $sheet->setCellValue('A' . $r, $item->code);
       $sheet->setCellValue('B' . $r, $item->name);
       $sheet->setCellValue('C' . $r, $row->assigned_at);
-      $sheet->setCellValue('D' . $r, $assigner->fullname);
+      $sheet->setCellValue('D' . $r, ($assigner ? $assigner->fullname : ''));
       $sheet->setCellValue('E' . $r, $row->fixed_at);
-      $sheet->setCellValue('F' . $r, $pic->fullname);
+      $sheet->setCellValue('F' . $r, ($pic ? $pic->fullname : ''));
       $sheet->setCellValue('G' . $r, $loc->name);
       $sheet->setCellValue('H' . $r, htmlRemove($row->note));
 

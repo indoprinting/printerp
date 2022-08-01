@@ -102,7 +102,7 @@
                 <?php
                 if ($row->created_by) {
                   $user = $this->site->getUserByID($row->created_by);
-                  $created_by = ($user ? $user->first_name . ' ' . $user->last_name : '');
+                  $created_by = ($user ? $user->fullname : '');
                 } else {
                   $created_by = '';
                 }

@@ -439,7 +439,8 @@ $config['csrf_expire']       = 7200;
 $config['csrf_regenerate']   = false;
 $config['csrf_exclude_uris'] = [
     'api/v1/[0-9A-Za-z\/\_\&\;]+',
-    'debug/callback'
+    'debug/callback',
+    'debug/upload_file'
 ];
 
 /*

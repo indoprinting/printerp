@@ -1605,6 +1605,15 @@ class Products extends MY_Controller
 
   public function import()
   {
+    if ($argv = func_get_args()) {
+      $method = __FUNCTION__ . '_' . $argv[0];
+
+      if (method_exists($this, $method)) {
+        array_shift($argv);
+        return call_user_func_array([$this, $method], $argv);
+      }
+    }
+
     $bc   = [
       ['link' => base_url(), 'page' => lang('home')],
       ['link' => admin_url('products'), 'page' => lang('products')],
@@ -1789,9 +1798,7 @@ class Products extends MY_Controller
 
         $line = 1;
 
-        $warehouses = $this->site->getAllWarehouses();
-
-        $this->rdlog->info(['msg' => 'import_csv_raw(): Begin parsing.', 'time' => microtime(TRUE)]);
+        $warehouses = $this->site->getWarehouses();
 
         foreach ($csvs as $csv) {
           if ($csv['use'] != 1) continue;
@@ -2103,16 +2110,6 @@ class Products extends MY_Controller
 
                     $this->site->addProductPrices($ppData);
 
-                    // $this->settings_model->setProductPriceForPriceGroup(
-                    //   $new_product->id,
-                    //   $group_id,
-                    //   $price_group[0],
-                    //   $price_group[1],
-                    //   $price_group[2],
-                    //   $price_group[3],
-                    //   $price_group[4],
-                    //   $price_group[5]
-                    // ); // Insert price group.
                     $group_id++;
                   }
 
@@ -2138,16 +2135,6 @@ class Products extends MY_Controller
 
                     $this->site->addProductPrices($ppData);
 
-                    // $this->settings_model->setProductPriceForPriceGroup(
-                    //   $product->id,
-                    //   $group_id,
-                    //   $price_group[0],
-                    //   $price_group[1],
-                    //   $price_group[2],
-                    //   $price_group[3],
-                    //   $price_group[4],
-                    //   $price_group[5]
-                    // ); // Insert price group.
                     $group_id++;
                   }
 
@@ -2399,16 +2386,6 @@ class Products extends MY_Controller
 
                     $this->site->addProductPrices($ppData);
 
-                    // $this->settings_model->setProductPriceForPriceGroup(
-                    //   $product->id,
-                    //   $group_id,
-                    //   $price_group[0],
-                    //   $price_group[1],
-                    //   $price_group[2],
-                    //   $price_group[3],
-                    //   $price_group[4],
-                    //   $price_group[5]
-                    // ); // Insert price group.
                     $group_id++;
                   }
                   $updated++;
@@ -2496,6 +2473,560 @@ class Products extends MY_Controller
 
       $this->page_construct('products/import_csv_svc', $this->data);
     }
+  }
+
+  protected function import_sync()
+  {
+    if ($this->requestMethod != 'POST') {
+      $this->response(400, ['message' => 'Request method is not supported.']);
+    }
+
+    ini_set('max_execution_time', 0);
+
+    if ($argv = func_get_args()) {
+      $method = __FUNCTION__ . '_' . $argv[0];
+
+      if (method_exists($this, $method)) {
+        array_shift($argv);
+        return call_user_func_array([$this, $method], $argv);
+      }
+    }
+
+    $this->response(400, ['message' => 'Sync mode is not supported.']);
+  }
+
+  /**
+   * Sync raw materials.
+   */
+  protected function import_sync_raw()
+  {
+    $sheets = getGoogleSheet('1arv83XA2ySRAos6aFvhqLWIm804CjgUyChj7DsxaBj0', 'A3:AM');
+
+    if (!$sheets) $this->response(404, ['message' => 'Something wrong with google sheets.']);
+
+    $headers = [ // ss = safety_stock
+      'action', 'code', 'name', 'unit', 'category_code', 'subcategory_code',
+      'iuse_type', 'active', 'cost', 'markon', 'ss_ratio', 'min_order_qty', 'supplier',
+      'warehouses', 'sn', 'priority', 'purchased_at',
+      'lucretia_pic', 'lucretia_cycle', 'durian_pic', 'durian_cycle', 'fatmawati_pic', 'fatmawati_cycle',
+      'gajah_pic', 'gajah_cycle', 'ngesrep_pic', 'ngesrep_cycle', 'pleburan_pic', 'pleburan_cycle',
+      'salatiga_pic', 'salatiga_cycle', 'tembalang_pic', 'tembalang_cycle',
+      'tlogosari_pic', 'tlogosari_cycle', 'ungaran_pic', 'ungaran_cycle', 'weleri_pic', 'weleri_cycle'
+    ];
+
+    $csvs = [];
+    $added = 0;
+    $deleted = 0;
+    $updated = 0;
+    $addProductsData = [];
+    $updateProductsData = [];
+
+    foreach ($sheets as $sheet) {
+      $csvs[] = arrayCombine($headers, $sheet);
+    }
+
+    foreach ($csvs as $csv) {
+      if ($csv['action'] == 2064) {
+        if ($item = $this->site->getProduct(['code' => $csv['code']])) {
+          if ($this->site->deleteProduct($item->id)) {
+            $deleted++;
+          }
+        }
+      }
+
+      // Add/Update items.
+      if ($csv['action'] != 1) continue;
+
+      // If item exists.
+      if ($item = $this->site->getProduct(['code' => $csv['code']])) {
+        $category = $this->site->getCategory(['code' => $csv['category_code']]);
+        $subcategory  = $this->site->getCategory(['code' => $csv['subcategory_code']]);
+        $supplier     = $this->site->getSupplierByCompanyName($csv['supplier']);
+        $unit         = $this->site->getUnit(['code' => rd_unit($csv['unit'])]);
+
+        if (!$category) {
+          $this->response(404, ['message' => "Category {$csv['category_code']} not found."]);
+        }
+        if (!$unit) {
+          $this->response(404, ['message' => "Unit {$csv['unit']} not found."]);
+        }
+
+        if ($warehouses = $this->site->getWarehouses(['active' => 1])) {
+          $stockOpname = [];
+
+          foreach ($warehouses as $warehouse) {
+            $whName = strtolower(explode(' ', $warehouse->name)[0]);
+
+            if (isset($csv[$whName . '_pic'])) {
+              $pic = $this->site->getUserByName($csv[$whName . '_pic']);
+
+              $stockOpname[] = [
+                'user_id' => ($pic ? $pic->id : 0),
+                'so_cycle' => ($pic ? $csv[$whName . '_cycle'] : 1),
+                'warehouse_id' => $warehouse->id
+              ];
+            }
+          }
+        }
+
+        $cost = filterDecimal($csv['cost']);
+
+        $updateProductsData[] = [
+          'product_id'          => $item->id, // Required for update.
+          'code'                => $csv['code'],
+          'name'                => $csv['name'],
+          'category_id'         => $category->id,
+          'subcategory_id'      => ($subcategory ? $subcategory->id : NULL),
+          'unit'                => $unit->id,
+          'cost'                => $cost,
+          'warehouses'          => trim($csv['warehouses']),
+          'markon_price'        => getMarkonPrice($cost, $csv['markon']),
+          'markon'              => filterDecimal($csv['markon']),
+          'safety_stock_ratio'  => filterDecimal($csv['ss_ratio']),
+          'min_order_qty'       => (!empty($csv['min_order_qty']) ? $csv['min_order_qty'] : 1),
+          'iuse_type'           => trim(strtolower($csv['iuse_type'])),
+          'active'              => ($csv['active'] == 1 ? 1 : 0),
+          'type'                => 'standard',
+          'supplier_id'         => ($supplier ? $supplier->id : NULL),
+          'sn'                  => trim($csv['sn']),
+          'priority'            => strtolower($csv['priority']),
+          'purchased_at'        => trim($csv['purchased_at']),
+          'stock_opname'        => $stockOpname
+        ];
+      } else { // Add new items.
+        $category = $this->site->getCategory(['code' => $csv['category_code']]);
+        $subcategory  = $this->site->getCategory(['code' => $csv['subcategory_code']]);
+        $supplier     = $this->site->getSupplierByCompanyName($csv['supplier']);
+        $unit         = $this->site->getUnit(['code' => $csv['unit']]);
+
+        if (!$category) continue;
+        if (!$unit) continue;
+
+        if ($warehouses = $this->site->getWarehouses(['active' => 1])) {
+          $stockOpname = [];
+
+          foreach ($warehouses as $warehouse) {
+            $whName = strtolower(explode(' ', $warehouse->name)[0]);
+
+            if (isset($csv[$whName . '_pic'])) {
+              $pic = $this->site->getUserByName($csv[$whName . '_pic']);
+
+              $stockOpname[] = [
+                'user_id' => ($pic ? $pic->id : 0),
+                'so_cycle' => ($pic ? $csv[$whName . '_cycle'] : 1),
+                'warehouse_id' => $warehouse->id
+              ];
+            }
+          }
+        }
+
+        $cost = filterDecimal($csv['cost']);
+
+        $addProductsData[] = [
+          'code'                => $csv['code'],
+          'name'                => $csv['name'],
+          'category_id'         => $category->id,
+          'subcategory_id'      => ($subcategory ? $subcategory->id : NULL),
+          'unit'                => $unit->id,
+          'cost'                => $cost,
+          'warehouses'          => trim($csv['warehouses']),
+          'markon_price'        => getMarkonPrice($cost, $csv['markon']),
+          'markon'              => filterDecimal($csv['markon']),
+          'safety_stock_ratio'  => filterDecimal($csv['ss_ratio']),
+          'min_order_qty'       => (!empty($csv['min_order_qty']) ? $csv['min_order_qty'] : 1),
+          'iuse_type'           => trim(strtolower($csv['iuse_type'])),
+          'active'              => ($csv['active'] == 1 ? 1 : 0),
+          'type'                => 'standard',
+          'supplier_id'         => ($supplier ? $supplier->id : NULL),
+          'sn'                  => trim($csv['sn']),
+          'priority'            => strtolower($csv['priority']),
+          'purchased_at'        => trim($csv['purchased_at']),
+          'stock_opname'        => $stockOpname
+        ];
+      }
+    }
+
+    if ($addProductsData) {
+      $added = $this->site->addProducts($addProductsData);
+    }
+    if ($updateProductsData) {
+      $updated = $this->site->updateProducts($updateProductsData);
+    }
+
+    $this->response(200, ['message' => "{$added} added, {$updated} updated, {$deleted} deleted."]);
+  }
+
+  /**
+   * Sync selling products.
+   */
+  protected function import_sync_spd()
+  {
+    $sheets = getGoogleSheet('1VkkInHGgJdECp4Kma44eUrkzLaFc6ksLVAnBDklx6Vc', 'A5:CF');
+
+    if (!$sheets) $this->response(404, ['message' => 'Something wrong with google sheets.']);
+
+    $added   = 0;
+    $deleted = 0;
+    $updated = 0;
+    $csvs    = [];
+
+    /**
+     * Column: warehouses
+     * empty or (*) = all warehouses.
+     * tembalang, pleburan = not all warehouses, tembalang and pleburan only.
+     * -durian, -ungaran = all warehouses except durian and ungaran.
+     * -gajah, weleri = all warehouses except gajah, weleri ignored.
+     * fatmawati, -salatiga = not all warehouses, fatmawati only, salatiga ignored.
+     */
+    $headers = [
+      'action', 'code', 'name', 'category_code', 'warehouses', 'unit', 'raw_code', 'raw_qty',
+      'active', 'autocomplete', 'min_prod_time', 'prod_time_qty',
+      'price_range_1', 'price_range_2', 'price_range_3', 'price_range_4', 'price_range_5', 'price_range_6',
+      'zone_1_price_1', 'zone_1_price_2', 'zone_1_price_3', 'zone_1_price_4', 'zone_1_price_5', 'zone_1_price_6',
+      'zone_2_price_1', 'zone_2_price_2', 'zone_2_price_3', 'zone_2_price_4', 'zone_2_price_5', 'zone_2_price_6',
+      'zone_3_price_1', 'zone_3_price_2', 'zone_3_price_3', 'zone_3_price_4', 'zone_3_price_5', 'zone_3_price_6',
+      'zone_4_price_1', 'zone_4_price_2', 'zone_4_price_3', 'zone_4_price_4', 'zone_4_price_5', 'zone_4_price_6',
+      'zone_5_price_1', 'zone_5_price_2', 'zone_5_price_3', 'zone_5_price_4', 'zone_5_price_5', 'zone_5_price_6',
+      'zone_6_price_1', 'zone_6_price_2', 'zone_6_price_3', 'zone_6_price_4', 'zone_6_price_5', 'zone_6_price_6',
+      'priv_a_price_1', 'priv_a_price_2', 'priv_a_price_3', 'priv_a_price_4', 'priv_a_price_5', 'priv_a_price_6',
+      'priv_b_price_1', 'priv_b_price_2', 'priv_b_price_3', 'priv_b_price_4', 'priv_b_price_5', 'priv_b_price_6',
+      'priv_c_price_1', 'priv_c_price_2', 'priv_c_price_3', 'priv_c_price_4', 'priv_c_price_5', 'priv_c_price_6',
+      'priv_d_price_1', 'priv_d_price_2', 'priv_d_price_3', 'priv_d_price_4', 'priv_d_price_5', 'priv_d_price_6',
+      'priv_e_price_1', 'priv_e_price_2', 'priv_e_price_3', 'priv_e_price_4', 'priv_e_price_5', 'priv_e_price_6'
+    ];
+
+    foreach ($sheets as $sheet) {
+      $csvs[] = arrayCombine($headers, $sheet);
+    }
+
+    $rawItems = [];
+    $ItemData = [];
+    $priceGroups = [];
+    $useProduct = FALSE;
+
+    foreach ($csvs as $csv) {
+      if ($csv['action'] == 2064) {
+        $product = $this->site->getProduct(['code' => $csv['code']]);
+
+        if ($product && $this->site->deleteProduct($product->id)) {
+          $deleted++;
+        }
+
+        continue;
+      }
+
+      // Begin columns initialization.
+      $colCode          = trim($csv['code']);
+      $colAction        = floatval($csv['action']);
+      $colName          = trim($csv['name']);
+      $colCategoryCode  = trim($csv['category_code']);
+      $colUnit          = trim($csv['unit']);
+      $colRawCode       = trim($csv['raw_code']);
+      $colRawQty        = floatval(trim($csv['raw_qty']));
+      $colMinProdTime   = floatval(trim($csv['min_prod_time']));
+      $colProdTimeQty   = floatval(trim($csv['prod_time_qty']));
+      $colPriceRanges   = [ // 6, 11, 51, 101, 201
+        intval(trim($csv['price_range_2'])),
+        intval(trim($csv['price_range_3'])),
+        intval(trim($csv['price_range_4'])),
+        intval(trim($csv['price_range_5'])),
+        intval(trim($csv['price_range_6']))
+      ];
+      $colPriceGroups = [ // index: 0 - 5, group: 1 - 6 + (7: Privilge A, 8: Privilege B, 9: Privilege C)
+        [trim($csv['zone_1_price_1']), trim($csv['zone_1_price_2']), trim($csv['zone_1_price_3']), trim($csv['zone_1_price_4']), trim($csv['zone_1_price_5']), trim($csv['zone_1_price_6'])], // 1
+        [trim($csv['zone_2_price_1']), trim($csv['zone_2_price_2']), trim($csv['zone_2_price_3']), trim($csv['zone_2_price_4']), trim($csv['zone_2_price_5']), trim($csv['zone_2_price_6'])], // 2
+        [trim($csv['zone_3_price_1']), trim($csv['zone_3_price_2']), trim($csv['zone_3_price_3']), trim($csv['zone_3_price_4']), trim($csv['zone_3_price_5']), trim($csv['zone_3_price_6'])], // 3
+        [trim($csv['zone_4_price_1']), trim($csv['zone_4_price_2']), trim($csv['zone_4_price_3']), trim($csv['zone_4_price_4']), trim($csv['zone_4_price_5']), trim($csv['zone_4_price_6'])], // 4
+        [trim($csv['zone_5_price_1']), trim($csv['zone_5_price_2']), trim($csv['zone_5_price_3']), trim($csv['zone_5_price_4']), trim($csv['zone_5_price_5']), trim($csv['zone_5_price_6'])], // 5
+        [trim($csv['zone_6_price_1']), trim($csv['zone_6_price_2']), trim($csv['zone_6_price_3']), trim($csv['zone_6_price_4']), trim($csv['zone_6_price_5']), trim($csv['zone_6_price_6'])], // 6
+        [trim($csv['priv_a_price_1']), trim($csv['priv_a_price_2']), trim($csv['priv_a_price_3']), trim($csv['priv_a_price_4']), trim($csv['priv_a_price_5']), trim($csv['priv_a_price_6'])], // A
+        [trim($csv['priv_b_price_1']), trim($csv['priv_b_price_2']), trim($csv['priv_b_price_3']), trim($csv['priv_b_price_4']), trim($csv['priv_b_price_5']), trim($csv['priv_b_price_6'])], // B
+        [trim($csv['priv_c_price_1']), trim($csv['priv_c_price_2']), trim($csv['priv_c_price_3']), trim($csv['priv_c_price_4']), trim($csv['priv_c_price_5']), trim($csv['priv_c_price_6'])], // C
+        [trim($csv['priv_d_price_1']), trim($csv['priv_d_price_2']), trim($csv['priv_d_price_3']), trim($csv['priv_d_price_4']), trim($csv['priv_d_price_5']), trim($csv['priv_d_price_6'])], // D
+        [trim($csv['priv_e_price_1']), trim($csv['priv_e_price_2']), trim($csv['priv_e_price_3']), trim($csv['priv_e_price_4']), trim($csv['priv_e_price_5']), trim($csv['priv_e_price_6'])]  // E
+      ];
+      // End columns initialization.
+
+      // Begin Parsing.
+      $isSellingItem = (!empty($csv['code']) && !empty($csv['raw_code']) ? TRUE : FALSE);
+      $isRAWItem     = (empty($csv['code']) && !empty($csv['raw_code'])  ? TRUE : FALSE);
+
+      if ($isSellingItem) {
+        if ($useProduct && !empty($ItemData)) {
+          $product = $this->site->getProductByCode($ItemData['code']);
+          $ItemData['price'] = $this->site->getTotalComboPricesByRawItems($rawItems);
+
+          if (!$product) { // Check if product not exist then ADD else UPDATE.
+            $ItemData['combo_items']   = $rawItems;
+            // $sell_item['min_prod_time'] = $col_min_prod_time;
+            // $sell_item['prod_time_qty'] = $col_prod_time_qty;
+
+            if ($this->site->addProducts([$ItemData])) { // Insert selling product.
+              $groupId = 1; // Begin group from 1 to 6
+
+              $product = $this->site->getProductByCode($ItemData['code']); // Get new added product.
+
+              foreach ($priceGroups as $priceGroup) {
+                $ppData = [
+                  'product_id' => $product->id,
+                  'price_group_id' => $groupId,
+                  'price'  => $priceGroup[0],
+                  'price2' => $priceGroup[1],
+                  'price3' => $priceGroup[2],
+                  'price4' => $priceGroup[3],
+                  'price5' => $priceGroup[4],
+                  'price6' => $priceGroup[5],
+                ];
+
+                $this->site->addProductPrices($ppData);
+
+                $groupId++;
+              }
+
+              $added++;
+            }
+          } else { // !product
+            $ItemData['combo_items'] = $rawItems;
+            $ItemData['product_id'] = $product->id;
+            if ($this->site->updateProducts([$ItemData])) {
+              $groupId = 1; // Begin group from 1 to 6 + (7: Privilge A, 8: Privilege B, 9: Privilege C)
+
+              foreach ($priceGroups as $priceGroup) {
+                $ppData = [
+                  'product_id' => $product->id,
+                  'price_group_id' => $groupId,
+                  'price'  => $priceGroup[0],
+                  'price2' => $priceGroup[1],
+                  'price3' => $priceGroup[2],
+                  'price4' => $priceGroup[3],
+                  'price5' => $priceGroup[4],
+                  'price6' => $priceGroup[5],
+                ];
+
+                $this->site->addProductPrices($ppData);
+
+                $groupId++;
+              }
+
+              $updated++;
+            }
+          } // !product
+
+          // Reset parsing.
+          $priceGroups  = [];
+          $rawItems     = [];
+          $ItemData     = [];
+        } else {
+          // Reset parsing.
+          $priceGroups  = [];
+          $rawItems     = [];
+          $ItemData     = [];
+        }
+
+        $useProduct = ($colAction == 1 ? TRUE : FALSE);
+        if (!$useProduct) continue;
+
+        $unit = $this->site->getUnit(['code' => $colUnit]);
+
+        if (!$unit) {
+          $this->response(404, ['message' => "Unit '{$colUnit}' cannot be found. Product '{$colCode}' skipped"]);
+          continue;
+        }
+
+        $category = $this->site->getCategory(['code' => $colCategoryCode]);
+
+        if (!$category) {
+          $this->response(404, ['message' => "Category {$colCategoryCode} not found."]);
+        }
+
+        $ItemData = [
+          'code'               => $colCode,
+          'name'               => $colName,
+          'category_id'        => $category->id,
+          'subcategory_id'     => 0,
+          'type'               => 'combo',
+          'cost'               => 0,
+          'price'              => 0,
+          'active'             => filterDecimal($csv['active']),
+          'warehouses'         => $csv['warehouses'],
+          'unit'               => $unit->id,
+          'price_ranges_value' => $colPriceRanges,
+          'quantity'           => 0,
+          'autocomplete'       => filterDecimal($csv['autocomplete']),
+          'min_prod_time'      => $colMinProdTime,
+          'prod_time_qty'      => $colProdTimeQty
+        ];
+
+        $product = $this->site->getProductByCode($colRawCode);
+
+        $rawItems[] = [
+          'item_code'  => $colRawCode,
+          'quantity'   => $colRawQty,
+          'unit_price' => ($product ? $product->price : 0)
+        ];
+
+        $priceGroups = $colPriceGroups;
+      } else if ($isRAWItem && $useProduct) {
+        // Parse RAW material to be included.
+        if ($product = $this->site->getProductByCode($colRawCode)) { // Check if RAW item exists.
+          $rawItems[] = [
+            'item_code'  => $colRawCode, // rd_trim() function see app/helper/ridintek_helper.php
+            'quantity'   => $colRawQty,
+            'unit_price' => $product->price
+          ];
+        }
+      }
+    } // End foreach
+
+    $this->response(200, ['message' => "{$added} added, {$updated} updated, {$deleted} deleted."]);
+  }
+
+  /**
+   * Sync Service Items.
+   */
+  protected function import_sync_svc()
+  {
+    $sheets = getGoogleSheet('10UYqaF1eDeMc4qUDlK0UDbD5zr8Pv6aMDuKZ6RAQxb0', 'A4:CC');
+
+    if (!$sheets) $this->response(404, ['message' => 'Something wrong with google sheets.']);
+
+    $added              = 0;
+    $deleted            = 0;
+    $updated            = 0;
+    $item               = [];
+    $priceGroups       = [];
+
+    $key  = 0;
+    $keys = [
+      'action', 'code', 'name', 'category_code', 'warehouses', 'active', 'autocomplete', 'min_prod_time', 'prod_time_qty',
+      'price_range_1', 'price_range_2', 'price_range_3', 'price_range_4', 'price_range_5', 'price_range_6',
+      'zone_1_price_1', 'zone_1_price_2', 'zone_1_price_3', 'zone_1_price_4', 'zone_1_price_5', 'zone_1_price_6',
+      'zone_2_price_1', 'zone_2_price_2', 'zone_2_price_3', 'zone_2_price_4', 'zone_2_price_5', 'zone_2_price_6',
+      'zone_3_price_1', 'zone_3_price_2', 'zone_3_price_3', 'zone_3_price_4', 'zone_3_price_5', 'zone_3_price_6',
+      'zone_4_price_1', 'zone_4_price_2', 'zone_4_price_3', 'zone_4_price_4', 'zone_4_price_5', 'zone_4_price_6',
+      'zone_5_price_1', 'zone_5_price_2', 'zone_5_price_3', 'zone_5_price_4', 'zone_5_price_5', 'zone_5_price_6',
+      'zone_6_price_1', 'zone_6_price_2', 'zone_6_price_3', 'zone_6_price_4', 'zone_6_price_5', 'zone_6_price_6',
+      'priv_a_price_1', 'priv_a_price_2', 'priv_a_price_3', 'priv_a_price_4', 'priv_a_price_5', 'priv_a_price_6',
+      'priv_b_price_1', 'priv_b_price_2', 'priv_b_price_3', 'priv_b_price_4', 'priv_b_price_5', 'priv_b_price_6',
+      'priv_c_price_1', 'priv_c_price_2', 'priv_c_price_3', 'priv_c_price_4', 'priv_c_price_5', 'priv_c_price_6',
+      'priv_d_price_1', 'priv_d_price_2', 'priv_d_price_3', 'priv_d_price_4', 'priv_d_price_5', 'priv_d_price_6',
+      'priv_e_price_1', 'priv_e_price_2', 'priv_e_price_3', 'priv_e_price_4', 'priv_e_price_5', 'priv_e_price_6'
+    ];
+
+    foreach ($sheets as $sheet) {
+      $csvs[] = arrayCombine($keys, $sheet);
+    }
+
+    foreach ($csvs as $csv) {
+      if ($csv['action'] == 2064) {
+        if ($item = $this->site->getProduct(['code' => $csv['code']])) {
+          if ($this->site->deleteProduct($item->id)) {
+            $deleted++;
+          }
+        }
+      }
+
+      if ($csv['action'] != 1) continue;
+
+      $item = [
+        'code'               => trim($csv['code']),
+        'name'               => trim($csv['name']),
+        'unit'               => 0,
+        'category_code'      => trim($csv['category_code']),
+        'cost'               => 0,
+        'price'              => filterDecimal($csv['zone_1_price_1']),
+        'warehouses'         => trim($csv['warehouses']),
+        'markon_price'       => 0,
+        'markon'             => 0,
+        'safety_stock'       => 0,
+        'active'             => filterDecimal($csv['active']),
+        'type'               => 'service',
+        'supplier_id'        => '',
+        'autocomplete'       => trim($csv['autocomplete']),
+        'min_prod_time'      => filterDecimal($csv['min_prod_time']),
+        'prod_time_qty'      => filterDecimal($csv['prod_time_qty']),
+        'price_ranges_value' => [ // 6, 11, 51, 101, 201
+          intval(trim($csv['price_range_2'])),
+          intval(trim($csv['price_range_3'])),
+          intval(trim($csv['price_range_4'])),
+          intval(trim($csv['price_range_5'])),
+          intval(trim($csv['price_range_6']))
+        ]
+      ];
+
+      $priceGroups = [ // index: 0 - 5, group: 1 - 6 + (7: Privilge A, 8: Privilege B, 9: Privilege C)
+        [trim($csv['zone_1_price_1']), trim($csv['zone_1_price_2']), trim($csv['zone_1_price_3']), trim($csv['zone_1_price_4']), trim($csv['zone_1_price_5']), trim($csv['zone_1_price_6'])], // 1
+        [trim($csv['zone_2_price_1']), trim($csv['zone_2_price_2']), trim($csv['zone_2_price_3']), trim($csv['zone_2_price_4']), trim($csv['zone_2_price_5']), trim($csv['zone_2_price_6'])], // 2
+        [trim($csv['zone_3_price_1']), trim($csv['zone_3_price_2']), trim($csv['zone_3_price_3']), trim($csv['zone_3_price_4']), trim($csv['zone_3_price_5']), trim($csv['zone_3_price_6'])], // 3
+        [trim($csv['zone_4_price_1']), trim($csv['zone_4_price_2']), trim($csv['zone_4_price_3']), trim($csv['zone_4_price_4']), trim($csv['zone_4_price_5']), trim($csv['zone_4_price_6'])], // 4
+        [trim($csv['zone_5_price_1']), trim($csv['zone_5_price_2']), trim($csv['zone_5_price_3']), trim($csv['zone_5_price_4']), trim($csv['zone_5_price_5']), trim($csv['zone_5_price_6'])], // 5
+        [trim($csv['zone_6_price_1']), trim($csv['zone_6_price_2']), trim($csv['zone_6_price_3']), trim($csv['zone_6_price_4']), trim($csv['zone_6_price_5']), trim($csv['zone_6_price_6'])], // 6
+        [trim($csv['priv_a_price_1']), trim($csv['priv_a_price_2']), trim($csv['priv_a_price_3']), trim($csv['priv_a_price_4']), trim($csv['priv_a_price_5']), trim($csv['priv_a_price_6'])], // A
+        [trim($csv['priv_b_price_1']), trim($csv['priv_b_price_2']), trim($csv['priv_b_price_3']), trim($csv['priv_b_price_4']), trim($csv['priv_b_price_5']), trim($csv['priv_b_price_6'])], // B
+        [trim($csv['priv_c_price_1']), trim($csv['priv_c_price_2']), trim($csv['priv_c_price_3']), trim($csv['priv_c_price_4']), trim($csv['priv_c_price_5']), trim($csv['priv_c_price_6'])], // C
+        [trim($csv['priv_d_price_1']), trim($csv['priv_d_price_2']), trim($csv['priv_d_price_3']), trim($csv['priv_d_price_4']), trim($csv['priv_d_price_5']), trim($csv['priv_d_price_6'])], // D
+        [trim($csv['priv_e_price_1']), trim($csv['priv_e_price_2']), trim($csv['priv_e_price_3']), trim($csv['priv_e_price_4']), trim($csv['priv_e_price_5']), trim($csv['priv_e_price_6'])]  // E
+      ];
+
+      if ($category = $this->site->getCategoryByCode($item['category_code'])) { // Product Category must be present.
+        $item['category_id'] = $category->id;
+
+        if ($product = $this->site->getProductByCode($item['code'])) { // If product code exists then UPDATE.
+
+          if ($product->type == 'service') { // If Product type Service present.
+            $item['product_id'] = $product->id;
+            if ($this->site->updateProducts([$item])) {
+              $group_id = 1; // Begin group from 1 to 6 + (7: Privilge A, 8: Privilege B, 9: Privilege C)
+
+              foreach ($priceGroups as $priceGroup) {
+                $ppData = [
+                  'product_id'      => $product->id,
+                  'price_group_id'  => $group_id,
+                  'price'           => $priceGroup[0],
+                  'price2'          => $priceGroup[1],
+                  'price3'          => $priceGroup[2],
+                  'price4'          => $priceGroup[3],
+                  'price5'          => $priceGroup[4],
+                  'price6'          => $priceGroup[5],
+                ];
+
+                $this->site->addProductPrices($ppData);
+
+                $group_id++;
+              }
+
+              $updated++;
+            }
+          }
+        } else { // Add new service item.
+          if ($this->site->addProducts($item)) { // csv_service
+            $groupId = 1; // Begin group from 1 to 6 + (7: Privilge A, 8: Privilege B, 9: Privilege C)
+            $newService = $this->site->getProductByCode($item['code']); // Get new added product.
+
+            foreach ($priceGroups as $priceGroup) {
+              $ppData = [
+                'product_id'      => $newService->id,
+                'price_group_id'  => $groupId,
+                'price'           => $priceGroup[0],
+                'price2'          => $priceGroup[1],
+                'price3'          => $priceGroup[2],
+                'price4'          => $priceGroup[3],
+                'price5'          => $priceGroup[4],
+                'price6'          => $priceGroup[5],
+              ];
+
+              $this->site->addProductPrices($ppData);
+
+              $groupId++;
+            }
+
+            $added++;
+          }
+        }
+      }
+    } // foreach
+
+    $this->response(200, ['message' => "{$added} added, {$updated} updated, {$deleted} deleted."]);
   }
 
   public function index()
@@ -2819,8 +3350,8 @@ class Products extends MY_Controller
       $this->datatable->where_in('product_mutation.from_warehouse_id', $warehouses);
     }
 
-    $this->datatable->editColumn('pid', function($data) {
-        return "
+    $this->datatable->editColumn('pid', function ($data) {
+      return "
         <div class=\"text-center\">
           <a href=\"{$this->theme}products/mutation/delete/{$data['id']}\"
             class=\"tip \"
@@ -2841,14 +3372,23 @@ class Products extends MY_Controller
               <i class=\"fad fa-fw fa-chart-bar\"></i>
           </a>
         </div>";
-      })
-      ->editColumn('status', function($data) {
+    })
+      ->editColumn('status', function ($data) {
         switch ($data['status']) {
-          case 'pending':           $type = 'warning'; break;
-          case 'sent':              $type = 'success'; break;
-          case 'received_partial':  $type = 'info'; break;
-          case 'received':          $type = 'primary'; break;
-          default:                  $type = 'warning';
+          case 'pending':
+            $type = 'warning';
+            break;
+          case 'sent':
+            $type = 'success';
+            break;
+          case 'received_partial':
+            $type = 'info';
+            break;
+          case 'received':
+            $type = 'primary';
+            break;
+          default:
+            $type = 'warning';
         }
 
         $status = ucwords(str_replace('_', ' ', $data['status']));
@@ -3164,7 +3704,7 @@ class Products extends MY_Controller
 
     if ($this->form_validation->run()) {
       $cycle        = ($this->input->post('cycle') ?? 1);
-      $date         = $this->input->post('date');
+      $date         = dtPHP($this->input->post('date'));
       $item_ids     = $this->input->post('item_id');
       $real_qtys    = $this->input->post('real_qty');
       $first_qtys   = $this->input->post('first_qty');
@@ -3230,14 +3770,17 @@ class Products extends MY_Controller
         }
 
         $so_data['attachment'] = $this->upload->file_name;
+      } else {
+        $this->session->set_flashdata('error', 'Attachment harus dilampirkan.');
+        admin_redirect('products/stock_opname/add');
       }
 
       if ($this->site->addStockOpname($so_data, $items_data)) {
         setcookie('soremove', 1, 0, '/');
-        $this->session->set_flashdata('message', 'Stock opname has been added successfully.');
+        $this->session->set_flashdata('message', 'Stock opname berhasil ditambahkan.');
         admin_redirect('products/stock_opname');
       }
-      $this->session->set_flashdata('error', 'Stock opname failed to add.');
+      $this->session->set_flashdata('error', 'Stock opname gagal ditambahkan.');
       admin_redirect('products/stock_opname');
     } else {
       if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -3727,12 +4270,12 @@ class Products extends MY_Controller
 
   public function select2()
   {
-    $term        = $this->input->get('term');
-    $type        = $this->input->get('type') ?? 'standard';
-    $limit       = $this->input->get('limit') ?? 10;
-    $warehouseId = $this->input->get('warehouse_id');
-    $warehouseIdFrom = $this->input->get('warehouse_from');
-    $warehouseIdTo = $this->input->get('warehouse_to');
+    $term             = $this->input->get('term');
+    $type             = $this->input->get('type') ?? 'standard';
+    $limit            = $this->input->get('limit') ?? 10;
+    $warehouseId      = $this->input->get('warehouse_id');
+    $warehouseIdFrom  = $this->input->get('warehouse_from_id');
+    $warehouseIdTo    = $this->input->get('warehouse_to_id');
 
     if ($this->input->get('id')) {
       $term = [];
@@ -3882,7 +4425,7 @@ class Products extends MY_Controller
         $this->response(201, ['message' => 'Berhasil dibayar.']);
       }
 
-      $this->response(400, ['message' => 'Gagal dibayar.']);
+      $this->response(400, ['message' => GetLastError()]);
     }
 
     $this->data['pt'] = $pt;
@@ -4044,7 +4587,6 @@ class Products extends MY_Controller
 
   protected function transfer_editPayment($paymentId = NULL)
   {
-
   }
 
   protected function transfer_getTransfers()
@@ -4102,13 +4644,22 @@ class Products extends MY_Controller
           </a>
         </div>";
       })
-      ->editColumn('status', function($data) {
+      ->editColumn('status', function ($data) {
         switch ($data['status']) {
-          case 'packing':          $type = 'warning'; break;
-          case 'sent':             $type = 'success'; break;
-          case 'received_partial': $type = 'info'; break;
-          case 'received':         $type = 'primary'; break;
-          default:                 $type = 'warning';
+          case 'packing':
+            $type = 'warning';
+            break;
+          case 'sent':
+            $type = 'success';
+            break;
+          case 'received_partial':
+            $type = 'info';
+            break;
+          case 'received':
+            $type = 'primary';
+            break;
+          default:
+            $type = 'warning';
         }
 
         $status = ucwords(str_replace('_', ' ', $data['status']));
@@ -4122,12 +4673,19 @@ class Products extends MY_Controller
         </div>
         ";
       })
-      ->editColumn('payment_status', function($data) {
+      ->editColumn('payment_status', function ($data) {
         switch ($data['payment_status']) {
-          case 'pending':      $type = 'warning'; break;
-          case 'paid':         $type = 'success'; break;
-          case 'paid_partial': $type = 'info'; break;
-          default:             $type = 'warning';
+          case 'pending':
+            $type = 'warning';
+            break;
+          case 'paid':
+            $type = 'success';
+            break;
+          case 'paid_partial':
+            $type = 'info';
+            break;
+          default:
+            $type = 'warning';
         }
 
         $status = ucwords(str_replace('_', ' ', $data['payment_status']));

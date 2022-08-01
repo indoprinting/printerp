@@ -1,33 +1,34 @@
 <?php defined('BASEPATH') or exit('No direct script access allowed'); ?>
 <?php
-function row_status($status, $elm = NULL)
-{
-  $classStatus = 'default';
-  $danger  = ['due', 'need_approval', 'need_payment', 'expired'];
-  $info    = ['partial', 'preparing', 'completed_partial', 'ordered'];
-  $primary = ['delivered', 'received'];
-  $success = ['completed', 'paid', 'sent', 'approved'];
-  $warning = ['draft', 'packing', 'pending', 'waiting_production', 'waiting_transfer'];
+if (!function_exists('row_status')) {
+  function row_status($status, $elm = NULL)
+  {
+    $classStatus = 'default';
+    $danger  = ['due', 'need_approval', 'need_payment', 'expired'];
+    $info    = ['partial', 'preparing', 'completed_partial', 'ordered'];
+    $primary = ['delivered', 'received'];
+    $success = ['completed', 'paid', 'sent', 'approved'];
+    $warning = ['draft', 'packing', 'pending', 'waiting_production', 'waiting_transfer'];
 
-  if (in_array($status, $danger)) {
-    $classStatus = 'danger';
-  } else if (in_array($status, $info)) {
-    $classStatus = 'info';
-  } else if (in_array($status, $primary)) {
-    $classStatus = 'primary';
-  } else if (in_array($status, $success)) {
-    $classStatus = 'success';
-  } else if (in_array($status, $warning)) {
-    $classStatus = 'warning';
+    if (in_array($status, $danger)) {
+      $classStatus = 'danger';
+    } else if (in_array($status, $info)) {
+      $classStatus = 'info';
+    } else if (in_array($status, $primary)) {
+      $classStatus = 'primary';
+    } else if (in_array($status, $success)) {
+      $classStatus = 'success';
+    } else if (in_array($status, $warning)) {
+      $classStatus = 'warning';
+    }
+
+    $status = ucwords(str_replace('_', ' ', $status));
+
+    return "<div class=\"text-center\"><span class=\"label label-{$classStatus}\">{$status}</span></div>";
   }
-
-  $status = ucwords(str_replace('_', ' ', $status));
-
-  return "<div class=\"text-center\"><span class=\"label label-{$classStatus}\">{$status}</span></div>";
 }
-
 ?>
-<?php if (($Owner || $Admin) && $chartData) :
+<?php if (($Owner || $Admin || getPermission('dashboard-chart')) && !empty($chartData)) :
   foreach ($chartData as $month_sale) :
     $months[]         = date('M-Y', strtotime($month_sale->bulan));
     $msales[]         = $month_sale->grand_total;
@@ -637,7 +638,7 @@ function row_status($status, $elm = NULL)
   });
 </script>
 
-<?php if (($Owner || $Admin) && $chartData) : ?>
+<?php if (($isAdmin || getPermission('dashboard-chart')) && !empty($chartData)) : ?>
   <style type="text/css" media="screen">
     .tooltip-inner {
       max-width: 500px;

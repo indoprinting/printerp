@@ -80,6 +80,12 @@ class ProductTransfer {
 
       if (this.mode == 'add') item.real_qty = item.quantity;
 
+      if (this.mode == 'add') {
+        tr.innerHTML += `
+          <td class="text-right">${formatSeparator(item.quantity_from)}</td>
+          <td class="text-right">${formatSeparator(item.quantity_to)}</td>`;
+      }
+
       tr.innerHTML += `
         <td><input class="form-control pt-quantity separator text-right"
           name="product[quantity][]"

@@ -5,6 +5,11 @@ defined('BASEPATH') or exit('No direct script access allowed');
 class MY_Controller extends CI_Controller
 {
   /**
+   * @var Memcached
+   */
+  protected $cache;
+
+  /**
    * @var array
    */
   public $data;
@@ -27,7 +32,7 @@ class MY_Controller extends CI_Controller
     // $this->res_hash = 'v=' . bin2hex(random_bytes(4)); // For resource hash.
     $this->rdlog = $this->ridintek->logger();
     $this->rdlog->setPath(APPPATH . 'logs');
-    $this->cache = $this->ridintek->cache();
+    // $this->cache = $this->ridintek->cache();
 
     $this->errorMsg = 'success';
 
@@ -41,10 +46,27 @@ class MY_Controller extends CI_Controller
     $this->SettingsJSON = $this->site->getSettingsJSON();
 
     if (!is_cli()) {
+      if ($_SERVER['HTTP_HOST'] == 'erp.indoprinting.co.id') {
+        $msg = 'Domain <b>erp.indoprinting.co.id</b> sudah tidak digunakan, domain baru <b>printerp.indoprinting.co.id</b>.<br>';
+        $msg .= 'Anda akan segera dialihkan.. Matursuwun';
+        $msg .= '<script>setTimeout(()=>location.href="https://printerp.indoprinting.co.id", 5000)</script>';
+        die($msg);
+      }
+
       $this->isAJAX = (strcasecmp($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '', 'XMLHttpRequest') == 0 ? TRUE : FALSE);
       $this->isLocal = (preg_match('/(.*)localhost$/i', $_SERVER['SERVER_NAME']) ? TRUE : FALSE);
       $this->isDevServer = (preg_match('/^derp\.(.*)/i', $_SERVER['SERVER_NAME']) ? TRUE : FALSE);
       $this->requestMethod = $_SERVER['REQUEST_METHOD'];
+
+      // Memcached server.
+      if (class_exists('Memcached')) {
+        try {
+          $this->cache = new Memcached();
+          $this->cache->addServer('127.0.0.1', 11211);
+        } catch (Exception $e) {
+          die($e->getMessage());
+        }
+      }
     } else {
       $this->isAJAX = FALSE;
       $this->isLocal = FALSE;
@@ -100,15 +122,15 @@ class MY_Controller extends CI_Controller
       $this->maintenance = FALSE; // Change this for maintenance mode.
       $this->maintenance_by_time = FALSE;
 
-      $this->maintenance_start_date = '2021-11-24 23:30:00';
-      $this->maintenance_end_date   = '2021-11-25 06:00:00';
+      $this->maintenance_start_date = '2022-07-02 22:30:00';
+      $this->maintenance_end_date   = '2022-07-03 06:00:00';
 
       if (now() >= strtotime($this->maintenance_start_date) && now() < strtotime($this->maintenance_end_date)) {
         $this->maintenance_by_time = TRUE;
       }
 
       // Change $this->Owner to ( ! $this->Owner) not owner.
-      if ($this->maintenance && $this->maintenance_by_time && ! $this->Owner && $this->uri->segment(1) !== 'maintenance') {
+      if ($this->maintenance && $this->maintenance_by_time && !$this->Owner && $this->uri->segment(1) !== 'maintenance') {
         redirect('/maintenance');
       }
 
@@ -135,7 +157,7 @@ class MY_Controller extends CI_Controller
       define('POS', 0);
       define('SHOP', 0);
 
-      if ( ! $this->Owner && ! $this->Admin) { // Other user group.
+      if (!$this->Owner && !$this->Admin) { // Other user group.
         $gp = $this->site->getGroupPermissions($this->session->userdata('group_id'), TRUE); // NEW, include PJ
         if ($gp) {
           $this->GP          = $gp;
@@ -279,7 +301,7 @@ class MY_Controller extends CI_Controller
     }
   }
 
-  protected function page_construct ($page, $data = [])
+  protected function page_construct($page, $data = [])
   {
     $data['message'] = isset($data['message']) ? $data['message'] : $this->session->flashdata('message');
     $data['error']   = isset($data['error'])   ? $data['error']   : $this->session->flashdata('error');
@@ -319,7 +341,24 @@ class MY_Controller extends CI_Controller
     // $this->load->view('admin/' . $page, $data);
     // $this->load->view('admin/footer');
 
-    $data['html_content'] = $this->load->view('admin/' . $page, $data, TRUE);
+    $htmlContent = '';
+
+    if (isset($this->cache)) {
+      $cached = $this->cache->get('page:' . $page);
+
+      if (!$cached) {
+        $htmlContent = $this->load->view('admin/' . $page, $data, TRUE);
+        $this->cache->set('page:' . $page, $htmlContent, 30);
+      } else {
+        $htmlContent = $cached;
+      }
+    } else {
+      // $htmlContent = $this->load->view('admin/' . $page, $data, TRUE);
+    }
+
+    $htmlContent = $this->load->view('admin/' . $page, $data, TRUE);
+
+    $data['html_content'] = $htmlContent;
 
     $this->load->view('admin/content', $data);
   }

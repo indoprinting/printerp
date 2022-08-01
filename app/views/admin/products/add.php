@@ -137,7 +137,7 @@
                   <?= lang('product_category', 'category'); ?>
                   <?php
                   $opt = [];
-                  $categories = $this->site->getAllProductCategories();
+                  $categories = $this->site->getParentCategories();
                   if ($categories) {
                     $opt[''] = 'Select Product Category';
                     foreach ($categories as $cat) {

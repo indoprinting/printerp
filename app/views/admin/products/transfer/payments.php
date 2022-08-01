@@ -11,7 +11,7 @@
   </div>
   <div class="modal-body">
     <div class="table-responsive">
-      <table id="Table2" class="table table-bordered table-hover table-striped">
+      <table id="TableModal" class="table table-bordered table-hover table-striped">
         <thead>
           <tr>
             <th><?= lang('date'); ?></th>
@@ -23,8 +23,11 @@
           </tr>
         </thead>
         <tbody>
-          <?php if (!empty($payments)):
-            foreach ($payments as $payment):
+          <?php if (!empty($payments)) :
+            foreach ($payments as $payment) :
+              // Since ProductTransfer using same transfer_id in payments. We filtered it.
+              if ($payment->reference != $pt->reference) continue;
+
               $bank = $this->Bank->getBank(['id' => $payment->bank_id]); ?>
               <tr class="row<?= $payment->id ?>">
                 <td><?= $payment->date; ?></td>
@@ -41,7 +44,7 @@
               </tr>
           <?php
             endforeach;
-          else:
+          else :
             echo '<tr><td class="text-center" colspan="6">' . lang('no_data_available') . '</td></tr>';
           endif; ?>
         </tbody>
@@ -50,6 +53,5 @@
   </div>
 </div>
 <script type="text/javascript" charset="UTF-8">
-  $(document).ready(function() {
-  });
+  $(document).ready(function() {});
 </script>

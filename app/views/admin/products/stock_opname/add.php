@@ -37,7 +37,7 @@
             <div class="col-md-3">
               <div class="form-group">
                 <?= lang('date', 'so_date'); ?>
-                <?php echo form_input('date', '', 'class="form-control input-tip datetimenow" id="so_date" required="required" readonly="readonly"'); ?>
+                <input type="datetime-local" class="form-control" id="so_date" name="date" value="<?= dtJS(date('Y-m-d H:i')) ?>">
               </div>
             </div>
 

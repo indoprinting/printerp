@@ -41,12 +41,12 @@
           </tr>
         </thead>
         <tbody>
-          <?php if ($sale_items):
-            foreach ($sale_items as $sale_item):
+          <?php if ($sale_items) :
+            foreach ($sale_items as $sale_item) :
               $saleItemJS = getJSON($sale_item->json_data);
               $_cD = ($saleItemJS->completed_at ?? $saleItemJS->updated_at);
               $completedDate = (!empty($_cD) ? $_cD : NULL);
-              $productionStatus = '';
+              $productionStatus = 'good';
 
               if (!empty($saleItemJS->due_date)) {
                 if (empty($completedDate)) {
@@ -62,11 +62,11 @@
               <tr>
                 <td class="bold text-center" colspan="2" style="background: #C0FFC0">(<?= $sale_item->product_code; ?>) <?= $sale_item->product_name; ?></td>
               </tr>
-              <?php if($Owner) { ?>
-              <tr>
-                <td class="col-md-6 bold">Sale Item ID</td>
-                <td class="col-md-6"><?= $sale_item->id; ?></td>
-              </tr>
+              <?php if ($Owner) { ?>
+                <tr>
+                  <td class="col-md-6 bold">Sale Item ID</td>
+                  <td class="col-md-6"><?= $sale_item->id; ?></td>
+                </tr>
               <?php } ?>
               <tr>
                 <?php $due_date = ($saleItemJS->due_date ?? '-'); ?>
@@ -78,18 +78,30 @@
                 <td class="bold">Completed Date</td>
                 <td class=""><?= (!empty($date) ? $date : '-') ?></td>
               </tr>
-              <tr>
-                <?php
-                $operator_id = ($saleItemJS->operator_id ?? '');
-                $operator_name = '-';
+              <?php
+              $operator = NULL;
+              $operator_id = ($saleItemJS->operator_id ?? '');
+              $operatorName = '-';
+              $operatorWarehouse = '-';
 
-                if ($operator_id) {
-                  $operator = $this->site->getUserByID($operator_id);
-                  $operator_name = $operator->fullname;
+              if ($operator_id) {
+                $operator = $this->site->getUserByID($operator_id);
+                $operatorName = $operator->fullname;
+
+                $wh = $this->site->getWarehouse(['id' => $operator->warehouse_id]);
+
+                if ($wh) {
+                  $operatorWarehouse = $wh->name;
                 }
-                ?>
+              }
+              ?>
+              <tr>
                 <td class="bold">Operator</td>
-                <td class=""><?= $operator_name ?></td>
+                <td class=""><?= $operatorName ?></td>
+              </tr>
+              <tr>
+                <td class="bold">Operator Warehouse</td>
+                <td class=""><?= $operatorWarehouse ?></td>
               </tr>
               <tr>
                 <?php $status = ($saleItemJS->status ?? '-'); ?>
@@ -103,59 +115,70 @@
               <?php
               $productType = $sale_item->product_type;
               ?>
-              <?php if ($productType == 'combo'):
+              <?php if ($productType == 'combo') :
                 $comboItems = $this->site->getProductComboItems($sale_item->product_id, $sale->warehouse_id); ?>
                 <tr>
                   <td class="bold text-center" colspan="2" style="background: #FFFF40">RAW Materials Status</td>
                 </tr>
-                  <?php foreach ($comboItems as $comboItem):
-                    $product = $this->site->getProductByCode($comboItem->code);
-                    $stocks  = $this->site->getStocks(['saleitem_id' => $sale_item->id, 'product_id' => $product->id]); ?>
-                    <tr>
-                      <td colspan="2">
-                        <div class="row">
-                          <div class="col-md-12 bold">
-                            (<?= $product->code; ?>) <?= $product->name; ?>
-                          </div>
+                <?php
+                $c = 1;
+                foreach ($comboItems as $comboItem) :
+                  $product = $this->site->getProductByCode($comboItem->code);
+                  $stocks  = $this->site->getStocks(['saleitem_id' => $sale_item->id, 'product_id' => $product->id]); ?>
+                  <tr>
+                    <td colspan="2">
+                      <div class="row">
+                        <div class="col-md-12 bold">
+                          <?= $c++ ?>. (<?= $product->code; ?>) <?= $product->name; ?>
                         </div>
-                        <?php if (empty($stocks)): ?>
+                      </div>
+                      <?php if (empty($stocks)) : ?>
+                        <div class="row">
+                          <div class="col-md-12 bold text-center alert-danger">BELUM DIPRODUKSI</div>
+                        </div>
+                      <?php endif; ?>
+                      <?php foreach ($stocks as $stock) : ?>
+                        <?php if ($Owner) : ?>
                           <div class="row">
-                            <div class="col-md-12 bold text-center alert-danger">BELUM DIPRODUKSI</div>
+                            <div class="col-md-6">Stock ID</div>
+                            <div class="col-md-6"><?= $stock->id ?></div>
                           </div>
                         <?php endif; ?>
-                        <?php foreach ($stocks as $stock): ?>
-                          <?php if ($Owner): ?>
-                            <div class="row">
-                              <div class="col-md-6">Stock ID</div>
-                              <div class="col-md-6"><?= $stock->id ?></div>
-                            </div>
-                          <?php endif; ?>
-                          <div class="row">
-                            <div class="col-md-6">
-                              Completed Date
-                            </div>
-                            <div class="col-md-6">
-                              <?= $stock->date ?>
-                            </div>
+                        <div class="row">
+                          <div class="col-md-6">
+                            Completed Date
                           </div>
-                          
-                          <div class="row">
-                            <div class="col-md-6">
-                              Completed Qty
-                            </div>
-                            <div class="col-md-6">
-                              <?= filterDecimal($stock->quantity) ?>
-                            </div>
+                          <div class="col-md-6">
+                            <?= $stock->date ?>
                           </div>
-                        <?php endforeach; ?>
-                      </td>
-                    </tr>
-                  <?php endforeach; ?>
-                <?php elseif ($productType == 'service' || $productType == 'standard'):
-                $stocks = $this->site->getStocks(['saleitem_id' => $sale_item->id, 'product_id' => $sale_item->product_id]);?>
+                        </div>
 
-                <?php foreach ($stocks as $stock): ?>
-                  <?php if ($Owner): ?>
+                        <div class="row">
+                          <div class="col-md-6">
+                            Completed Qty
+                          </div>
+                          <div class="col-md-6">
+                            <?= filterDecimal($stock->quantity) ?>
+                          </div>
+                        </div>
+
+                        <div class="row">
+                          <div class="col-md-6">
+                            Warehouse
+                          </div>
+                          <div class="col-md-6">
+                            <?= $stock->warehouse_name ?>
+                          </div>
+                        </div>
+                      <?php endforeach; ?>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
+              <?php elseif ($productType == 'service' || $productType == 'standard') :
+                $stocks = $this->site->getStocks(['saleitem_id' => $sale_item->id, 'product_id' => $sale_item->product_id]); ?>
+
+                <?php foreach ($stocks as $stock) : ?>
+                  <?php if ($Owner) : ?>
                     <tr>
                       <td class="bold">Stock ID</td>
                       <td><?= $stock->id; ?></td>

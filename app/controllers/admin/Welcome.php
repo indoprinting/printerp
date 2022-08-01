@@ -133,7 +133,7 @@ class Welcome extends MY_Controller
     $this->data['quotes']    = NULL;
     $this->data['customers'] = $this->db_model->getLatestCustomers();
 
-    if ($this->isAdmin) {
+    if ($this->isAdmin || getPermission('dashboard-chart')) {
       $this->data['chartData'] = $this->db_model->getChartData();
       $this->data['stock']     = $this->db_model->getStockValue();
     }

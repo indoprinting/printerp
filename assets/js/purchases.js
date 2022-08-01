@@ -11,7 +11,7 @@ class Purchase {
       let tr = document.createElement('tr');
 
       tr.dataset.id = item.id;
-      
+
       item.received_qty = (item.received_qty ?? 0); // Required or NaN.
 
       tr.innerHTML = `
@@ -55,7 +55,7 @@ class Purchase {
   }
 }
 
-$(function() {
+$(function () {
   let lastValue = 0;
 
   $(document).on('change', 'input.pm-quantity', function () {
@@ -78,10 +78,10 @@ $(function() {
 });
 // -- END
 
-$(document).ready(function() {
+$(document).ready(function () {
   if (pqaitems = localStorage.getItem('pqaitems')) { // Check if items from product quantity alert.
     let items = JSON.parse(pqaitems);
-    $.each(items, function() {
+    $.each(items, function () {
       add_purchase_item(this);
     });
     localStorage.removeItem('pqaitems');
@@ -91,9 +91,9 @@ $(document).ready(function() {
   if (site.settings.set_focus != 1) {
     $('#add_item').focus();
   }
-  $('#postatus').change(function(e) { // Change postatus.
-		let postatus = $(this).val();
-		let poitems  = JSON.parse(localStorage.getItem('poitems'));
+  $('#postatus').change(function (e) { // Change postatus.
+    let postatus = $(this).val();
+    let poitems = JSON.parse(localStorage.getItem('poitems'));
 
     if (postatus == 'received') {
       localStorage.setItem('received_mode', true);
@@ -101,8 +101,8 @@ $(document).ready(function() {
       localStorage.setItem('received_mode', false);
     }
 
-		localStorage.setItem('postatus', postatus);
-		localStorage.setItem('poitems', JSON.stringify(poitems));
+    localStorage.setItem('postatus', postatus);
+    localStorage.setItem('poitems', JSON.stringify(poitems));
     loadItems();
   });
 
@@ -123,7 +123,7 @@ $(document).ready(function() {
     }
   }
 
-  $('#popayment_term').change(function(e) {
+  $('#popayment_term').change(function (e) {
     localStorage.setItem('popayment_term', $(this).val());
   });
   if ((popayment_term = localStorage.getItem('popayment_term'))) {
@@ -136,7 +136,7 @@ $(document).ready(function() {
 
     if (poitems) {
       for (let item_id in poitems) {
-        if (typeof(poitems[item_id].row.last_received) == 'undefined') {
+        if (typeof (poitems[item_id].row.last_received) == 'undefined') {
           poitems[item_id].row.last_received = poitems[item_id].row.received;
         }
       }
@@ -146,8 +146,8 @@ $(document).ready(function() {
   }
 
   // clear localStorage and reload
-  $('#reset').click(function(e) {
-    bootbox.confirm(lang.r_u_sure, function(result) {
+  $('#reset').click(function (e) {
+    bootbox.confirm(lang.r_u_sure, function (result) {
       if (result) {
         if (localStorage.getItem('poitems')) {
           localStorage.removeItem('poitems');
@@ -187,13 +187,13 @@ $(document).ready(function() {
   });
 
   // save and load the fields in and/or from localStorage
-  $('#poref').change(function(e) {
+  $('#poref').change(function (e) {
     localStorage.setItem('poref', $(this).val());
   });
   if ((poref = localStorage.getItem('poref'))) {
     $('#poref').val(poref).trigger('change');
   }
-  $('#powarehouse').change(function(e) {
+  $('#powarehouse').change(function (e) {
     localStorage.setItem('powarehouse', $(this).val());
   });
   if ((powarehouse = localStorage.getItem('powarehouse'))) {
@@ -223,7 +223,7 @@ $(document).ready(function() {
     ],
     formattingTags: ['p', 'pre', 'h3', 'h4'],
     minHeight: 100,
-    changeCallback: function(e) {
+    changeCallback: function (e) {
       var v = this.get();
       localStorage.setItem('ponote', v);
     },
@@ -234,13 +234,13 @@ $(document).ready(function() {
   if (posupplier = localStorage.getItem('posupplier')) { // Pre-selected select2.
     preSelectSupplier('#posupplier', posupplier);
   }
-  $('#posupplier').change(function(e) {
+  $('#posupplier').change(function (e) {
     localStorage.setItem('posupplier', $(this).val());
     $('#supplier_id').val($(this).val());
   });
 
   // prevent default action upon enter
-  $('body').bind('keypress', function(e) {
+  $('body').bind('keypress', function (e) {
     if ($(e.target).hasClass('redactor_editor')) {
       return true;
     }
@@ -254,7 +254,7 @@ $(document).ready(function() {
    * Delete Row Method
    * ---------------------- */
 
-  $(document).on('click', '.podel', function() {
+  $(document).on('click', '.podel', function () {
     row = $(this).closest('tr');
     var item_id = row.prop('id');
     delete poitems[item_id];
@@ -270,7 +270,7 @@ $(document).ready(function() {
   /* -----------------------
    * Edit Row Modal Hanlder
    ----------------------- */
-  $(document).on('click', '.edit', function() {
+  $(document).on('click', '.edit', function () {
     var row = $(this).closest('tr');
     var row_id = row.attr('id');
     item_id = row.data('item-id');
@@ -281,16 +281,16 @@ $(document).ready(function() {
     }
 
     var qty = row
-        .children()
-        .children('.purchased_qty')
-        .val();
+      .children()
+      .children('.purchased_qty')
+      .val();
     $('#prModalLabel').html(item.row.name + ' (' + item.row.code + ')');
     let item_cost = item.row.cost;
 
     uopt = $('<select id="punit" name="punit" class="form-control select" style="width:100%;">');
     let current_unit = 0;
 
-    $.each(item.units, function() {
+    $.each(item.units, function () {
       if (this.id == item.row.unit) {
         current_unit = this.id;
         $('<option>', { value: this.id, text: this.name, selected: true }).appendTo(uopt);
@@ -301,7 +301,7 @@ $(document).ready(function() {
 
     if (item.row.unit && current_unit != item.row.unit) {
       console.log('unit not same');
-      $.each(item.units, function() {
+      $.each(item.units, function () {
         if (this.id == current_unit) {
           $('#pcost')
             .val(formatCurrency(parseFloat(item.row.cost) * unitToBaseQty(1, this), 4))
@@ -329,7 +329,7 @@ $(document).ready(function() {
       .modal('show');
   });
 
-  $(document).on('change', '#punit', function() {
+  $(document).on('change', '#punit', function () {
     var row = $('#' + $('#row_id').val());
     var item_id = row.attr('data-item-id');
     var item = poitems[item_id];
@@ -340,7 +340,7 @@ $(document).ready(function() {
     }
     var unit = $('#punit').val();
     if (unit != poitems[item_id].row.base_unit) {
-      $.each(item.units, function() {
+      $.each(item.units, function () {
         if (this.id == unit) {
           $('#pcost')
             .val(formatDecimal(parseFloat(item.row.cost) * unitToBaseQty(1, this), 4))
@@ -354,7 +354,7 @@ $(document).ready(function() {
     }
   });
 
-  $(document).on('click', '#calculate_unit_price', function() {
+  $(document).on('click', '#calculate_unit_price', function () {
     if (!is_numeric($('#pquantity').val()) || parseFloat($('#pquantity').val()) < 0) {
       $(this).val(old_row_qty);
       bootbox.alert(lang.unexpected_value);
@@ -372,7 +372,7 @@ $(document).ready(function() {
   /* -----------------------
    * Edit Row Method
    ----------------------- */
-  $(document).on('click', '#editItem', function() {
+  $(document).on('click', '#editItem', function () {
     var row = $('#' + $('#row_id').val());
     var row_id = row.attr('id');
     var item_id = row.attr('data-item-id');
@@ -383,7 +383,7 @@ $(document).ready(function() {
     console.log('item_id: ' + item_id);
     console.log(poitems[row_id]);
 
-    if ( ! is_numeric($('#pquantity').val()) || parseFloat($('#pquantity').val()) < 0) {
+    if (!is_numeric($('#pquantity').val()) || parseFloat($('#pquantity').val()) < 0) {
       $(this).val(old_row_qty);
       bootbox.alert(lang.unexpected_value);
       return;
@@ -392,7 +392,7 @@ $(document).ready(function() {
     var unit = $('#punit').val();
     var base_quantity = rd_float($('#pquantity').val());
     if (unit != poitems[row_id].row.base_unit) {
-      $.each(poitems[row_id].units, function() {
+      $.each(poitems[row_id].units, function () {
         if (this.id == unit) {
           base_quantity = unitToBaseQty($('#pquantity').val(), this);
         }
@@ -428,7 +428,7 @@ $(document).ready(function() {
   /* ------------------------------
    * Show manual item addition modal
    ------------------------------- */
-  $(document).on('click', '#addManually', function(e) {
+  $(document).on('click', '#addManually', function (e) {
     $('#mModal')
       .appendTo('body')
       .modal('show');
@@ -452,10 +452,10 @@ $(document).ready(function() {
    -------------------------- */
   var old_row_qty;
   $(document)
-    .on('focus', '.rquantity', function() {
+    .on('focus', '.rquantity', function () {
       old_row_qty = $(this).val();
     })
-    .on('change', '.rquantity', function() {
+    .on('change', '.rquantity', function () {
       var row = $(this).closest('tr');
       if (!is_numeric($(this).val()) || parseFloat($(this).val()) < 0) {
         $(this).val(old_row_qty);
@@ -481,10 +481,10 @@ $(document).ready(function() {
    * Edit Spec
    */
   $(document).on('change', '.spec', function () {
-    let row = $(this).parents('tr');
-    let item_id = row.attr('data-item-id');
+    let row = $(this).closest('tr');
+    let hash = row.attr('id');
 
-    poitems[item_id].row.spec = $(this).val();
+    poitems[hash].row.spec = $(this).val();
     localStorage.setItem('poitems', JSON.stringify(poitems));
     loadItems();
   });
@@ -528,10 +528,10 @@ $(document).ready(function() {
    -------------------------- */
   var old_cost;
   $(document)
-    .on('focus', '.rcost', function() {
+    .on('focus', '.rcost', function () {
       old_cost = $(this).val();
     })
-    .on('change', '.rcost', function() {
+    .on('change', '.rcost', function () {
       var row = $(this).closest('tr');
       if (!is_numeric($(this).val())) {
         $(this).val(old_cost);
@@ -545,7 +545,7 @@ $(document).ready(function() {
       loadItems();
     });
 
-  $(document).on('click', '#removeReadonly', function() {
+  $(document).on('click', '#removeReadonly', function () {
     let supplier = $('#posupplier');
     if (supplier.hasClass('lock')) {
       supplier.select2('readonly', false);
@@ -568,8 +568,7 @@ $(document).ready(function() {
 /* -----------------------
  * Misc Actions
  ----------------------- */
-function loadItems ()
-{
+function loadItems() {
   if (localStorage.getItem('poitems')) {
     let total_received_qty = 0, total_received_value = 0, total_rest_qty = 0;
     $('#poTable tbody').empty();
@@ -578,12 +577,12 @@ function loadItems ()
     var order_no = new Date().getTime();
     var postatus = localStorage.getItem('postatus');
 
-    add_mode      = (localStorage.getItem('add_mode') == 'true' ? true : false);
-    edit_mode     = (localStorage.getItem('edit_mode') == 'true' ? true : false);
-    status_mode   = (localStorage.getItem('status_mode') === 'true' ? true : false);
+    add_mode = (localStorage.getItem('add_mode') == 'true' ? true : false);
+    edit_mode = (localStorage.getItem('edit_mode') == 'true' ? true : false);
+    status_mode = (localStorage.getItem('status_mode') === 'true' ? true : false);
     received_mode = (localStorage.getItem('received_mode') === 'true' ? true : false);
 
-    $.each(poitems, function() {
+    $.each(poitems, function () {
       var item = this;
       var item_id = item.item_id; //site.settings.item_addition == 1 ? item.item_id : item.id;
       item.order = item.order ? item.order : order_no++;
@@ -591,13 +590,13 @@ function loadItems ()
         item_cost = item.row.cost,
         item_qty = item.row.quantity, // sma_stocks.quantity
         item_purchased_qty = item.row.purchased_qty, // sma_stocks.purchased_qty
-        item_received_qty_1  = item.row.received_qty_1, // sma_stocks.json_data.received_qty_1
-        item_received_qty_2  = item.row.received_qty_2, // sma_stocks.json_data.received_qty_2
-        item_received_qty_3  = item.row.received_qty_3, // sma_stocks.json_data.received_qty_3
-        item_received_date_1  = item.row.received_date_1, // sma_stocks.json_data.received_date_1
-        item_received_date_2  = item.row.received_date_2, // sma_stocks.json_data.received_date_2
-        item_received_date_3  = item.row.received_date_3, // sma_stocks.json_data.received_date_3
-        item_rest_qty = item.row.rest_qty;
+        item_received_qty_1 = item.row.received_qty_1, // sma_stocks.json_data.received_qty_1
+        item_received_qty_2 = item.row.received_qty_2, // sma_stocks.json_data.received_qty_2
+        item_received_qty_3 = item.row.received_qty_3, // sma_stocks.json_data.received_qty_3
+        item_received_date_1 = item.row.received_date_1, // sma_stocks.json_data.received_date_1
+        item_received_date_2 = item.row.received_date_2, // sma_stocks.json_data.received_date_2
+        item_received_date_3 = item.row.received_date_3, // sma_stocks.json_data.received_date_3
+        item_rest_qty = item.row.rest_qty,
         item_qty_alert = item.row.safety_stock,
         current_stock = item.row.current_stock,
         min_order_qty = item.row.min_order_qty,
@@ -613,7 +612,6 @@ function loadItems ()
       if (item_unit != item_base_unit) {
         for (let unit of item.units) {
           if (unit.id == item_unit) {
-            //item_cost = unitToBaseQty(item_qty, unit);
             item_qty = baseToUnitQty(item_qty, unit);
           }
         }
@@ -625,8 +623,8 @@ function loadItems ()
         }
       }
 
-      var row_no = item.id;
-      var newTr = $(`<tr id="${row_no}" class="purchase_row" data-item-id="${item_id}"></tr>`);
+      var rowId = item.id;
+      var newTr = $(`<tr id="${rowId}" class="purchase_row" data-item-id="${item_id}"></tr>`);
 
       // Product Code - Name
       tr_html =
@@ -634,14 +632,14 @@ function loadItems ()
           <input name="product_id[]" type="hidden" class="rid" value="${product_id}">
           <input name="product[]" type="hidden" class="rcode" value="${item_code}">
           <input name="product_name[]" type="hidden" class="rname" value="${item_name}">
-          <span class="sname" id="name_${row_no}">${item_code} - ${item_name}
+          <span class="sname">${item_code} - ${item_name}
             <span class="label label-default">${item_supplier_part_no}</span>
           </span>`;
 
-      let display_none = ( ! edit_mode && status_mode && postatus != 'need_approval' ? 'display-none' : '');
+      let display_none = (!edit_mode && status_mode && postatus != 'need_approval' ? 'display-none' : '');
 
       // Edit Button
-      tr_html += `<i class="pull-right fa fa-edit tip edit ${display_none}" id="${row_no}" data-item="${item_id}" title="Edit"
+      tr_html += `<i class="pull-right fa fa-edit tip edit ${display_none}" data-item="${item_id}" title="Edit"
         style="cursor:pointer;"></i>`;
 
       tr_html += '</td>'; // end Product Code - Name
@@ -652,8 +650,8 @@ function loadItems ()
       // Cost
       tr_html +=
         `<td class="text-right">
-          <input class="form-control input-sm text-right rcost" name="cost[]" type="hidden" id="cost_${row_no}" value="${item_cost}">
-          <span class="text-right scost" id="scost_${row_no}">${formatCurrency(item_cost)}</span>
+          <input class="form-control input-sm text-right rcost" name="cost[]" type="hidden" value="${item_cost}">
+          <span class="text-right scost">${formatCurrency(item_cost)}</span>
         </td>`;
 
       // Unit (UoM)
@@ -670,7 +668,7 @@ function loadItems ()
       tr_html +=
         `<td>
           <input class="form-control text-center purchased_qty" name="purchased_qty[]" type="text" value="${formatQuantity2(item_purchased_qty)}"
-            data-id="${row_no}" data-item="${item_id}" id="purchased_qty_${row_no}" onClick="this.select();" ${readonly}>
+            data-item="${item_id}" onClick="this.select();" ${readonly}>
         </td>`;
 
       readonly = 'readonly="readonly"';
@@ -678,7 +676,7 @@ function loadItems ()
 
       // Received Qty 1
       if (edit_mode) readonly = '';
-      if (received_mode && ! item_received_date_1) readonly = '';
+      if (received_mode && !item_received_date_1) readonly = '';
       tr_html +=
         `<td>
           <input class="form-control editor text-center received_qty_1" type="text" name="received_qty_1[]" value="${item_received_qty_1}" ${readonly}>
@@ -688,7 +686,7 @@ function loadItems ()
       // Received Qty 2
       readonly = _readonly;
       if (edit_mode) readonly = '';
-      if (received_mode && ! item_received_date_2 && item_received_date_1) readonly = '';
+      if (received_mode && !item_received_date_2 && item_received_date_1) readonly = '';
       tr_html +=
         `<td>
           <input class="form-control editor text-center received_qty_2" type="text" name="received_qty_2[]" value="${item_received_qty_2}" ${readonly}>
@@ -698,7 +696,7 @@ function loadItems ()
       // Received Qty 3
       readonly = _readonly;
       if (edit_mode) readonly = '';
-      if (received_mode && ! item_received_date_3 && item_received_date_2) readonly = '';
+      if (received_mode && !item_received_date_3 && item_received_date_2) readonly = '';
       tr_html +=
         `<td>
           <input class="form-control editor text-center received_qty_3" type="text" name="received_qty_3[]" value="${item_received_qty_3}" ${readonly}>
@@ -718,7 +716,7 @@ function loadItems ()
           <div class="text-center">${formatCurrency(Math.round(item_qty * item_cost))}</div>
         </td>`;
 
-      readonly = (status_mode && ! received_mode || add_mode || edit_mode ? 'readonly="readonly"' : '');
+      readonly = (status_mode && !received_mode || add_mode || edit_mode ? 'readonly="readonly"' : '');
 
       // Rest Quantity
       tr_html +=
@@ -735,10 +733,10 @@ function loadItems ()
       // Current Stock
       tr_html += `<td class="text-right">${formatQuantityFix(current_stock)}</td>`;
 
-      let no_remove = ( ! edit_mode && status_mode && postatus != 'need_approval' ? 'display-none' : '');
+      let no_remove = (!edit_mode && status_mode && postatus != 'need_approval' ? 'display-none' : '');
       tr_html +=
         `<td class="text-center">
-          <i class="fa fa-times tip podel ${no_remove}" id="${row_no}" title="Remove" style="cursor:pointer;"></i>
+          <i class="fa fa-times tip podel ${no_remove}" title="Remove" style="cursor:pointer;"></i>
         </td>`;
 
       newTr.html(tr_html);
@@ -790,7 +788,7 @@ function loadItems ()
  * @returns {Boolean}
  ---------------------------- */
 function add_purchase_item(item) {
-console.groupCollapsed('add_purchase_item');
+  console.groupCollapsed('add_purchase_item');
   if (item == null) return;
   row_id = item.id;
 
@@ -807,13 +805,13 @@ console.groupCollapsed('add_purchase_item');
   localStorage.setItem('poitems', JSON.stringify(poitems));
   console.warn(poitems);
   console.warn(localStorage.getItem('poitems'));
-console.groupEnd();
+  console.groupEnd();
   loadItems();
   return true;
 }
 
 if (typeof Storage === 'undefined') {
-  $(window).bind('beforeunload', function(e) {
+  $(window).bind('beforeunload', function (e) {
 
   });
 }

@@ -2,20 +2,15 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-class Bank extends MY_Model
+class Bank
 {
-  public function __construct()
-  {
-    parent::__construct();
-    $this->rdlog->setFileName('Bank');
-  }
-
   /**
    * Add new bank
    * @param array $data [ *code, *biller_id, *name, number, holder,
    * amount, type(cash|transfer), bic, active(1|0) ]
    */
-  public function addBank ($data) {
+  public function add($data)
+  {
     if (isset($data['balance'])) {
       $balance = $data['balance'];
       unset($data['balance']);
@@ -26,13 +21,13 @@ class Bank extends MY_Model
       unset($data['date']);
     }
 
-    $this->db->insert('banks', $data);
+    DB::table('banks')->insert($data);
 
-    if ($this->db->affected_rows()) {
-      $insertId = $this->db->insert_id();
+    if (DB::affectedRows()) {
+      $insertId = DB::insertID();
 
       if (!empty($balance)) {
-        $payment = $this->Payment->getPayment(['bank_id' => $insertId, 'status' => 'beginning']);
+        $payment = Payment::getRow(['bank_id' => $insertId, 'status' => 'beginning']);
 
         if ($balance > 0) {
           $paymentData = [
@@ -60,29 +55,13 @@ class Bank extends MY_Model
     return FALSE;
   }
 
-  public function addBanks($data)
-  {
-    $ids = [];
-
-    if (is_array($data)) {
-      foreach ($data as $bankData) {
-        if ($id = $this->addBank($bankData)) {
-          $ids[] = $id;
-        } else {
-          return FALSE;
-        }
-      }
-    }
-    return $ids;
-  }
-
   /**
    * Get bank.
    * @param array $clause [ id, code, biller_id, name, number, holder, type, bic, active ]
    */
-  public function getBank($clause = [])
+  public static function getRow($clause = [])
   {
-    if ($rows = $this->getBanks($clause)) {
+    if ($rows = self::get($clause)) {
       return $rows[0];
     }
     return NULL;
@@ -92,14 +71,25 @@ class Bank extends MY_Model
    * Get banks.
    * @param array $clause [ id, code, biller_id, name, number, holder, type, bic, active ]
    */
-  public function getBanks($clause = [])
+  public static function get($clause = [])
   {
-    $q = $this->db->get_where('banks', $clause);
+    $qb = DB::table('banks');
 
-    if ($q && $q->num_rows()) {
-      return $q->result();
+    if (!empty($clause['holder'])) {
+      $qb->like('holder', $clause['holder'], 'none');
+      unset($clause['holder']);
     }
-    return [];
+    if (!empty($clause['name'])) {
+      $qb->like('name', $clause['name'], 'none');
+      unset($clause['name']);
+    }
+
+    return $qb->get($clause);
+  }
+
+  public static function syncBankAmount(int $bankId)
+  {
+    $balance = Payment::getPaidBalance($bankId);
   }
 
   /**
@@ -107,13 +97,9 @@ class Bank extends MY_Model
    * @param array $data [ *code, *biller_id, *name, number, holder,
    * amount, type(cash|transfer), bic, active(1|0) ]
    */
-  public function updateBank($bankId, $data)
+  public static function update($bankId, $data)
   {
-    $this->db->update('banks', $data, ['id' => $bankId]);
-
-    if ($this->db->affected_rows()) {
-      return TRUE;
-    }
-    return FALSE;
+    DB::table('banks')->update($data, ['id' => $bankId]);
+    return DB::affectedRows();
   }
 }

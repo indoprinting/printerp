@@ -1,5 +1,8 @@
 <?php declare(strict_types=1);
 
+/**
+ * @deprecated 2022-07-14 13:54:37
+ */
 class App extends MY_Model
 {
   protected $apiEndPoint = 'https://api.indoprinting.co.id/v1/{method}';

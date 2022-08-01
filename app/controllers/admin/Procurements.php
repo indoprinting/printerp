@@ -772,6 +772,25 @@ class Procurements extends MY_Controller
     }
   }
 
+  public function internal_uses_sync()
+  {
+    if ($this->requestMethod == 'POST') {
+      $ids = $this->input->post('val');
+
+      if (is_array($ids) && !empty($ids)) {
+        $count = 0;
+        foreach ($ids as $iuseId) {
+          $this->site->syncStockInternalUse($iuseId);
+          $count++;
+        }
+
+        $this->response(200, ['message' => "{$count} internal use have been synced successfully."]);
+      }
+
+      $this->response(400, ['message' => 'Failed to sync.']);
+    }
+  }
+
   public function internal_uses_view($iuseId)
   {
     $this->data['error'] = (validation_errors() ? validation_errors() : $this->session->flashdata('error'));
@@ -1800,7 +1819,6 @@ class Procurements extends MY_Controller
 
       foreach ($purchase_items as $item) {
         $row = $this->site->getProductByID($item->product_id);
-        $hash = sha1($item->product_id + mt_rand(1, 1000));
         $wh_product = $this->site->getWarehouseProduct($row->id, $purchase->warehouse_id);
         $current_stock = ($wh_product ? $wh_product->quantity : 0);
 
@@ -1837,6 +1855,8 @@ class Procurements extends MY_Controller
             }
           }
         }
+
+        $hash = bin2hex(random_bytes(8));
 
         $po_items[$hash] = [
           'id'      => $hash,
@@ -3729,7 +3749,7 @@ class Procurements extends MY_Controller
     }
 
     $sr = $term;
-    $rows = $this->site->getProductNames($sr, $fromWarehouseId, 15);
+    $rows = $this->site->getProductNames($sr, 25);
 
     if ($rows) {
       $po_items = [];
@@ -3739,8 +3759,18 @@ class Procurements extends MY_Controller
         $hash = sha1($row->id + mt_rand(1, 1000));
         $whpFrom = $this->site->getWarehouseProduct($row->id, $fromWarehouseId);
         $whpTo   = $this->site->getWarehouseProduct($row->id, $toWarehouseId);
+
+        if (!$whpFrom) {
+          continue;
+          // sendJSON([['id' => 0, 'label' => 'Produk origin tidak ditemukan', 'value' => $term]]);
+        }
+        if (!$whpTo) {
+          continue;
+          // sendJSON([['id' => 0, 'label' => 'Produk tujuan tidak ditemukan', 'value' => $term]]);
+        }
+
         $destinationStock = $whpTo->quantity;
-        $sourceStock = $whpFrom->quantity;
+        $sourceStock      = $whpFrom->quantity;
         $safeStock = getOrderStock($destinationStock, $row->min_order_qty, $whpTo->safety_stock);
 
         if ($sourceStock <= 0) continue; // If source stock doesn't have stock, then ignore it.

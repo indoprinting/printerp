@@ -1138,9 +1138,7 @@ class Finances extends MY_Controller
       }
 
       if ($start_date) {
-        $start_date = $start_date . ' 00:00:00';
-        $end_date   = $end_date . ' 23:59:59';
-        $this->db->where('expenses.date BETWEEN "' . $start_date . '" AND "' . $end_date . '"');
+        $this->db->where("expenses.date BETWEEN '{$start_date} 00:00:00' AND '{$end_date} 23:59:59'");
       }
 
       if ($start_payment_date) {
@@ -1178,7 +1176,7 @@ class Finances extends MY_Controller
         $rows = $q->result();
         $r = 2;
 
-        // rd_print($rows); die();
+        // dd($rows);
 
         foreach ($rows as $row) {
           $excel->setCellValue('A' . $r, $row->id);
@@ -1186,7 +1184,7 @@ class Finances extends MY_Controller
           $excel->setCellValue('C' . $r, $row->reference);
           $excel->setCellValue('D' . $r, $row->category);
           $excel->setCellValue('E' . $r, $row->amount);
-          $excel->setCellValue('F' . $r, htmlRemove($row->amount));
+          $excel->setCellValue('F' . $r, htmlRemove($row->note));
           $excel->setCellValue('G' . $r, $row->bank_name);
           $excel->setCellValue('H' . $r, $row->biller_name);
           $excel->setCellValue('I' . $r, $row->created_by);
@@ -1212,7 +1210,7 @@ class Finances extends MY_Controller
         $excel->setColumnAutoWidth('L');
         $excel->setColumnAutoWidth('M');
 
-        $excel->export('PrintERP-Expenses-' . date('Y_m_d'));
+        $excel->export('PrintERP-Expenses-' . date('Ymd-His'));
       }
     }
   }

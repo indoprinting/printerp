@@ -35,7 +35,7 @@
             <?= lang('date'); ?>: <?= $this->sma->hrld($inv->date); ?><br>
             <?= lang('sale_status'); ?>: <?= lang($inv->status); ?><br>
             Approval Status: <?= (isset($saleJS->approved) && $saleJS->approved ? 'Approved' : 'Not Approved') ?><br>
-            <?= lang('payment_method'); ?>:
+            Payment Method:
             <?php
             if (!empty($payments)) {
               $x = 0;
@@ -46,7 +46,8 @@
             }
             ?>
             <br>
-            <?= lang('payment_status'); ?>: <?= lang($inv->payment_status); ?><br>
+            Payment Status: <?= lang($inv->payment_status); ?><br>
+            Production: <?= $warehouse->name ?><br>
             Source: <?= (isset($saleJS->source) && $saleJS->source == 'W2P' ? 'Web2Print' : 'PrintERP'); ?>
           </p>
         </div>

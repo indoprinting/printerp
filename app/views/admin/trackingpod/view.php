@@ -33,6 +33,10 @@ $warehouse = $this->site->getWarehouseByID($track->warehouse_id);
           <td><?= $product->code ?></td>
         </tr>
         <tr>
+          <td>Current Click</td>
+          <td><?= formatDecimal($klikpod_qty) ?></td>
+        </tr>
+        <tr>
           <td>Start Click</td>
           <td><?= formatDecimal($track->start_click) ?></td>
         </tr>

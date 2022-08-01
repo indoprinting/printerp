@@ -203,7 +203,7 @@
                   $bl[$biller->id] = $biller->name;
                 }
 
-                echo form_dropdown('biller', $bl, $purchase->biller_id, 'class="select2" id="biller" data-placeholder="Select Biller" style="width:100%;" required="required"');
+                echo form_dropdown('biller', $bl, $purchase->biller_id, 'class="select2" id="pobiller" data-placeholder="Select Biller" style="width:100%;" required="required"');
                 ?>
               </div>
             </div>
@@ -239,7 +239,7 @@
                     <div class="form-group">
                       <?= lang('supplier', 'posupplier'); ?>
                       <div class="input-group">
-                        <select name="supplier" id="supplier" class="select2" style="width:100%;" data-placeholder="Select Supplier"></select>
+                        <select name="supplier" id="posupplier" class="select2" style="width:100%;" data-placeholder="Select Supplier"></select>
                         <div class="input-group-addon no-print" style="padding: 2px 5px; border-left: 0;">
                           <a href="#" id="view-supplier">
                             <i class="fad fa-user" id="addIcon"></i>
@@ -258,9 +258,9 @@
                       <?= lang('category', 'category') ?>
                       <select name="category" id="category" class="select2" data-placeholder="Purchase Category" style="width:100%;">
                         <option value="0">General</option>
-                        <?php foreach ($expenseCategories as $excat): ?>
+                        <?php foreach ($expenseCategories as $excat) : ?>
                           <?php $selected = ($excat->id == $purchase->category_id ? ' selected' : ''); ?>
-                          <option value="<?= $excat->id ?>"<?= $selected ?>><?= $excat->name ?></option>
+                          <option value="<?= $excat->id ?>" <?= $selected ?>><?= $excat->name ?></option>
                         <?php endforeach; ?>
                       </select>
                     </div>

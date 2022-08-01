@@ -228,10 +228,10 @@ class Cron_model extends CI_Model
 
   private function deleteUserLogins($date)
   {
-    $this->db->where('time <', $date);
-    if ($this->db->delete('user_logins')) {
-      return true;
-    }
+    // $this->db->where('time <', $date);
+    // if ($this->db->delete('user_logins')) {
+    //   return true;
+    // }
     return false;
   }
 

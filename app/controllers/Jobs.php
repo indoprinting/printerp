@@ -18,24 +18,32 @@ class Jobs extends MY_Controller
 
     $this->rdlog->info('Jobs started.');
 
-    if ($job = $this->site->getJob(['status' => 'pending'])) {
-      if (empty($job->controller)) {
-        $this->site->updateJob($job->id, ['result' => 'Controller is missing.', 'status' => 'error']);
+    if ($job = $this->site->getJob(['status' => 'queue'])) {
+      if (empty($job->request)) {
+        $this->site->updateJob($job->id, ['response' => 'Request is missing.', 'status' => 'failed']);
         die;
       }
 
-      if (empty($job->method)) {
-        $this->site->updateJob($job->id, ['result' => 'Method is missing.', 'status' => 'error']);
-        die;
-      }
-
-      $this->rdlog->info("Jobs process {$job->controller}::{$job->method}({$job->param})");
+      $this->rdlog->info("Jobs process $job->request)");
       $this->site->updateJob($job->id, ['status' => 'processing']);
-      exec('/usr/local/bin/ea-php80 ' . FCPATH . "index.php {$job->controller} {$job->method} {$job->param}", $res);
-      $this->site->updateJob($job->id, ['result' => implode(' ', $res), 'status' => 'done']);
+      exec('/www/server/php/80/bin/php ' . FCPATH . "index.php {$job->request}", $res);
+      $this->site->updateJob($job->id, ['response' => implode(' ', $res), 'status' => 'done']);
     }
 
     $this->rdlog->info('Jobs finished.');
+  }
+
+  public function add($request)
+  {
+    $jobData = [
+      'request' => $request,
+      'status'  => 'queue'
+    ];
+
+    if ($this->site->addJob($jobData)) {
+      $this->response(201, ['message' => 'Job has been created.']);
+    }
+    $this->response(400, ['message' => 'Failed to create job.']);
   }
 
   public function test()

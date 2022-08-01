@@ -2,42 +2,42 @@
 
 declare(strict_types=1);
 
-class Stock
+class Template
 {
   /**
-   * Add new stocks.
+   * Add new tableName.
    * @param array $data [ name, code ]
    */
   public static function add(array $data)
   {
     $db = get_instance()->db;
-    $db->insert('stocks', $data);
+    $db->insert('tableName', $data);
     return $db->insert_id();
   }
 
   /**
-   * Delete stocks.
+   * Delete tableName.
    * @param array $clause [ id, name, code ]
    */
   public static function delete(array $clause)
   {
     $db = get_instance()->db;
-    $db->delete('stocks', $clause);
+    $db->delete('tableName', $clause);
     return $db->affected_rows();
   }
 
   /**
-   * Get stocks collections.
+   * Get tableName collections.
    * @param array $clause [ id, name, code ]
    */
   public static function get($clause = [])
   {
-    $q = get_instance()->db->where($clause)->get('stocks');
+    $q = get_instance()->db->where($clause)->get('tableName');
     return ($q ? $q->result() : []);
   }
 
   /**
-   * Get stocks row.
+   * Get tableName row.
    * @param array $clause [ id, name, code ]
    */
   public static function getRow($clause = [])
@@ -49,14 +49,14 @@ class Stock
   }
 
   /**
-   * Update stocks.
-   * @param int $id stocks ID.
+   * Update tableName.
+   * @param int $id tableName ID.
    * @param array $data [ name, code ]
    */
   public static function update(int $id, array $data)
   {
     $db = get_instance()->db;
-    $db->update('stocks', $data, ['id' => $id]);
+    $db->update('tableName', $data, ['id' => $id]);
     return $db->affected_rows();
   }
 }

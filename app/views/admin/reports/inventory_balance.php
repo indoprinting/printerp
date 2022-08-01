@@ -254,14 +254,12 @@ if ($warehouse_id) $q .= '&warehouse=' . $warehouse_id;
               <div class="form-group">
                 <?= lang('start_date', 'start_date'); ?>
                 <input type="date" id="start_date" name="start_date" class="form-control" value="<?= $start_date ?>">
-                
               </div>
             </div>
 
             <div class="col-sm-2">
               <div class="form-group">
                 <?= lang('end_date', 'end_date'); ?>
-                <?php echo form_input('end_date', $end_date, 'class="form-control date" id="end_date"'); ?>
                 <input type="date" id="end_date" name="end_date" class="form-control" value="<?= $end_date ?>">
               </div>
             </div>

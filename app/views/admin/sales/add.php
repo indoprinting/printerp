@@ -432,7 +432,7 @@
                   <div class="form-group">
                     <?= lang('payment_status', 'slpayment_status'); ?>
                     <?php $pst = ['pending' => lang('pending')];
-                      echo form_dropdown('payment_status', $pst, '', 'class="select2" required="required" id="slpayment_status" style="width:100%"'); ?>
+                      echo form_dropdown('payment_status', $pst, 'pending', 'class="select2" required="required" id="slpayment_status" style="width:100%"'); ?>
                   </div>
                 </div>
                 <?php } else {

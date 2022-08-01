@@ -4,8 +4,7 @@
     an = 1,
     total = 0;
   $(document).ready(function() {
-    <?php if ($inv) {
-    ?>
+    <?php if ($inv): ?>
       localStorage.setItem('sldate', '<?= $this->sma->hrld($inv->date) ?>');
       localStorage.setItem('slcustomer', '<?= $inv->customer_id ?>');
       localStorage.setItem('slbiller', '<?= $inv->biller_id ?>');
@@ -18,8 +17,7 @@
       localStorage.setItem('slnote', `<?= str_replace(["\r", "\n"], '', htmlDecode($inv->note)); ?>`);
       localStorage.setItem('slitems', JSON.stringify(<?= $inv_items; ?>));
       localStorage.setItem('edit_mode', '<?= $edit_mode; ?>');
-    <?php
-    } ?>
+    <?php endif; ?>
 
     $(document).on('change', '#sldate', function(e) {
       localStorage.setItem('sldate', $(this).val());
@@ -175,7 +173,7 @@
                     if ($creator->username == 'w2p' && $this->session->userdata('user_id') != $user->id) continue;
                     $group = $this->site->getUserGroup($user->id);
                     //if ($group->name != 'cs' && $group->name != 'tl') continue;
-                    $usr[$user->id] = $user->first_name . ' ' . $user->last_name;
+                    $usr[$user->id] = $user->fullname;
                     $blr[$user->id] = $user->biller_id;
                   }
                   echo form_dropdown('created_by', $usr, $inv->created_by, 'id="slpic" data-placeholder="' . lang('select') . ' ' . lang('pic_name') . '" required="required" class="select2" style="width:100%;"'); ?>
@@ -240,7 +238,8 @@
                             if (
                               $edit_mode != 'edit' &&
                               !$this->Owner && !$this->Admin &&
-                              $this->session->userdata('warehouse_id') != $warehouse->id
+                              $this->session->userdata('warehouse_id') != $warehouse->id &&
+                              $warehouse->id != $inv->warehouse_id
                             ) continue;
 
                             $wh[$warehouse->id] = $warehouse->name;

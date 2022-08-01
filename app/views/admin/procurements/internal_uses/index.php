@@ -126,12 +126,17 @@ if ($warehouse_to) $q .= '&warehouse=' . $warehouse_to;
           <ul class="dropdown-menu dropdown-menu-right tasks-menus" role="menu" aria-labelledby="dLabel">
             <li>
               <a href="<?= admin_url('procurements/internal_uses/add') ?>">
-                <i class="fad fa-plus-circle"></i> <?= lang('add_internal_use') ?>
+                <i class="fad fa-fw fa-plus-circle"></i> <?= lang('add_internal_use') ?>
               </a>
             </li>
             <li>
               <a href="#" id="export_excel">
-                <i class="fad fa-file-excel"></i> <?= lang('export_to_excel') ?>
+                <i class="fad fa-fw fa-file-excel"></i> <?= lang('export_to_excel') ?>
+              </a>
+            </li>
+            <li>
+              <a href="#" id="sync_iuse">
+                <i class="fad fa-fw fa-sync"></i> Sync Internal Uses
               </a>
             </li>
             <li class="divider"></li>
@@ -139,7 +144,7 @@ if ($warehouse_to) $q .= '&warehouse=' . $warehouse_to;
               <a href="#" class="bpo" title="<b><?= $this->lang->line('delete_internal_uses') ?></b>"
                 data-content="<p><?= lang('r_u_sure') ?></p><button type='button' class='btn btn-danger' id='delete' data-action='delete'><?= lang('i_m_sure') ?></a> <button class='btn bpo-close'><?= lang('no') ?></button>"
                 data-html="true" data-placement="left">
-                <i class="fad fa-trash"></i> <?= lang('delete_internal_uses') ?>
+                <i class="fad fa-fw fa-trash"></i> <?= lang('delete_internal_uses') ?>
               </a>
             </li>
           </ul>
@@ -279,6 +284,42 @@ if ($warehouse_to) $q .= '&warehouse=' . $warehouse_to;
 </div>
 <script>
   $(document).ready(function () {
+    $('#sync_iuse').click(function() {
+      addConfirm({
+        title: 'Sync Internal Use',
+        message: 'Sinkronkan Internal Use?',
+        onok: () => {
+          let formData = new FormData();
+          let vals = $('input[name="val[]"]');
+
+          formData.append('<?= csrf_token_name() ?>', '<?= csrf_hash() ?>');
+
+          for (let x in vals) {
+            if (vals[x].checked) {
+              formData.append('val[]', vals[x].value);
+            }
+          }
+
+          $.ajax({
+            contentType: false,
+            data: formData,
+            error: (xhr) => {
+              addAlert(xhr.responseJSON.message, 'danger');
+            },
+            processData: false,
+            method: 'POST',
+            success: function(data) {
+              if (typeof oTable == 'object') oTable.fnDraw(false);
+              if (typeof Table == 'object') Table.draw(false);
+
+              addAlert(data.message, 'success');
+            },
+            url: site.base_url + 'procurements/internal_uses/sync'
+          })
+        }
+      })
+    });
+
     $('#export_excel').click(function () {
       event.preventDefault();
       let q = '?xls=1';

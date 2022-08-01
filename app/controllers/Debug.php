@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
 class Debug extends MY_Controller
@@ -12,6 +15,76 @@ class Debug extends MY_Controller
   public function index()
   {
     echo "Index";
+  }
+
+  public function gsheet()
+  {
+    $values = getGoogleSheet('1zebz6ho-9gLHsko65-2wwP9ciSJoN_lcTVPghPr7oLs', 'A3:C');
+
+    echo '<pre>';
+    print_r($values);
+    echo '</pre>';
+  }
+
+  public function db()
+  {
+    $balance = Payment::getPaidBalance(2);
+    print_r($balance);
+  }
+
+  public function model()
+  {
+    $items = $this->site->getProductNames('stamp');
+
+    echo ('<pre>');
+    print_r($items);
+    echo ('</pre>');
+  }
+
+  public function clearcache()
+  {
+    $caches = $this->cache->getAllKeys();
+
+    foreach ($caches as $key) {
+      // $this->cache->delete($key);
+    }
+
+    echo '<pre>';
+    print_r($caches);
+    echo '</pre>';
+  }
+
+  public function memcache()
+  {
+    $cache = new Memcached();
+
+    $cache->addServer('127.0.0.1', 11211);
+
+    $data = $cache->get('clouder');
+
+    if (!$data) {
+      $data = 'HELLO BOSSY';
+      $cache->set('clouder', $data);
+      echo 'Cached<br>';
+    }
+
+    echo $data;
+  }
+
+  public function upload_file()
+  {
+    $upload = new FileUpload();
+
+    if ($this->requestMethod == 'POST') {
+      if ($upload->has('attachment') && $upload->getSize('mb') < 2) {
+        if ($id = $upload->store()) {
+          $this->response(201, ['message' => "Success {$id}"]);
+        }
+        $this->response(400, ['message' => 'Failed']);
+      }
+    } else {
+      echo "Upload files";
+    }
   }
 
   public function bank()
@@ -183,9 +256,9 @@ class Debug extends MY_Controller
 
   public function pdf()
   {
-    if (exportPDF('<b>Bismillah</b>', 'DomPDF.pdf')):
+    if (exportPDF('<b>Bismillah</b>', 'DomPDF.pdf')) :
       echo "Success";
-    else:
+    else :
       echo "Failed";
     endif;
   }
@@ -946,7 +1019,7 @@ class Debug extends MY_Controller
   public function sync_sales()
   {
     ini_set('max_execution_time', 0);
-    $client = new \GuzzleHttp\Client();
+    $client = new GuzzleHttp\Client();
     $client->getAsync(base_url())->then(function ($response) {
       $this->site->syncSales(['start_date' => '2021-06-01', 'end_date' => '2021-06-29']);
     });

@@ -13,7 +13,8 @@ use PhpOffice\PhpSpreadsheet\Writer;
 /**
  * File Upload class.
  */
-class FileUpload {
+class FileUpload
+{
   protected $file = NULL;
   protected $files;
   protected $is_moved = FALSE;
@@ -78,11 +79,14 @@ class FileUpload {
     if ($this->file) {
       switch ($unit) {
         case 'kb':
-          $acc = 1024; break;
+          $acc = 1024;
+          break;
         case 'mb':
-          $acc = (1024 * 1024); break;
+          $acc = (1024 * 1024);
+          break;
         case 'gb':
-          $acc = (1024 * 1024 * 1024); break;
+          $acc = (1024 * 1024 * 1024);
+          break;
         case 'byte':
         default:
           $acc = 1;
@@ -133,14 +137,26 @@ class FileUpload {
     return FALSE;
   }
 
-  public function store($newName = NULL)
+  /**
+   * Store file to attachment table as BLOB.
+   * @param string $filename Filename to store. Use default filename if omitted.
+   */
+  public function store($filename = NULL)
   {
-    $ci = &get_instance();
-    return $ci->Attachment->addAttachment([
-      'filename' => $newName,
+    return Attachment::add([
+      'filename' => ($filename ?? $this->getName()),
       'mime' => $this->getType(),
-      'data' => file_get_contents($this->getTempName())
+      'data' => file_get_contents($this->getTempName()),
+      'size' => $this->getSize()
     ]);
+  }
+
+  /**
+   * Store file with random name to attachment table as BLOB.
+   */
+  public function storeRandom()
+  {
+    return $this->store($this->getRandomName());
   }
 }
 
@@ -168,7 +184,7 @@ class Ridintek
   {
     $this->gsheet = new RD_Googlesheet();
     $this->gsheet->setCredentialFile(FCPATH . 'assets/credentials/PrintERP-66452fc687c7.json');
-    $this->gsheet->setScopes([Google_Service_Sheets::SPREADSHEETS]);
+    $this->gsheet->setScopes([Google\Service\Sheets::SPREADSHEETS]);
     $this->gsheet->getGoogleServiceSheet();
 
     return $this->gsheet;
@@ -313,7 +329,7 @@ class RD_Googlesheet
 
   public function getGoogleServiceSheet()
   {
-    $this->service = new Google_Service_Sheets($this->client);
+    $this->service = new Google\Service\Sheets($this->client);
     return $this;
   }
 
@@ -498,8 +514,10 @@ class RD_Spreadsheet
       die('Cannot export. File doesn\'t exist.');
     }
 
-    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    // header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    // header('Content-Disposition: attachment; filename="' . $filename . '"');
+    // header('Content-Length: ' . filesize($exportPath . $filename));
+    // Just redirect it. If headers above are used. Error 520 on cloudflare.
     header('Location: ' . base_url('files/exports/' . $filename));
     exit();
   }

@@ -121,7 +121,8 @@ class Site extends MY_Model
    * @param array $data [ *code, *biller_id, *name, number, holder,
    * amount, type(Transfer|Cash), bic, active(1|0) ]
    */
-  public function addBank ($data) {
+  public function addBank($data)
+  {
     if (isset($data['balance'])) {
       $balance = $data['balance'];
       unset($data['balance']);
@@ -191,8 +192,9 @@ class Site extends MY_Model
    *  note, created_by ]
    * @param bool $use_payment_validation Use Payment Validation.
    */
-  public function addBankMutation ($data, $use_payment_validation = FALSE) {
-    if ( ! empty($data)) {
+  public function addBankMutation($data, $use_payment_validation = FALSE)
+  {
+    if (!empty($data)) {
       if (empty($data['date'])) $data['date'] = date('Y-m-d H:i:s');
       $data['reference'] = $this->getReference('mutation');
 
@@ -670,7 +672,7 @@ class Site extends MY_Model
         $product = $this->site->getProductByID($item['product_id']);
 
         if ($product) {
-          $data['items'] .= "- ({$product->code}) ". getExcerpt($product->name) . '<br>';
+          $data['items'] .= "- ({$product->code}) " . getExcerpt($product->name) . '<br>';
         }
       }
     }
@@ -780,6 +782,8 @@ class Site extends MY_Model
   { // PASSED
     if (!empty($products) && is_array($products)) {
       $product_ids = [];
+      $success = 0;
+
       foreach ($products as $product) {
         $product_data = [
           'code'               => $product['code'],
@@ -787,7 +791,7 @@ class Site extends MY_Model
           'unit'               => $product['unit'],
           'avg_cost'           => ($product['avg_cost'] ?? 0),
           'cost'               => $product['cost'],
-          'price'              => $product['price'],
+          'price'              => ($product['price'] ?? 0),
           'warehouses'         => $product['warehouses'],
           'markon_price'       => ($product['markon_price'] ?? 0),
           'markon'             => ($product['markon'] ?? 0),
@@ -845,6 +849,7 @@ class Site extends MY_Model
 
         if ($this->db->trans_status()) {
           $product_ids[] = $product_id;
+          $success++;
 
           if ($product['type'] == 'combo') {
             if (!empty($product['combo_items']) && is_array($product['combo_items'])) { // Combo Items
@@ -932,7 +937,7 @@ class Site extends MY_Model
           }
         }
       }
-      return $product_ids;
+      return $success;
     }
     return FALSE;
   }
@@ -1102,7 +1107,7 @@ class Site extends MY_Model
     $grandTotal = ($totalPrice - ($data['discount'] ?? 0));
 
     // Get balance.
-    $balance = ($isSpecialCustomer ? $grandTotal: 0);
+    $balance = ($isSpecialCustomer ? $grandTotal : 0);
 
     // Determine use TB by biller and warehouse, if both different, then use tb (1).
     $use_tb = (strcasecmp($biller->name, $warehouse->name) === 0 ? 0 : 1);
@@ -1240,7 +1245,8 @@ class Site extends MY_Model
           $saleItemJS = getJSON($sale_items_data['json_data']);
 
           // AUTO COMPLETE ENGINE
-          if ($sale->status != 'draft' && $isSpecialCustomer &&
+          if (
+            $sale->status != 'draft' && $isSpecialCustomer &&
             (isset($productJS->autocomplete) && $productJS->autocomplete == 1)
           ) {
             $this->completeSaleItem($saleitem_id, ['quantity' => $qty, 'created_by' => $item_operator]);
@@ -2322,10 +2328,12 @@ class Site extends MY_Model
     $dateTime       = ($data['created_at'] ?? date('Y-m-d H:i:s'));
     $todayClick = 0;
 
-    $tracks = $this->getTrackingPODs(['pod_id' => $data['pod_id'], 'warehouse_id' => $data['warehouse_id']],
-    [
-      'start_date' => date('Y-m-d', strtotime($dateTime)), 'end_date'   => date('Y-m-d', strtotime($dateTime))
-    ]);
+    $tracks = $this->getTrackingPODs(
+      ['pod_id' => $data['pod_id'], 'warehouse_id' => $data['warehouse_id']],
+      [
+        'start_date' => date('Y-m-d', strtotime($dateTime)), 'end_date'   => date('Y-m-d', strtotime($dateTime))
+      ]
+    );
 
     foreach ($tracks as $track) {
       $todayClick += $track->usage_click;
@@ -2370,6 +2378,7 @@ class Site extends MY_Model
           'quantity'       => $data['end_click']
         ];
 
+        // Add adjustment.
         if ($adjustmentId = $this->addAdjustmentStock($adjustmentData, $adjustmentItems)) {
           $this->db->update('trackingpod', ['adjustment_id' => $adjustmentId], ['id' => $trackId]);
         }
@@ -2519,7 +2528,8 @@ class Site extends MY_Model
     return FALSE;
   }
 
-  public function bankActivate ($id) {
+  public function bankActivate($id)
+  {
     $this->db->trans_start();
     $this->db->update('banks', ['active' => 1], ['id' => $id]);
     $this->db->trans_complete();
@@ -2529,7 +2539,8 @@ class Site extends MY_Model
     return FALSE;
   }
 
-  public function bankDeactivate ($id) {
+  public function bankDeactivate($id)
+  {
     $this->db->trans_start();
     $this->db->update('banks', ['active' => 0], ['id' => $id]);
     $this->db->trans_complete();
@@ -2550,7 +2561,7 @@ class Site extends MY_Model
 
     if ($saleItem) {
       $completedQty = $data['quantity']; // Quantity to complete.
-      $pic          = ($data['created_by'] ?? $this->session->userdata('user_id'));
+      $createdBy    = ($data['created_by'] ?? $this->session->userdata('user_id'));
       $sale         = $this->getSaleByID($saleItem->sale_id);
       $saleItemData = [];
       $saleItemJS   = getJSON($saleItem->json_data);
@@ -2559,9 +2570,12 @@ class Site extends MY_Model
 
       if (empty($data['quantity'])) sendJSON(['error' => 1, 'msg' => 'Cannot complete zero (0) quantity.']);
 
+      // Get operator data.
+      $op = $this->getUserByID($createdBy);
+
       // Set Completed date and Operator who completed it.
       $saleItemData['completed_at'] = $date; // Completed date.
-      $saleItemData['operator_id']  = $pic; // Change PIC who completed it.
+      $saleItemData['operator_id']  = $op->id; // Change PIC who completed it.
 
       if (empty($saleItemJS->due_date)) { // Check if sale item has due date. If empty then restricted.
         log_message('error', "Item {$saleItem->product_code} doesn't have due date.");
@@ -2608,8 +2622,8 @@ class Site extends MY_Model
                   'product_id'   => $comboItem->product_id,
                   'price'        => $saleItem->unit_price,
                   'quantity'     => $finalCompletedQty,
-                  'warehouse_id' => $saleItem->warehouse_id,
-                  'created_by'   => $pic
+                  'warehouse_id' => $sale->warehouse_id, // Must sale->warehouse_id, NOT saleItem->warehouse_id
+                  'created_by'   => $op->id
                 ]);
 
                 addEvent("Completed Sale [{$sale->id}: {$sale->reference}], {$saleItem->product_code}: {$finalCompletedQty}");
@@ -2630,7 +2644,7 @@ class Site extends MY_Model
                   'price'        => $saleItem->unit_price,
                   'quantity'     => $finalCompletedQty,
                   'warehouse_id' => $saleItem->warehouse_id,
-                  'created_by'   => $pic
+                  'created_by'   => $op->id
                 ]);
 
                 addEvent("Completed Sale [{$sale->id}: {$sale->reference}]; {$saleItem->product_code}: {$finalCompletedQty}");
@@ -2654,7 +2668,7 @@ class Site extends MY_Model
             'price'        => $saleItem->unit_price,
             'quantity'     => $completedQty,
             'warehouse_id' => $saleItem->warehouse_id,
-            'created_by'   => $pic
+            'created_by'   => $op->id
           ]);
 
           addEvent("Completed Sale [{$sale->id}: {$sale->reference}]; {$saleItem->product_code}: {$completedQty}");
@@ -2671,7 +2685,7 @@ class Site extends MY_Model
             'price'        => $saleItem->unit_price,
             'quantity'     => $completedQty,
             'warehouse_id' => $saleItem->warehouse_id,
-            'created_by'   => $pic
+            'created_by'   => $op->id
           ]);
 
           addEvent("Completed Sale [{$sale->id}: {$sale->reference}]; {$saleItem->product_code}: {$completedQty}");
@@ -2984,7 +2998,7 @@ class Site extends MY_Model
   {
     $ci = $this;
 
-    $result = $this->ridintek->mutex('bank')->on('lock', function() use ($ci, $bank_id, $amount) {
+    $result = $this->ridintek->mutex('bank')->on('lock', function () use ($ci, $bank_id, $amount) {
       $real_amount = filterDecimal($amount);
       $bank = $ci->getBankByID($bank_id);
 
@@ -3177,7 +3191,8 @@ class Site extends MY_Model
    * Delete Income.
    * @param int $income_id Income ID
    */
-  public function deleteIncome($income_id) {
+  public function deleteIncome($income_id)
+  {
     if ($this->db->delete('incomes', ['id' => $income_id])) {
       if ($this->deletePayments(['income_id' => $income_id])) {
         return TRUE;
@@ -4271,7 +4286,7 @@ class Site extends MY_Model
       }
       return $data;
     }
-    return [];
+    return ['Cash', 'Transfer'];
   }
 
   public function getBillerByID($id)
@@ -4367,9 +4382,17 @@ class Site extends MY_Model
     return [];
   }
 
-  public function getCategories()
+  public function getCategory($clause = [])
+  {
+    if ($rows = $this->getCategories($clause)) {
+      return $rows[0];
+    }
+    return NULL;
+  }
+
+  public function getCategories($clause = [])
   { // Added
-    $q = $this->db->get('categories');
+    $q = $this->db->get_where('categories', $clause);
     if ($q->num_rows() > 0) {
       return $q->result();
     }
@@ -4794,7 +4817,6 @@ class Site extends MY_Model
   public function getHolidays($clause = [])
   {
     if (!empty($clause['biller_id'])) {
-
     }
 
     $q = $this->db->get_where('holiday', $clause);
@@ -5420,6 +5442,7 @@ class Site extends MY_Model
   public function getProductNames($term, $limit = 10, $options = [])
   {
     if (empty($term)) return [];
+
     $this->db->select("products.id AS id, code, name, unit, cost, price, warehouses, markon_price,
       markon, safety_stock, min_order_qty, iuse_type, active, quantity, type, purchase_unit");
 
@@ -5647,7 +5670,6 @@ class Site extends MY_Model
       }
 
       if (isset($term['warehouse_id'])) {
-
       }
     } else if (gettype($term) == 'string') {
       $this->db->where("(id LIKE '%" . $term . "%' OR code LIKE '%" . $term . "%' OR name LIKE '%" . $term . "%')");
@@ -5951,7 +5973,8 @@ class Site extends MY_Model
     if ($q && $q->num_rows() > 0) {
       return $q->result();
     } else if (!$q) {
-      echo 'Database error . ' . $this->db->error()['message']; die();
+      echo 'Database error . ' . $this->db->error()['message'];
+      die();
     }
     return [];
   }
@@ -6155,7 +6178,7 @@ class Site extends MY_Model
   public function getSettings()
   {
     $q = $this->db->get('settings');
-    if ($q->num_rows() > 0) {
+    if ($q && $q->num_rows() > 0) {
       return $q->row();
     }
     return NULL;
@@ -6746,6 +6769,32 @@ class Site extends MY_Model
     return [];
   }
 
+  public function getSupplier($clause = [])
+  {
+    if ($rows = $this->getSuppliers($clause)) {
+      return $rows[0];
+    }
+    return NULL;
+  }
+
+  public function getSuppliers($clause = [])
+  {
+    if (!empty($clause['company'])) {
+      $this->db->like('company', $clause['company'], 'none');
+      unset($clause['company']);
+    }
+    if (!empty($clause['name'])) {
+      $this->db->like('name', $clause['name'], 'none');
+      unset($clause['name']);
+    }
+
+    $q = $this->db->get_where('suppliers', $clause);
+    if ($q && $q->num_rows()) {
+      return $q->result();
+    }
+    return [];
+  }
+
   public function getSupplierByCompanyName($company)
   {
     if (empty($company)) return NULL;
@@ -6970,6 +7019,32 @@ class Site extends MY_Model
 
     $q = $this->db->get_where('transfers', $clause);
 
+    if ($q && $q->num_rows()) {
+      return $q->result();
+    }
+    return [];
+  }
+
+  public function getUnit($clause = [])
+  {
+    if ($rows = $this->getUnits($clause)) {
+      return $rows[0];
+    }
+    return NULL;
+  }
+
+  public function getUnits($clause = [])
+  {
+    if (!empty($clause['code'])) {
+      $this->db->like('code', $clause['code'], 'none');
+      unset($clause['code']);
+    }
+    if (!empty($clause['name'])) {
+      $this->db->like('name', $clause['name'], 'none');
+      unset($clause['name']);
+    }
+
+    $q = $this->db->get_where('units', $clause);
     if ($q && $q->num_rows()) {
       return $q->result();
     }
@@ -7309,7 +7384,7 @@ class Site extends MY_Model
   {
     $ci = $this;
 
-    $result = $this->ridintek->mutex('bank')->on('lock', function() use ($ci, $bank_id, $amount) {
+    $result = $this->ridintek->mutex('bank')->on('lock', function () use ($ci, $bank_id, $amount) {
       $real_amount = filterDecimal($amount);
       $bank = $ci->getBankByID($bank_id);
 
@@ -7630,10 +7705,10 @@ class Site extends MY_Model
       $category2 = $this->getProductCategoryByCode('EQUIP');
 
       $this->db
-      ->group_start()
+        ->group_start()
         ->where('products.category_id', $category1->id)
         ->or_where('products.category_id', $category2->id)
-      ->group_end();
+        ->group_end();
 
       $q = $this->db->get('products');
 
@@ -7934,12 +8009,24 @@ class Site extends MY_Model
       $saleJS = getJSON($sale->json_data);
       $saleData = [];
 
+      if (!$saleJS) {
+        $this->rdlog->error("Invalid sales->json_data in sale id {$sale->id}, {$sale->reference}");
+        $this->rdlog->error($saleJS);
+        continue;
+      }
+
       $isDuePayment      = isDueDate($saleJS->payment_due_date ?? $sale->due_date);
       $isW2PUser         = isW2PUser($sale->created_by); // Is sale created_by user is w2p?
       $isSpecialCustomer = isSpecialCustomer($sale->customer_id); // Special customer (Privilege, TOP)
       $payments          = $this->getPayments(['sale_id' => $sale->id]);
       $paymentValidation = $this->getPaymentValidationBySaleID($sale->id);
       $saleItems         = $this->getSaleItemsBySaleID($sale->id);
+
+      if (empty($saleItems)) {
+        // die("Sale items empty. Please check '{$sale->reference}'");
+        $this->rdlog->error("Sale items empty. Sale id {$sale->id}, {$sale->reference}");
+        continue;
+      }
 
       $completedItems = 0;
       $deliveredItems = 0;
@@ -7948,11 +8035,6 @@ class Site extends MY_Model
       $hasPartial     = FALSE;
       $totalSaleItems = 0;
       $saleStatus     = $sale->status;
-
-      if (empty($saleItems)) {
-        // die("Sale items empty. Please check '{$sale->reference}'");
-        continue;
-      }
 
       foreach ($saleItems as $saleItem) {
         $saleItemData = [];
@@ -8079,8 +8161,7 @@ class Site extends MY_Model
 
       // If any change of sale status or payment status for W2P sale then dispatch W2P sale info.
       if (isset($saleJS->source) && $saleJS->source == 'W2P') {
-        if ($sale->status != $saleStatus || $sale->payment_status != $paymentStatus)
-        {
+        if ($sale->status != $saleStatus || $sale->payment_status != $paymentStatus) {
           // $this->rdlog->info("Dispatching sale {$sale->reference} to Web2Print by syncSales.");
           dispatchW2PSale($sale->id);
         }
@@ -8131,7 +8212,6 @@ class Site extends MY_Model
         if ($soItems) {
           foreach ($soItems as $soItem) {
             $product = $this->getProductByID($soItem->product_id);
-
           }
         }
       }
@@ -8369,8 +8449,9 @@ class Site extends MY_Model
    * @param array $data [ date, from_bank_id, to_bank_id, paid_by(Transfer), amount, note, created_by,
    *  updated_by, status, attachment ]
    */
-  public function updateBankMutation ($mutation_id, $data) {
-    if ( ! empty($data)) {
+  public function updateBankMutation($mutation_id, $data)
+  {
+    if (!empty($data)) {
       $mutation_data = [];
 
       if (!empty($data['date'])) $mutation_data['date'] = $data['date'];
@@ -8527,7 +8608,8 @@ class Site extends MY_Model
           }
         }
 
-        if ($expense->status == 'approved' &&
+        if (
+          $expense->status == 'approved' &&
           $oldExpense->payment_status == 'pending' &&
           $expense->payment_status == 'paid'
         ) {
@@ -8806,6 +8888,7 @@ class Site extends MY_Model
     if (!empty($products) && is_array($products)) {
       $product_data = [];
       $product_ids = [];
+      $success = 0;
 
       foreach ($products as $product) {
         if (!empty($product['code']))               $product_data['code']               = $product['code'];
@@ -8881,6 +8964,7 @@ class Site extends MY_Model
 
         if ($this->db->trans_status()) {
           $product_ids[] = $product['product_id'];
+          $success++;
 
           if (!empty($product['type']) && $product['type'] == 'combo') {
             if (!empty($product['combo_items']) && is_array($product['combo_items'])) { // Combo Items
@@ -8968,7 +9052,7 @@ class Site extends MY_Model
           }
         }
       }
-      return $product_ids;
+      return $success;
     }
     return FALSE;
   }
@@ -9042,7 +9126,8 @@ class Site extends MY_Model
     }
 
     if ($items && is_array($items)) {
-      $grandTotal = 0; $receivedValue = 0;
+      $grandTotal = 0;
+      $receivedValue = 0;
 
       foreach ($items as $item) {
         $grandTotal += ($item['cost'] * $item['purchased_qty']);
@@ -9165,6 +9250,10 @@ class Site extends MY_Model
             $total_qty = 0;
 
             foreach ($items as $item) {
+              if (isset($data['warehouse_id'])) {
+                $item['warehouse_id'] = $data['warehouse_id'];
+              }
+
               $item['date'] = $sale->date;
               $item_w    = filterQuantity($item['width']  ?? 0);
               $item_l    = filterQuantity($item['length'] ?? 0);
@@ -9179,18 +9268,21 @@ class Site extends MY_Model
               $sale_items[]  = $item;
 
               $_item = $this->getProductByID($item['product_id']);
-              addEvent("Updated Sale Item [{$_item->name}], W:{$item_w}, L:{$item_l}, ".
+              addEvent("Updated Sale Item [{$_item->name}], W:{$item_w}, L:{$item_l}, " .
                 "Price:{$price}, Qty:{$quantity}", 'warning');
             }
 
             if ($sale_items) $this->updateSaleItems($sale_id, $sale_items);
 
-            $this->db->update('sales',
+            $this->db->update(
+              'sales',
               [
                 'total' => roundDecimal($total_price),
                 'grand_total' => roundDecimal($total_price - $discount),
                 'total_items' => $total_qty
-              ], ['id' => $sale_id]); // ORIGINAL UPDATE SALE #2.
+              ],
+              ['id' => $sale_id]
+            ); // ORIGINAL UPDATE SALE #2.
           }
           return TRUE;
         }
@@ -9241,7 +9333,8 @@ class Site extends MY_Model
 
       $saleItemData['subtotal'] = $price * $quantity;
     }
-    if (isset($data['width']) || isset($data['length']) || isset($data['spec']) ||
+    if (
+      isset($data['width']) || isset($data['length']) || isset($data['spec']) ||
       isset($data['status']) || isset($data['quantity']) || isset($data['due_date']) ||
       isset($data['completed_at'])
     ) {
@@ -10063,7 +10156,7 @@ class Site extends MY_Model
       'cost_click'    => ($data['cost_click']    ?? $track->cost_click),
       'adjustment_id' => ($data['adjustment_id'] ?? $track->adjustment_id),
       'warehouse_id'  => ($data['warehouse_id']  ?? $track->warehouse_id),
-      'attachment'    => ($data['attachment']    ?? $track->attachment),
+      'attachment_id' => ($data['attachment_id'] ?? $track->attachment_id),
       'note'          => ($data['note']          ?? $track->note),
       'created_at'    => ($data['created_at']    ?? $track->created_at),
       'created_by'    => ($data['created_by']    ?? $track->created_by),

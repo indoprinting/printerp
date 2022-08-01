@@ -799,8 +799,8 @@ class Sales extends MY_Controller
 
       // Overdate Protection.
       if (strtotime($date) > now()) {
-        $this->session->set_flashdata('error', 'DO NOT TRY TO CHEATING.');
-        redirect($_SERVER['HTTP_REFERER'] ?? 'admin/sales');
+        // $this->session->set_flashdata('error', 'DO NOT TRY TO CHEATING.');
+        // redirect($_SERVER['HTTP_REFERER'] ?? 'admin/sales');
       }
 
       // If draft sale.
@@ -1072,7 +1072,7 @@ class Sales extends MY_Controller
       $this->data['id']        = $id;
       $this->data['billers']    = ($this->Owner || $this->Admin || !$this->session->userdata('biller_id')) ? $this->site->getAllBillers() : null;
       $this->data['units']      = $this->site->getAllBaseUnits();
-      $this->data['warehouses'] = $this->site->getAllWarehouses();
+      $this->data['warehouses'] = $this->site->getWarehouses();
       $this->data['edit_mode']  = $this->editMode;
 
       $bc   = [['link' => base_url(), 'page' => lang('home')], ['link' => admin_url('sales'), 'page' => lang('sales')], ['link' => '#', 'page' => lang('edit_sale')]];
@@ -2011,6 +2011,7 @@ class Sales extends MY_Controller
     $this->data['payments']    = $this->site->getPaymentsBySaleID($sale_id);
     $this->data['customer']    = $this->site->getCustomerByID($inv->customer_id);
     $this->data['biller']      = $this->site->getBillerByID($inv->biller_id);
+    $this->data['warehouse']   = $this->site->getWarehouseByID($inv->warehouse_id);
     $this->data['created_by']  = $this->site->getUser($inv->created_by);
     $this->data['updated_by']  = $inv->updated_by ? $this->site->getUser($inv->updated_by) : null;
     $this->data['inv']         = $inv;

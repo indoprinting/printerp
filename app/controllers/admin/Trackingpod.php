@@ -117,15 +117,14 @@ class Trackingpod extends MY_Controller
           ]);
         }
 
-        $attachment = $uploader->getRandomName();
-
-        if ($uploader->move($this->upload_trackingpod_path, $attachment)) {
-          $trackData['attachment'] = $attachment;
+        if ($attachmentId = $uploader->storeRandom()) {
+          $trackData['attachment_id'] = $attachmentId;
         } else {
           sendJSON(['success' => 0, 'message' => 'Attachment gagal di upload.']);
         }
       } else {
-        sendJSON(['success' => 0, 'message' => 'Attachment berupa foto display mesin POD dibutuhkan.']);
+        if (strip_tags($note) != 'skip_image')
+          sendJSON(['success' => 0, 'message' => 'Attachment berupa foto display mesin POD dibutuhkan.']);
       }
 
       if ($this->site->addTrackingPOD($trackData)) {
@@ -259,7 +258,7 @@ class Trackingpod extends MY_Controller
         (trackingpod.mc_reject + trackingpod.op_reject) AS total_reject,
         trackingpod.erp_click, trackingpod.balance, warehouses.name AS warehouse_name,
         trackingpod.created_at, users.fullname AS creator,
-        trackingpod.attachment")
+        trackingpod.attachment_id")
       ->from('trackingpod')
       ->join('products', 'products.id = trackingpod.pod_id', 'left')
       ->join('users', 'users.id = trackingpod.created_by', 'left')
@@ -285,6 +284,15 @@ class Trackingpod extends MY_Controller
                 <i class=\"fad fa-fw fa-chart-bar\"></i>
             </a>
           </div>";
+      })
+      ->editColumn('attachment_id', function ($data) {
+        return "<div class=\"text-center\">
+          <a href=\"#\" data-remote=\"" .
+          admin_url('gallery/attachment/' . $data['attachment_id'] . "?modal=1") . "\"
+            data-toggle=\"modal\" data-modal-class=\"modal-lg\" data-target=\"#myModal\">
+          <i class=\"fad fa-file-download\"></i>
+        </a>
+      </div>";
       });
 
     if ($warehouses) {
@@ -308,6 +316,9 @@ class Trackingpod extends MY_Controller
     $this->page_construct('trackingpod/index', $this->data);
   }
 
+  /**
+   * Sync TrackingPOD.
+   */
   public function sync($trackId = NULL, $noReturn = FALSE)
   {
     $tracks = [];
@@ -345,7 +356,10 @@ class Trackingpod extends MY_Controller
   {
     $this->sync($trackId, TRUE);
     $track = $this->site->getTrackingPODByID($trackId);
+    $whProduct = $this->site->getWarehouseProduct($track->pod_id, $track->warehouse_id);
+
     $this->data['track'] = $track;
+    $this->data['klikpod_qty'] = ($whProduct ? $whProduct->quantity : 0);
 
     $this->load->view($this->theme . 'trackingpod/view', $this->data);
   }
