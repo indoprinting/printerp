@@ -120,7 +120,7 @@ class Developers extends MY_Controller
         $text = ocr($uploader->getTempName());
 
         if ($text) {
-          $data = print_r($text, TRUE);
+          $data = '<pre>' . print_r($text, TRUE) . '</pre>';
 
           $this->response(200, ['data' => $data, 'message' => 'OCR scan success.']);
         }
