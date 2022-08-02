@@ -16,8 +16,14 @@ use PhpOffice\PhpSpreadsheet\Writer;
 class FileUpload
 {
   protected $file = NULL;
-  protected $files;
-  protected $is_moved = FALSE;
+  /**
+   * @var array
+   */
+  protected $files = [];
+  /**
+   * @var bool
+   */
+  protected $isMoved;
 
   public function __construct()
   {
@@ -26,13 +32,18 @@ class FileUpload
     $this->files = $_FILES;
   }
 
+  public function files()
+  {
+    return $this->files;
+  }
+
   /**
    * Check if file has been uploaded and has size more than zero.
    * @param string $filename Filename.
    */
   public function has($filename)
   {
-    $this->is_moved = FALSE;
+    $this->isMoved = FALSE;
 
     if (isset($this->files[$filename]) && $this->files[$filename]['size'] > 0) {
       $this->file = $this->files[$filename];
@@ -119,7 +130,7 @@ class FileUpload
    */
   public function isMoved()
   {
-    return $this->is_moved;
+    return $this->isMoved;
   }
 
   public function move($path, $newName = NULL)
@@ -130,7 +141,7 @@ class FileUpload
       $newName = ($newName ?? $this->getName());
 
       if (move_uploaded_file($this->getTempName(), $path . $newName)) {
-        $this->is_moved = TRUE;
+        $this->isMoved = TRUE;
         return TRUE;
       }
     }

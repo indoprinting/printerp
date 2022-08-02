@@ -120,16 +120,14 @@
         <div class="col-md-12">
           <label>Reject Operator otomatis dihitung berdasarkan balance yang minus dikurang Reject Mesin</label>
         </div>
-      </div>
-
-      <div class="row">
-        <div class="col-md-12 overflow-x">
+        <div class="col-md-12">
           <div class="form-group">
             <label for="attachment">Attachment</label>
             <input type="file" class="form-control file" name="attachment" data-browse-label="Browse" data-show-upload="false" data-show-preview="false">
           </div>
         </div>
       </div>
+
       <div class="row">
         <div class="col-md-12">
           <div class="form-group">

@@ -103,6 +103,7 @@ class Trackingpod extends MY_Controller
         $fullColor = 0;
 
         if ($ocr) {
+          // Multi Full Color Counter in one image.
           for ($x = 0; $x < count($ocr); $x++) {
             if (strcasecmp($ocr[$x], 'Full Color Counter') === 0) {
               $fullColor += filterDecimal($ocr[$x + 1]);
