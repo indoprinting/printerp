@@ -14,6 +14,9 @@ class DB
    * @var DB
    */
   protected static $classInstance;
+  /**
+   * @var string
+   */
   protected static $tableName;
 
   public static function affectedRows()
